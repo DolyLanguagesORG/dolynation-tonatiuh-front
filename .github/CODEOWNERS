@@ -1,0 +1,19 @@
+# CODEOWNERS
+# Lines starting with '#' are comments.
+# Each line is a file pattern followed by one or more owners.
+# Order matters: later patterns override earlier ones.
+#
+# La protección de ramas exige 1 aprobación de cualquier persona con acceso,
+# NO de un CODEOWNER en particular: `require_code_owner_reviews` está en
+# `false`. Estos owner sirven para saber a quién pedir revisión.
+#
+# Integrantes (ver docs/cronograma.md):
+#   - Jesús Alberto Villarrea Pérez  → @XxjesusalbertoxX  (SM / Lead Dev)
+#   - Juan Antonio Deras Durón       → @y0ADQ1            (Frontend)
+# ─────────────────────────────────────────────────────────────────────────
+
+# Default owners for everything in the repo
+* @XxjesusalbertoxX @y0ADQ1
+
+# CI
+/.github/ @XxjesusalbertoxX
