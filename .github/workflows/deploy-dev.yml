@@ -1,0 +1,53 @@
+name: deploy-dev
+
+# Despliega el frontend al entorno de desarrollo al mergear a `develop`.
+# Regenera el `.env` del servidor desde los secretos del environment
+# `desarrollo` y luego ejecuta el script de deploy (versionado en el repo
+# `infra`). Para agregar una variable nueva: crea el secret y añade una línea
+# en el bloque de abajo. Las variables `NEXT_PUBLIC_*` se exponen al cliente.
+
+on:
+  push:
+    branches: [develop]
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-dev-frontend
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Desplegar frontend en desarrollo
+    runs-on: ubuntu-latest
+    environment: desarrollo
+    # Un push hecho por el propio bot no debe re-disparar el deploy.
+    if: github.event_name == 'workflow_dispatch' || github.event.pusher.name != 'github-actions[bot]'
+    steps:
+      - name: Instalar llave SSH
+        run: |
+          mkdir -p ~/.ssh
+          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -p "${{ secrets.DEPLOY_PORT }}" "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+      - name: Regenerar .env del frontend en el servidor
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+        run: |
+          set -euo pipefail
+          {
+            printf 'NEXT_PUBLIC_API_URL=%s\n' "$NEXT_PUBLIC_API_URL"
+          } > /tmp/frontend.env
+          base64 -w0 /tmp/frontend.env | ssh -i ~/.ssh/deploy_key \
+            -p "${{ secrets.DEPLOY_PORT }}" \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "base64 -d > '${{ secrets.ORG_PATH }}/dolynation-tonatiuh-front/.env'"
+
+      - name: Desplegar (pull + restart + healthcheck)
+        run: |
+          ssh -i ~/.ssh/deploy_key \
+            -p "${{ secrets.DEPLOY_PORT }}" \
+            -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "bash '${{ secrets.ORG_PATH }}/dolynation-tlalli-infra/scripts/deploy-dev-front.sh'"
