@@ -2,7 +2,7 @@
 Thanks for the PR! Please fill out the sections below so reviewers have
 context. The CI must pass before this can be merged.
 
-Guia paso a paso: https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs/blob/develop/COMO-HACER-UN-PR.md
+Guia paso a paso: https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs/blob/develop/operations/COMO-HACER-UN-PR.md
 -->
 
 ## Resumen
