@@ -7,7 +7,7 @@ Las reglas transversales del proyecto (git workflow, commits, versionado,
 entorno) viven en la documentación central:
 
 - [Convenciones](https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs/tree/develop/conventions)
-- [Cómo hacer un PR](https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs/blob/develop/COMO-HACER-UN-PR.md)
+- [Cómo hacer un PR](https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs/blob/develop/operations/COMO-HACER-UN-PR.md)
 
 ## Por rellenar
 

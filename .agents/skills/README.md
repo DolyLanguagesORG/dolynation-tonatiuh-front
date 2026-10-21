@@ -1,7 +1,12 @@
-# Skills del frontend — `dolynation-tonatiuh-front`
+# Skills — `dolynation-tonatiuh-front`
 
-> **PENDIENTE.** Aquí se colocarán las *skills* (instrucciones para agentes de
-> código) específicas del frontend Next.js/React.
+Skills (instrucciones para agentes de código) **específicas de este repositorio**.
+Los agentes las cargan bajo demanda a partir del `description` del `SKILL.md`.
 
-Las skills generales de diseño de API y patrones de arquitectura viven en el
-repo de backend (`dolynation-atl-back/.agents/skills/`).
+| Skill | Para qué |
+| ----- | -------- |
+| [`nextjs-frontend`](./nextjs-frontend/SKILL.md) | Trabajar en este repo: Next.js 16.4 (App Router), comandos, estructura, consumir la API y subir cambios (rama/commit/PR/checks). |
+
+Las skills **generales de la organización** (flujo global, pregunta sobre el
+anteproyecto, documentación oficial) viven en el repo
+[`dolynation-ehecatl-docs`](https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs).
