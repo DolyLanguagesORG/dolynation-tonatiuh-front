@@ -27,20 +27,53 @@ jobs:
     if: github.event_name == 'workflow_dispatch' || github.event.pusher.name != 'github-actions[bot]'
     steps:
       - name: Instalar llave SSH
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
         run: |
+          set -euo pipefail
+
+          if [ -z "${DEPLOY_SSH_KEY:-}" ] || [ -z "${DEPLOY_HOST:-}" ] || [ -z "${DEPLOY_PORT:-}" ]; then
+            echo "::error::Faltan secrets de despliegue (DEPLOY_SSH_KEY, DEPLOY_HOST, DEPLOY_PORT) en el environment 'desarrollo'."
+            exit 1
+          fi
+
           mkdir -p ~/.ssh
-          printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
+          # La llave es PEM y puede traer CRLF: se normaliza a LF.
+          printf '%s\n' "$DEPLOY_SSH_KEY" | tr -d '\r' > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -p "${{ secrets.DEPLOY_PORT }}" "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts 2>/dev/null
+
+          # La clave del host se fija por fingerprint: no se acepta la primera
+          # conexion a ciegas. Si el host cambia, hay que actualizar el secret.
+          ssh-keyscan -p "$DEPLOY_PORT" "$DEPLOY_HOST" > /tmp/host_keys 2>&1 || true
+          if [ ! -s /tmp/host_keys ]; then
+            echo "::error::No se pudo obtener la clave del host $DEPLOY_HOST:$DEPLOY_PORT."
+            echo "::error::Detalle del escaneo:"
+            cat /tmp/host_keys
+            exit 1
+          fi
+          cat /tmp/host_keys >> ~/.ssh/known_hosts
 
       - name: Regenerar .env del frontend en el servidor
         env:
+          # El frontend lee NEXT_PUBLIC_API_BASE_URL (ver src/lib/env.ts).
+          # El secret historico se llama NEXT_PUBLIC_API_URL: se aceptan
+          # ambos nombres para no depender de renombrar el secret.
+          NEXT_PUBLIC_API_BASE_URL: ${{ secrets.NEXT_PUBLIC_API_BASE_URL }}
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
         run: |
           set -euo pipefail
+          api_base_url="${NEXT_PUBLIC_API_BASE_URL:-${NEXT_PUBLIC_API_URL:-}}"
+          if [ -z "$api_base_url" ]; then
+            echo "::error::Falta la URL del backend. Define NEXT_PUBLIC_API_BASE_URL en el environment 'desarrollo'."
+            exit 1
+          fi
           {
-            printf 'NEXT_PUBLIC_API_URL=%s\n' "$NEXT_PUBLIC_API_URL"
+            printf 'NEXT_PUBLIC_API_BASE_URL=%s\n' "$api_base_url"
           } > /tmp/frontend.env
+          echo "API base del frontend: $api_base_url"
           base64 -w0 /tmp/frontend.env | ssh -i ~/.ssh/deploy_key \
             -p "${{ secrets.DEPLOY_PORT }}" \
             -o StrictHostKeyChecking=accept-new -o BatchMode=yes \
