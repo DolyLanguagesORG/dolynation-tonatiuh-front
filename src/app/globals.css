@@ -1,26 +1,234 @@
 @import "tailwindcss";
+@import "flowbite-react/plugin/tailwindcss";
+@source "../../.flowbite-react/class-list.json";
+
+/* Desactiva la activación automática por sistema operativo de variantes `dark:*`
+   internas de flowbite-react para garantizar el tema editorial Blanco y Negro. */
+@custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Paleta estrictamente Blanco y Negro (Monocromática Editorial DolyNation) */
+  --background: #fafafa;
+  --surface: #ffffff;
+  --surface-subtle: #f5f5f5;
+  --surface-muted: #e5e5e5;
+
+  --foreground: #0a0a0a;
+  --ink: #000000;
+  --ink-hover: #262626;
+  --ink-contrast: #ffffff;
+
+  --muted: #525252;
+  --subtle: #737373;
+
+  --border: #e5e5e5;
+  --border-strong: #d4d4d4;
+  --focus-ring: #000000;
+
+  /* Neutralización de las escalas base de flowbite-react (--primary-* y --gray-*)
+     a escala monocromática pura (0% saturación azul) */
+  --gray-50: #fafafa;
+  --gray-100: #f5f5f5;
+  --gray-200: #e5e5e5;
+  --gray-300: #d4d4d4;
+  --gray-400: #a3a3a3;
+  --gray-500: #737373;
+  --gray-600: #525252;
+  --gray-700: #262626;
+  --gray-800: #171717;
+  --gray-900: #0a0a0a;
+
+  --primary-50: #fafafa;
+  --primary-100: #f5f5f5;
+  --primary-200: #e5e5e5;
+  --primary-300: #d4d4d4;
+  --primary-400: #a3a3a3;
+  --primary-500: #525252;
+  --primary-600: #262626;
+  --primary-700: #000000;
+  --primary-800: #171717;
+  --primary-900: #000000;
+
+  /* Estados semánticos dinámicos (ÚNICAS excepciones de color: success, warning, danger) */
+  --status-error: #b91c1c;
+  --status-error-bg: #fef2f2;
+  --status-error-border: #fca5a5;
+
+  --status-success: #15803d;
+  --status-success-bg: #f0fdf4;
+  --status-success-border: #86efac;
+
+  --status-warning: #b45309;
+  --status-warning-bg: #fffbeb;
+  --status-warning-border: #fcd34d;
+
+  /* El estado informativo permanece en blanco y negro */
+  --status-info: #000000;
+  --status-info-bg: #f5f5f5;
+  --status-info-border: #d4d4d4;
+
+  --shell-header-height: 3.5rem;
+  --shell-sidebar-width: 15rem;
 }
 
+/* Flowbite MCP generated @theme customized to DolyNation Black & White Wireframes */
 @theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-body: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-editorial-serif), Georgia, Cambria, "Times New Roman", serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+
+  /* TEXT & SPACING VARIABLES (Flowbite MCP) */
+  --text-2xs: 0.625rem;
+  --spacing-8xl: 90rem;
+
+  /* BORDER RADIUS VARIABLES (Sharp Editorial Geometry) */
+  --radius-0: 0px;
+  --radius-xxs: 0.125rem;
+  --radius-xs: 0.125rem;
+  --radius-sm: 0.25rem;
+  --radius: 0.25rem;
+  --radius-base: 0.125rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+
+  /* BORDER WIDTH VARIABLES */
+  --default-border-width: 1px;
+
+  /* FLOWBITE TEXT COLOR VARIABLES (Blanco y Negro) */
+  --color-body: var(--muted);
+  --color-body-subtle: var(--subtle);
+  --color-heading: var(--ink);
+
+  /* FLOWBITE BRAND FOREGROUND COLORS (Negro Puro) */
+  --color-fg-brand-subtle: #d4d4d4;
+  --color-fg-brand: var(--ink);
+  --color-fg-brand-strong: var(--ink);
+
+  /* FLOWBITE STATUS FOREGROUND COLORS (Solo success, warning y danger con color) */
+  --color-fg-success: var(--status-success);
+  --color-fg-success-strong: #14532d;
+  --color-fg-danger: var(--status-error);
+  --color-fg-danger-strong: #7f1d1d;
+  --color-fg-warning-subtle: #d97706;
+  --color-fg-warning: var(--status-warning);
+  --color-fg-disabled: #a3a3a3;
+
+  /* FLOWBITE NEUTRAL SURFACE VARIABLES (Blanco y Escala de Grises Neutra) */
+  --color-neutral-primary-soft: var(--surface);
+  --color-neutral-primary: var(--surface);
+  --color-neutral-primary-medium: var(--surface);
+  --color-neutral-primary-strong: var(--surface);
+  --color-neutral-secondary-soft: var(--background);
+  --color-neutral-secondary: var(--surface-subtle);
+  --color-neutral-secondary-medium: var(--surface-subtle);
+  --color-neutral-secondary-strong: var(--surface-subtle);
+  --color-neutral-secondary-strongest: var(--surface-muted);
+  --color-neutral-tertiary-soft: var(--surface-subtle);
+  --color-neutral-tertiary: var(--surface-muted);
+  --color-neutral-tertiary-medium: var(--surface-muted);
+  --color-neutral-quaternary: var(--border-strong);
+  --color-neutral-quaternary-medium: var(--border-strong);
+
+  /* FLOWBITE BRAND BACKGROUND VARIABLES (Negro / Blanco / Monocromo) */
+  --color-brand-softer: #fafafa;
+  --color-brand-soft: #f5f5f5;
+  --color-brand: #000000;
+  --color-brand-medium: #d4d4d4;
+  --color-brand-strong: #262626;
+  --color-brand-subtle: #e5e5e5;
+  --color-brand-light: #404040;
+
+  /* FLOWBITE STATUS BACKGROUND VARIABLES (Dinámicos para success, warning y danger) */
+  --color-success-soft: var(--status-success-bg);
+  --color-success: var(--status-success);
+  --color-success-medium: var(--status-success-border);
+  --color-success-strong: #166534;
+  --color-success-subtle: var(--status-success-border);
+
+  --color-danger-soft: var(--status-error-bg);
+  --color-danger: var(--status-error);
+  --color-danger-medium: var(--status-error-border);
+  --color-danger-strong: #991b1b;
+  --color-danger-subtle: var(--status-error-border);
+
+  --color-warning-soft: var(--status-warning-bg);
+  --color-warning: var(--status-warning);
+  --color-warning-medium: var(--status-warning-border);
+  --color-warning-strong: #92400e;
+  --color-warning-subtle: var(--status-warning-border);
+
+  --color-dark-soft: #262626;
+  --color-dark: #000000;
+  --color-dark-strong: #000000;
+  --color-disabled: var(--surface-muted);
+
+  /* FLOWBITE BORDER COLOR VARIABLES */
+  --color-buffer: var(--surface);
+  --color-buffer-medium: var(--surface);
+  --color-buffer-strong: var(--surface);
+  --color-default-subtle: var(--border);
+  --color-default: var(--border);
+  --color-default-medium: var(--border-strong);
+  --color-default-strong: #737373;
+
+  /* DOLYNATION ALIAS TOKENS */
   --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-subtle: var(--surface-subtle);
+  --color-surface-muted: var(--surface-muted);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-ink: var(--ink);
+  --color-ink-hover: var(--ink-hover);
+  --color-ink-contrast: var(--ink-contrast);
+  --color-muted: var(--muted);
+  --color-subtle: var(--subtle);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-focus-ring: var(--focus-ring);
+
+  --color-status-error: var(--status-error);
+  --color-status-error-bg: var(--status-error-bg);
+  --color-status-error-border: var(--status-error-border);
+  --color-status-success: var(--status-success);
+  --color-status-success-bg: var(--status-success-bg);
+  --color-status-success-border: var(--status-success-border);
+  --color-status-warning: var(--status-warning);
+  --color-status-warning-bg: var(--status-warning-bg);
+  --color-status-warning-border: var(--status-warning-border);
+  --color-status-info: var(--status-info);
+  --color-status-info-bg: var(--status-info-bg);
+  --color-status-info-border: var(--status-info-border);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+html {
+  color-scheme: light;
+  scroll-behavior: smooth;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: var(--color-neutral-secondary-soft);
+  color: var(--color-heading);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+/* Visually hidden utility keeping elements in the accessibility tree
+   while allowing focusable children (such as skip links) to appear on focus. */
+.visually-hidden:where(:not(:focus-within, :active)) {
+  position: absolute !important;
+  clip-path: inset(50%) !important;
+  overflow: hidden !important;
+  width: 1px !important;
+  height: 1px !important;
+  margin: -1px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  white-space: nowrap !important;
+}
+
+/* Accessible keyboard focus ring with offset */
+:where(a:any-link, button, input, select, textarea, [tabindex]:not([tabindex="-1"])):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
