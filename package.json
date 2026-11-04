@@ -11,6 +11,7 @@
     "verify": "npm run lint && npm run typecheck"
   },
   "dependencies": {
+    "flowbite-react": "^0.12.17",
     "next": "16.4.0",
     "react": "19.3.0",
     "react-dom": "19.3.0"
