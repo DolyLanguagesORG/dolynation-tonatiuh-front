@@ -17,6 +17,18 @@ updates:
         dependency-type: production
       development-dependencies:
         dependency-type: development
+    # TypeScript 7 todavia no lo soporta typescript-eslint, y el propio
+    # eslint-config-next declara "typescript": ">=4.8.4 <6.1.0". Las majors
+    # de ESLint y TypeScript quedan para migracion manual del equipo.
+    ignore:
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "typescript-eslint"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "@typescript-eslint/*"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "eslint"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: github-actions
     directory: /
