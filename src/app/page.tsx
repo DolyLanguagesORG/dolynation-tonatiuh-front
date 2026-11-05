@@ -272,8 +272,7 @@ export default function HomePage() {
     }
   };
 
-  const configuredApiUrl =
-    env.apiBaseUrl || "http://localhost:3333/api/v1 (.env.example)";
+  const configuredApiUrl = env.apiBaseUrl;
 
   return (
     <Container size="lg" className="flex flex-col gap-8 sm:gap-10">
@@ -790,16 +789,18 @@ export default function HomePage() {
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-bold tracking-wider text-ink uppercase">
-                  CLIENTE HTTP BASE (NEXT_PUBLIC_API_BASE_URL)
+                  PROXY DE API (NEXT.JS)
                 </span>
-                <Badge
-                  variant={env.isApiConfigured ? "success" : "secondary"}
-                >
-                  {env.isApiConfigured ? "ENV ACTIVO" : "MODO PLANTILLA"}
-                </Badge>
+                <Badge variant="success">ACTIVO</Badge>
               </div>
               <p className="font-mono text-xs break-all text-muted">
                 {configuredApiUrl}
+              </p>
+              <p className="text-xs leading-relaxed text-muted">
+                Las peticiones van al proxy de Next.js, que corre en el servidor y
+                las reenvía al backend. La dirección interna del backend{" "}
+                <code className="font-mono text-ink">BACKEND_INTERNAL_URL</code>{" "}
+                no se expone al navegador.
               </p>
               <p className="text-xs leading-relaxed text-muted">
                 Todas las respuestas se procesan bajo el envelope{" "}

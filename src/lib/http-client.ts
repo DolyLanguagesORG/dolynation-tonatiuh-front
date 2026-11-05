@@ -35,8 +35,12 @@ function isJsonEnvelope<T>(payload: unknown): payload is ApiResponse<T> {
 }
 
 /**
- * Ejecuta una petición HTTP hacia el backend de DolyNation (`NEXT_PUBLIC_API_BASE_URL`),
- * desempaquetando el envelope `ApiResponse<T>` y normalizando cualquier fallo en `ApiClientError`.
+ * Ejecuta una petición HTTP hacia el backend de DolyNation **a través del
+ * proxy de Next.js** (`/api/v1/...`), desempaquetando el envelope
+ * `ApiResponse<T>` y normalizando cualquier fallo en `ApiClientError`.
+ *
+ * La petición es siempre al mismo origen: el proxy del servidor la reenvía a
+ * `BACKEND_INTERNAL_URL`. El navegador nunca ve la dirección del backend.
  */
 export async function apiRequest<T>(
   path: string,
