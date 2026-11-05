@@ -78,7 +78,7 @@ const ERROR_MESSAGES_ES: Record<KnownErrorCode, string> = {
   NETWORK_ERROR:
     "No fue posible conectar con el servidor. Verifica tu conexión o el estado del backend.",
   CONFIG_ERROR:
-    "Falta configurar NEXT_PUBLIC_API_BASE_URL en las variables de entorno del proyecto.",
+    "El proxy del servidor no está configurado. Revisa BACKEND_INTERNAL_URL en el entorno del despliegue.",
   UNKNOWN_ERROR:
     "Se produjo un error inesperado al procesar la solicitud.",
 };
@@ -113,7 +113,7 @@ const ERROR_MESSAGES_EN: Record<KnownErrorCode, string> = {
   NETWORK_ERROR:
     "Could not reach the backend server. Check your network connection.",
   CONFIG_ERROR:
-    "NEXT_PUBLIC_API_BASE_URL is not configured in the environment variables.",
+    "The server proxy is not configured. Check BACKEND_INTERNAL_URL in the deployment environment.",
   UNKNOWN_ERROR:
     "An unexpected error occurred while processing the request.",
 };
