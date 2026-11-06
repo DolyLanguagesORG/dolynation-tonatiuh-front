@@ -3,6 +3,7 @@
   "packages": {
     ".": {
       "release-type": "node",
+      "prerelease": true,
       "package-name": "dolynation-tonatiuh-front",
       "changelog-path": "CHANGELOG.md",
       "include-component-in-tag": false,
