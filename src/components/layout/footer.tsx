@@ -3,6 +3,7 @@
 import { Footer as FlowbiteFooter, FooterLinkGroup } from "flowbite-react";
 
 import { dolyFlowbiteTheme } from "@/components/ui/flowbite-theme";
+import { VersionBadge } from "@/components/layout/version-badge";
 import { useLocale } from "@/i18n";
 
 /**
@@ -26,6 +27,7 @@ export function Footer() {
           <p className="text-[10px] font-medium text-body-subtle">
             {t.footer.systemStandard}
           </p>
+          <VersionBadge />
         </div>
 
         <FooterLinkGroup className="flex flex-wrap items-center gap-4 text-[11px] font-semibold tracking-wider text-body uppercase sm:gap-6">

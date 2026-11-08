@@ -39,6 +39,9 @@ jobs:
       - name: Test del regex de pr-labels
         run: node .github/workflows/pr-labels.regex.test.cjs
 
+      - name: Test del versionado
+        run: node scripts/version.test.mjs
+
   typecheck:
     name: typecheck
     runs-on: ubuntu-latest

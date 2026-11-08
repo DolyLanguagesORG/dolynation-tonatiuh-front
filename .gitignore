@@ -20,6 +20,10 @@
 # production
 /build
 
+# La version del build: la genera `npm run generate-version` y cambia en
+# cada build, asi que no se versiona.
+public/version.json
+
 # flowbite-react
 .flowbite-react/
 
