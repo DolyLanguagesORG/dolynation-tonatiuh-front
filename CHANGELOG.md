@@ -11,6 +11,14 @@ un PR de release contra `develop` que sube la versión y escribe esta sección; 
 mergearlo se crean el tag anotado y la GitHub Release. Ver
 [`conventions/versioning.md`](https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs/blob/develop/conventions/versioning.md).
 
+## [0.3.1](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.3.0...v0.3.1) (2026-11-09)
+
+
+### Bug Fixes
+
+* **ci:** construir la imagen con expresiones validas y etiquetas inmutables ([#56](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/56)) ([bb637ae](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/bb637aea960d8abc5392accaae1885baf521b448)), closes [#43](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/43)
+* **release:** activar el auto-merge aunque el PR de release ya exista ([#52](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/52)) ([ea6a8c8](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/ea6a8c8f3783eb9fdfe7f247ead14b1634aa4106)), closes [#4](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/4)
+
 ## [0.3.0](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.2.1...v0.3.0) (2026-11-08)
 
 
