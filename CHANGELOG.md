@@ -11,6 +11,15 @@ un PR de release contra `develop` que sube la versión y escribe esta sección; 
 mergearlo se crean el tag anotado y la GitHub Release. Ver
 [`conventions/versioning.md`](https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs/blob/develop/conventions/versioning.md).
 
+## [0.3.2](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.3.1...v0.3.2) (2026-11-09)
+
+
+### Bug Fixes
+
+* **ci:** autenticar en GHCR con el PAT ([#59](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/59)) ([b848b5b](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/b848b5b5ea6cbdaded1abde125179c8b4918091b)), closes [#43](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/43)
+* **ci:** construir la imagen multi-arquitectura (amd64 y arm64) ([#60](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/60)) ([6e5c4aa](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/6e5c4aad06b8f6dfe8515f063870991d36d3aa75)), closes [#43](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/43)
+* **ci:** escribir las etiquetas multi-linea con el delimitador de GITHUB_OUTPUT ([#57](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/57)) ([ad75f51](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/ad75f51bb609697553a00808d8a5dec1f0a0425b)), closes [#43](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/43)
+
 ## [0.3.1](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.3.0...v0.3.1) (2026-11-09)
 
 
