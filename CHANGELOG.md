@@ -11,6 +11,13 @@ un PR de release contra `develop` que sube la versión y escribe esta sección; 
 mergearlo se crean el tag anotado y la GitHub Release. Ver
 [`conventions/versioning.md`](https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs/blob/develop/conventions/versioning.md).
 
+## [0.3.3](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.3.2...v0.3.3) (2026-11-09)
+
+
+### Bug Fixes
+
+* **ci:** la APP_VERSION de la imagen sale del manifiesto cuando no hay tag ([#61](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/61)) ([1705e2c](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/1705e2cedb81dea47f766fdbc3e7c8888da083ca)), closes [#43](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/43)
+
 ## [0.3.2](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.3.1...v0.3.2) (2026-11-09)
 
 
