@@ -4,6 +4,7 @@ import { Geist, Geist_Mono, Newsreader } from "next/font/google";
 
 import { AppShell } from "@/components/layout";
 import { dolyFlowbiteTheme } from "@/components/ui/flowbite-theme";
+import { AuthProvider } from "@/context";
 import { LocaleProvider } from "@/i18n";
 
 import "./globals.css";
@@ -42,7 +43,9 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col bg-neutral-secondary-soft text-heading font-sans">
         <ThemeProvider theme={dolyFlowbiteTheme}>
           <LocaleProvider>
-            <AppShell>{children}</AppShell>
+            <AuthProvider>
+              <AppShell>{children}</AppShell>
+            </AuthProvider>
           </LocaleProvider>
         </ThemeProvider>
       </body>

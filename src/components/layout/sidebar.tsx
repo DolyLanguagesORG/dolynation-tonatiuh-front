@@ -7,10 +7,11 @@ import {
 } from "flowbite-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { dolyFlowbiteTheme } from "@/components/ui/flowbite-theme";
+import { useAuth } from "@/context";
 import { useLocale } from "@/i18n";
 
 export interface SidebarProps {
@@ -26,9 +27,36 @@ interface NavItem {
   icon: ReactNode;
 }
 
+function getInitials(nameOrEmail: string): string {
+  const clean = nameOrEmail.trim();
+  if (!clean) {
+    return "ER";
+  }
+  const parts = clean.split(/\s+/).filter(Boolean);
+  if (parts.length >= 2) {
+    return `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase();
+  }
+  return clean.slice(0, 2).toUpperCase();
+}
+
 function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
   const pathname = usePathname();
   const { t } = useLocale();
+  const { user, isAuthenticated, logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const displayName = user?.fullName?.trim() || user?.email || "Elena Rostova";
+  const initials = getInitials(displayName);
+
+  const handleLogout = async (): Promise<void> => {
+    setIsLoggingOut(true);
+    try {
+      onItemClick?.();
+      await logout();
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   const navItems: NavItem[] = [
     {
@@ -184,22 +212,22 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
       </div>
 
       {/* Ficha inferior del estudiante activo (estrictamente blanco y negro según wireframe) */}
-      <div className="border-t border-default bg-neutral-primary-soft p-3.5">
+      <div className="flex flex-col gap-3 border-t border-default bg-neutral-primary-soft p-3.5">
         <div className="flex items-center justify-between gap-2.5">
           <div className="flex min-w-0 items-center gap-2.5">
             <div
               aria-hidden="true"
               className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-brand bg-neutral-secondary-medium font-serif text-sm font-bold text-heading"
             >
-              ER
+              {initials}
               <span className="absolute right-0 bottom-0 h-2.5 w-2.5 rounded-full border-2 border-neutral-primary-soft bg-brand" />
             </div>
             <div className="min-w-0">
               <p className="truncate text-xs font-bold text-heading">
-                Elena Rostova
+                {displayName}
               </p>
               <p className="truncate text-[10px] font-medium tracking-wider text-body uppercase">
-                {t.nav.studentRole}
+                {user?.email ?? t.nav.studentRole}
               </p>
             </div>
           </div>
@@ -223,6 +251,35 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
             </svg>
           </span>
         </div>
+
+        {isAuthenticated ? (
+          <Button
+            variant="secondary"
+            size="sm"
+            fullWidth
+            isLoading={isLoggingOut}
+            onClick={handleLogout}
+          >
+            {isLoggingOut ? t.nav.signingOut : t.nav.signOut}
+          </Button>
+        ) : (
+          <div className="grid grid-cols-2 gap-1.5">
+            <Link
+              href="/login"
+              onClick={onItemClick}
+              className="inline-flex min-h-8 items-center justify-center rounded-xs border border-default-medium bg-neutral-primary-soft px-2 py-1 text-[11px] font-bold tracking-wider text-heading uppercase transition-colors hover:border-brand hover:bg-neutral-secondary-medium"
+            >
+              {t.nav.signIn}
+            </Link>
+            <Link
+              href="/register"
+              onClick={onItemClick}
+              className="inline-flex min-h-8 items-center justify-center rounded-xs border border-brand bg-brand px-2 py-1 text-[11px] font-bold tracking-wider text-white uppercase transition-colors hover:bg-brand-strong"
+            >
+              {t.nav.createAccount}
+            </Link>
+          </div>
+        )}
       </div>
     </FlowbiteSidebar>
   );

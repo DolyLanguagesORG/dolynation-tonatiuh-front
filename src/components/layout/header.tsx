@@ -1,24 +1,108 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useState } from "react";
 
+import { useAuth } from "@/context";
 import { useLocale } from "@/i18n";
 
 export interface HeaderProps {
   isMobileMenuOpen: boolean;
   onToggleMobileMenu: () => void;
+  /**
+   * Cuando es `true`, renderiza la barra superior minimalista de las vistas
+   * de autenticación (`/login` y `/register`) según los wireframes.
+   */
+  isAuthRoute?: boolean;
 }
 
 /**
  * Barra superior del shell editorial DolyNation.
- * Incluye marca, selector de edición lingüística (`[ESPAÑOL] ACADÉMICO`),
- * indicador de racha activa y accesos rápidos.
+ * Soporta tanto el modo de aplicación (con menú móvil, racha y cierre de sesión)
+ * como el modo de autenticación (`/login` y `/register`) fiel a los wireframes.
  */
 export function Header({
   isMobileMenuOpen,
   onToggleMobileMenu,
+  isAuthRoute = false,
 }: HeaderProps) {
+  const pathname = usePathname();
   const { locale, t, toggleLocale } = useLocale();
+  const { user, isAuthenticated, logout } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async (): Promise<void> => {
+    setIsLoggingOut(true);
+    try {
+      await logout();
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
+  const streakCount = user?.currentStreak ?? 14;
+  const dynamicStreakLabel =
+    locale === "es"
+      ? `Racha: ${streakCount} días`
+      : `Streak: ${streakCount} days`;
+
+  if (isAuthRoute) {
+    return (
+      <header className="sticky top-0 z-30 flex h-14 w-full shrink-0 items-center justify-between border-b border-border bg-surface px-4 sm:px-8 lg:px-12">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/"
+            className="font-serif text-lg font-bold tracking-tight text-ink sm:text-xl"
+          >
+            DolyNation
+          </Link>
+
+          <span aria-hidden="true" className="h-4 w-px bg-border-strong" />
+
+          <button
+            type="button"
+            onClick={toggleLocale}
+            aria-label={
+              locale === "es"
+                ? "Cambiar idioma de la interfaz a inglés (actual: Español Académico)"
+                : "Switch interface language to Spanish (current: English Academic)"
+            }
+            className="inline-flex min-h-7 items-center rounded-xs border border-border-strong bg-surface-subtle/60 px-2.5 py-1 text-[10px] font-bold tracking-wider text-muted uppercase transition-colors enabled:hover:border-ink enabled:hover:text-ink sm:text-[11px]"
+          >
+            {t.meta.editionBadge}
+          </button>
+        </div>
+
+        <nav
+          aria-label={
+            locale === "es" ? "Acceso a cuenta" : "Account access"
+          }
+          className="flex items-center gap-3 sm:gap-5"
+        >
+          <Link
+            href="/login"
+            aria-current={pathname === "/login" ? "page" : undefined}
+            className={`text-xs font-semibold transition-colors ${
+              pathname === "/login"
+                ? "text-ink underline underline-offset-4"
+                : "text-muted hover:text-ink"
+            }`}
+          >
+            {t.auth.topSignIn}
+          </Link>
+
+          <Link
+            href="/register"
+            aria-current={pathname === "/register" ? "page" : undefined}
+            className="inline-flex min-h-9 items-center justify-center rounded-xs border border-brand bg-brand px-4 py-1.5 text-xs font-semibold text-white transition-colors hover:bg-brand-strong"
+          >
+            {t.auth.topCreateAccount}
+          </Link>
+        </nav>
+      </header>
+    );
+  }
 
   return (
     <header className="sticky top-0 z-30 flex h-14 w-full shrink-0 items-center border-b border-border bg-surface">
@@ -104,7 +188,7 @@ export function Header({
                 clipRule="evenodd"
               />
             </svg>
-            <span className="whitespace-nowrap">{t.meta.streakLabel}</span>
+            <span className="whitespace-nowrap">{dynamicStreakLabel}</span>
           </div>
 
           <span
@@ -112,52 +196,31 @@ export function Header({
             className="hidden h-4 w-px bg-border sm:inline-block"
           />
 
-          <a
-            href="#ultimas-lecturas"
-            aria-label={t.meta.savedAnnotations}
-            className="inline-flex min-h-8 min-w-8 items-center justify-center rounded-xs text-muted transition-colors enabled:hover:bg-surface-subtle enabled:hover:text-ink"
-          >
-            <svg
-              aria-hidden="true"
-              className="h-4 w-4"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
+          {isAuthenticated ? (
+            <button
+              type="button"
+              onClick={handleLogout}
+              disabled={isLoggingOut}
+              className="inline-flex min-h-8 items-center justify-center rounded-xs border border-border-strong bg-surface-subtle px-2.5 py-1 text-xs font-semibold text-ink transition-colors enabled:hover:border-ink enabled:hover:bg-brand enabled:hover:text-white disabled:opacity-50"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z"
-              />
-            </svg>
-          </a>
-
-          <a
-            href="#sistema-base"
-            aria-label={t.meta.settings}
-            className="inline-flex min-h-8 min-w-8 items-center justify-center rounded-xs text-muted transition-colors enabled:hover:bg-surface-subtle enabled:hover:text-ink"
-          >
-            <svg
-              aria-hidden="true"
-              className="h-4 w-4"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.8"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M10.343 3.94c.09-.542.56-.94 1.11-.94h1.093c.55 0 1.02.398 1.11.94l.149.894c.07.424.384.764.78.93.398.164.855.142 1.205-.108l.737-.527a1.125 1.125 0 011.45.12l.773.774c.39.389.44 1.002.12 1.45l-.527.737c-.25.35-.272.806-.107 1.204.165.397.505.71.93.78l.893.15c.543.09.94.56.94 1.109v1.094c0 .55-.397 1.02-.94 1.11l-.893.149c-.425.07-.765.383-.93.78-.165.398-.143.854.107 1.204l.527.738c.32.447.269 1.06-.12 1.45l-.774.773a1.125 1.125 0 01-1.449.12l-.738-.527c-.35-.25-.806-.272-1.203-.107-.397.165-.71.505-.781.929l-.149.894c-.09.542-.56.94-1.11.94h-1.094c-.55 0-1.019-.398-1.11-.94l-.148-.894c-.071-.424-.384-.764-.781-.93-.398-.164-.854-.142-1.204.108l-.738.527c-.447.32-1.06.269-1.45-.12l-.773-.774a1.125 1.125 0 01-.12-1.45l.527-.737c.25-.35.273-.806.108-1.204-.165-.397-.505-.71-.93-.78l-.894-.15c-.542-.09-.94-.56-.94-1.109v-1.094c0-.55.398-1.02.94-1.11l.894-.149c.424-.07.765-.383.93-.78.165-.398.143-.854-.107-1.204l-.527-.738a1.125 1.125 0 01.12-1.45l.773-.773a1.125 1.125 0 011.45-.12l.737.527c.35.25.807.272 1.204.107.397-.165.71-.505.78-.929l.15-.894z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-            </svg>
-          </a>
+              {isLoggingOut ? t.nav.signingOut : t.nav.signOut}
+            </button>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link
+                href="/login"
+                className="inline-flex min-h-8 items-center justify-center rounded-xs border border-border-strong bg-surface px-2.5 py-1 text-xs font-semibold text-ink transition-colors hover:border-ink hover:bg-surface-subtle"
+              >
+                {t.nav.signIn}
+              </Link>
+              <Link
+                href="/register"
+                className="hidden min-h-8 items-center justify-center rounded-xs border border-brand bg-brand px-2.5 py-1 text-xs font-semibold text-white transition-colors hover:bg-brand-strong sm:inline-flex"
+              >
+                {t.nav.createAccount}
+              </Link>
+            </div>
+          )}
         </div>
       </div>
     </header>

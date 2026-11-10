@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 
 import {
@@ -10,11 +11,12 @@ import {
   Container,
   Input,
 } from "@/components/ui";
+import { useAuth } from "@/context";
 import { useLocale } from "@/i18n";
 import {
   ApiClientError,
+  authClient,
   env,
-  ErrorCode,
   httpClient,
 } from "@/lib";
 
@@ -185,8 +187,22 @@ const RECENT_READINGS: readonly ReadingRecord[] = [
 
 export default function HomePage() {
   const { locale, t } = useLocale();
+  const {
+    user,
+    accessToken,
+    status: authStatus,
+    isAuthenticated,
+    onboarding,
+    preferredLanguage,
+    resetOnboardingMock,
+    logout,
+  } = useAuth();
 
-  const [selectedLang, setSelectedLang] = useState<string>("en");
+  const [selectedLang, setSelectedLang] = useState<string>(
+    LANGUAGES.some((item) => item.id === preferredLanguage)
+      ? preferredLanguage
+      : "en",
+  );
   const [selectedDomain, setSelectedDomain] = useState<string>("tech");
   const [selectedComplexity, setSelectedComplexity] =
     useState<ComplexityOption["id"]>("medium");
@@ -201,6 +217,18 @@ export default function HomePage() {
     message: string;
   } | null>(null);
   const [isPingingApi, setIsPingingApi] = useState<boolean>(false);
+
+  const firstNameDisplay =
+    user?.fullName?.trim().split(/\s+/)[0] ||
+    user?.email?.split("@")[0] ||
+    "Elena";
+
+  const dynamicWelcomeHeading =
+    locale === "es"
+      ? `Bienvenido de vuelta, ${firstNameDisplay}.`
+      : `Welcome back, ${firstNameDisplay}.`;
+
+  const streakDaysCount = user?.currentStreak ?? 14;
 
   const searchError =
     searchQuery.trim().length > 40
@@ -272,22 +300,201 @@ export default function HomePage() {
     }
   };
 
+  const handleVerifyAuthMe = async (): Promise<void> => {
+    setIsPingingApi(true);
+    try {
+      const response = await authClient.me();
+      setApiPingStatus({
+        variant: "success",
+        code: "AUTH_ME_OK",
+        message:
+          locale === "es"
+            ? `Sesión verificada en /auth/me para ${response.data.email}.`
+            : `Verified session on /auth/me for ${response.data.email}.`,
+      });
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setApiPingStatus({
+          variant: "error",
+          code: err.code,
+          message: err.getUserMessage(locale),
+        });
+      }
+    } finally {
+      setIsPingingApi(false);
+    }
+  };
+
   const configuredApiUrl = env.apiBaseUrl;
+
+  // =========================================================================
+  // FILTRO OBLIGATORIO DE SUSCRIPCIÓN (Requisito 3)
+  // Si el usuario está autenticado pero no ha seleccionado un plan, no se le
+  // permite explorar el sistema y se le presenta únicamente la selección de plan.
+  // =========================================================================
+  if (isAuthenticated && !onboarding.hasSelectedPlan) {
+    return (
+      <Container size="md" className="flex flex-col items-center gap-6 py-8 sm:py-12">
+        <Card padding="lg" className="w-full border-brand bg-surface p-6 sm:p-8">
+          <div className="flex flex-col gap-6 text-center">
+            <div className="flex flex-col items-center gap-2">
+              <Badge variant="warning">
+                {t.auth.stepper.gate.badge}
+              </Badge>
+              <h1
+                id="main-heading"
+                tabIndex={-1}
+                className="font-serif text-2xl font-bold tracking-tight text-ink sm:text-3xl"
+              >
+                {t.auth.stepper.gate.title}
+              </h1>
+              <p className="max-w-lg text-xs leading-relaxed text-muted sm:text-sm">
+                {t.auth.stepper.gate.subtitle}
+              </p>
+            </div>
+
+            {/* Resumen de los 3 planes en el gate */}
+            <div className="flex flex-col gap-3 rounded-xs border border-border bg-neutral-secondary-medium p-4 text-left sm:p-5">
+              <span className="text-[10px] font-bold tracking-widest text-muted uppercase">
+                {t.auth.stepper.gate.planSummaryTitle}
+              </span>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+                <div className="flex flex-col gap-1 rounded-xs border border-border bg-surface p-3">
+                  <span className="font-serif text-sm font-bold text-ink">
+                    {t.auth.stepper.step3Plan.planDolyName}
+                  </span>
+                  <span className="text-[11px] font-semibold text-muted">
+                    {t.auth.stepper.step3Plan.planDolyPrice} · 1 idioma
+                  </span>
+                  <p className="text-[10px] text-muted">
+                    {t.auth.stepper.step3Plan.planDolyFeature1}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-1 rounded-xs border border-brand bg-surface p-3 ring-1 ring-brand">
+                  <div className="flex items-center justify-between">
+                    <span className="font-serif text-sm font-bold text-ink">
+                      {t.auth.stepper.step3Plan.planDolyPlusName}
+                    </span>
+                    <Badge variant="primary">RECOMENDADO</Badge>
+                  </div>
+                  <span className="text-[11px] font-semibold text-muted">
+                    {t.auth.stepper.step3Plan.planDolyPlusPrice} · Hasta 2 idiomas
+                  </span>
+                  <p className="text-[10px] text-muted">
+                    {t.auth.stepper.step3Plan.planDolyPlusFeature1}
+                  </p>
+                </div>
+                <div className="flex flex-col gap-1 rounded-xs border border-border bg-surface p-3">
+                  <span className="font-serif text-sm font-bold text-ink">
+                    {t.auth.stepper.step3Plan.planDolyVipName}
+                  </span>
+                  <span className="text-[11px] font-semibold text-muted">
+                    {t.auth.stepper.step3Plan.planDolyVipPrice} · Ilimitado
+                  </span>
+                  <p className="text-[10px] text-muted">
+                    {t.auth.stepper.step3Plan.planDolyVipFeature1}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-center justify-center gap-3 pt-2">
+              <Link href="/register?step=3" className="w-full sm:w-auto">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  rightIcon={<span aria-hidden="true">→</span>}
+                >
+                  {t.auth.stepper.gate.cta}
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </Card>
+      </Container>
+    );
+  }
+
+  // =========================================================================
+  // FILTRO OBLIGATORIO DE IDIOMAS (Requisito 4)
+  // Si ya tiene plan pero no ha terminado de seleccionar sus idiomas
+  // =========================================================================
+  if (isAuthenticated && !onboarding.isOnboardingComplete) {
+    return (
+      <Container size="md" className="flex flex-col items-center gap-6 py-8 sm:py-12">
+        <Card padding="lg" className="w-full border-brand bg-surface p-6 sm:p-8">
+          <div className="flex flex-col gap-6 text-center">
+            <div className="flex flex-col items-center gap-2">
+              <Badge variant="warning">CONFIGURACIÓN PENDIENTE</Badge>
+              <h1
+                id="main-heading"
+                tabIndex={-1}
+                className="font-serif text-2xl font-bold tracking-tight text-ink sm:text-3xl"
+              >
+                Completa la selección de tus idiomas
+              </h1>
+              <p className="max-w-lg text-xs leading-relaxed text-muted sm:text-sm">
+                Has seleccionado tu plan (
+                {onboarding.subscriptionPlan === "doly"
+                  ? "Doly Básico"
+                  : onboarding.subscriptionPlan === "doly_plus"
+                    ? "Doly Plus"
+                    : "Doly VIP"}
+                ). Ahora elige los idiomas que deseas aprender para desbloquear tu acceso.
+              </p>
+            </div>
+
+            <div className="flex justify-center pt-2">
+              <Link href="/register?step=4" className="w-full sm:w-auto">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  rightIcon={<span aria-hidden="true">→</span>}
+                >
+                  Seleccionar idiomas de estudio →
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </Card>
+      </Container>
+    );
+  }
 
   return (
     <Container size="lg" className="flex flex-col gap-8 sm:gap-10">
       {/* Encabezado de bienvenida editorial */}
-      <section className="flex flex-col gap-1.5">
-        <h1
-          id="main-heading"
-          tabIndex={-1}
-          className="font-serif text-3xl font-normal tracking-tight text-ink sm:text-4xl"
-        >
-          {t.home.welcomeHeading}
-        </h1>
-        <p className="font-serif text-base text-muted italic sm:text-lg">
-          {t.home.welcomeSubtitle}
-        </p>
+      <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div className="flex flex-col gap-1.5">
+          <h1
+            id="main-heading"
+            tabIndex={-1}
+            className="font-serif text-3xl font-normal tracking-tight text-ink sm:text-4xl"
+          >
+            {dynamicWelcomeHeading}
+          </h1>
+          <p className="font-serif text-base text-muted italic sm:text-lg">
+            {t.home.welcomeSubtitle}
+          </p>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+          {isAuthenticated ? (
+            <Badge variant="success">
+              {locale === "es"
+                ? `SESIÓN ACTIVA: ${user?.email}`
+                : `ACTIVE SESSION: ${user?.email}`}
+            </Badge>
+          ) : (
+            <Badge variant="outline">
+              {locale === "es"
+                ? "MODO VISTA PREVIA (SIN SESIÓN)"
+                : "PREVIEW MODE (UNAUTHENTICATED)"}
+            </Badge>
+          )}
+        </div>
       </section>
 
       {/* Tarjeta de Racha de Consistencia */}
@@ -312,7 +519,7 @@ export default function HomePage() {
 
             <div className="flex items-baseline gap-2.5">
               <span className="font-serif text-4xl font-semibold text-ink sm:text-5xl">
-                14
+                {streakDaysCount}
               </span>
               <span className="font-serif text-lg text-ink sm:text-xl">
                 {t.home.streakDaysSuffix}
@@ -333,7 +540,7 @@ export default function HomePage() {
               {t.home.weekDays.map((day, idx) => (
                 <div
                   key={`${day}-${idx}`}
-                  className="flex flex-col items-center gap-1 rounded-xs bg-surface px-2 py-1.5 border border-border"
+                  className="flex flex-col items-center gap-1 rounded-xs border border-border bg-surface px-2 py-1.5"
                 >
                   <span
                     className={`text-[10px] font-bold ${
@@ -684,7 +891,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Catálogo de Componentes Base y Verificación del Cliente HTTP */}
+      {/* Catálogo de Componentes Base y Verificación del Cliente HTTP y Sesión */}
       <Card
         id="sistema-base"
         variant="default"
@@ -697,7 +904,7 @@ export default function HomePage() {
             <h2 className="text-xs font-bold tracking-wider text-ink uppercase">
               {t.home.uiKitTitle}
             </h2>
-            <Badge variant="outline">DESIGN TOKENS + HTTP CLIENT</Badge>
+            <Badge variant="outline">DESIGN TOKENS + AUTH &amp; HTTP</Badge>
           </div>
           <p className="text-xs text-muted">{t.home.uiKitSubtitle}</p>
         </div>
@@ -773,7 +980,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* Demostración de Alert editorial (patrón de evaluación y estado de cliente HTTP) */}
+        {/* Demostración de Alert editorial y Estado de Sesión / Cliente HTTP */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <Alert
             variant="warning"
@@ -789,29 +996,32 @@ export default function HomePage() {
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-xs font-bold tracking-wider text-ink uppercase">
-                  PROXY DE API (NEXT.JS)
+                  PROXY DE API &amp; SESIÓN EN MEMORIA
                 </span>
-                <Badge variant="success">ACTIVO</Badge>
+                <Badge variant={isAuthenticated ? "success" : "secondary"}>
+                  {authStatus.toUpperCase()}
+                </Badge>
               </div>
               <p className="font-mono text-xs break-all text-muted">
-                {configuredApiUrl}
+                {configuredApiUrl} •{" "}
+                {accessToken
+                  ? "accessToken en memoria (0 bytes en localStorage)"
+                  : "Sin accessToken en memoria"}
               </p>
-              <p className="text-xs leading-relaxed text-muted">
-                Las peticiones van al proxy de Next.js, que corre en el servidor y
-                las reenvía al backend. La dirección interna del backend{" "}
-                <code className="font-mono text-ink">BACKEND_INTERNAL_URL</code>{" "}
-                no se expone al navegador.
-              </p>
-              <p className="text-xs leading-relaxed text-muted">
-                Todas las respuestas se procesan bajo el envelope{" "}
-                <code className="font-mono text-ink">ApiResponse&lt;T&gt;</code>{" "}
-                y los errores se discriminan por{" "}
-                <code className="font-mono text-ink">error.code</code> (p. ej.{" "}
-                <code className="font-mono text-ink">
-                  {ErrorCode.AUTH_UNAUTHORIZED}
-                </code>
-                ).
-              </p>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                <span className="font-semibold text-ink">Plan:</span>
+                <Badge variant="outline">
+                  {onboarding.subscriptionPlan
+                    ? onboarding.subscriptionPlan.toUpperCase()
+                    : "SIN PLAN"}
+                </Badge>
+                <span className="font-semibold text-ink">Correo:</span>
+                <Badge
+                  variant={onboarding.emailVerified ? "success" : "warning"}
+                >
+                  {onboarding.emailVerified ? "VERIFICADO" : "PENDIENTE"}
+                </Badge>
+              </div>
             </div>
 
             {apiPingStatus && (
@@ -819,19 +1029,59 @@ export default function HomePage() {
                 variant={apiPingStatus.variant}
                 code={apiPingStatus.code}
                 title="Resultado de verificación HTTP"
+                onDismiss={() => setApiPingStatus(null)}
               >
                 {apiPingStatus.message}
               </Alert>
             )}
 
-            <div className="flex items-center justify-end">
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {!isAuthenticated ? (
+                <>
+                  <Link href="/login">
+                    <Button variant="secondary" size="sm" tabIndex={-1}>
+                      Ir a Login
+                    </Button>
+                  </Link>
+                  <Link href="/register">
+                    <Button variant="primary" size="sm" tabIndex={-1}>
+                      Ir a Registro
+                    </Button>
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={resetOnboardingMock}
+                  >
+                    Probar filtro de plan (Reset)
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    isLoading={isPingingApi}
+                    onClick={() => void handleVerifyAuthMe()}
+                  >
+                    Verificar /auth/me
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => void logout()}
+                  >
+                    Cerrar sesión (/auth/logout)
+                  </Button>
+                </>
+              )}
               <Button
                 variant="outline"
                 size="sm"
                 isLoading={isPingingApi}
                 onClick={() => void handleTestHttpClient()}
               >
-                Probar cliente HTTP (/health/live)
+                Probar /health/live
               </Button>
             </div>
           </div>
