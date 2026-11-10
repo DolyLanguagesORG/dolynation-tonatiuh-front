@@ -17,6 +17,7 @@ export {
   CardTitle,
   type CardVariant,
 } from "@/components/ui/card";
+export { Checkbox, type CheckboxProps } from "@/components/ui/checkbox";
 export {
   Container,
   type ContainerProps,

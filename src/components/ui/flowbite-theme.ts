@@ -143,6 +143,23 @@ export const dolyFlowbiteTheme = createTheme({
       },
     },
   },
+  checkbox: {
+    base: "h-4 w-4 shrink-0 cursor-pointer appearance-none rounded-xxs border border-default-medium bg-neutral-secondary-medium bg-[length:0.65em_0.65em] bg-center bg-no-repeat accent-brand transition-colors checked:border-brand checked:bg-brand checked:bg-check-icon hover:border-brand focus:outline-none focus:ring-0 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:cursor-not-allowed disabled:opacity-60 dark:border-default-medium dark:bg-neutral-secondary-medium dark:checked:border-brand dark:checked:bg-brand",
+    color: {
+      default:
+        "text-brand checked:border-brand checked:bg-brand focus:ring-0 dark:checked:border-brand dark:checked:bg-brand",
+      dark: "text-brand checked:border-brand checked:bg-brand focus:ring-0 dark:checked:border-brand dark:checked:bg-brand",
+      gray: "text-brand checked:border-brand checked:bg-brand focus:ring-0 dark:checked:border-brand dark:checked:bg-brand",
+      failure:
+        "border-danger text-danger checked:border-danger checked:bg-danger focus:ring-0 dark:border-danger dark:checked:border-danger dark:checked:bg-danger",
+      success:
+        "border-success text-success checked:border-success checked:bg-success focus:ring-0 dark:border-success dark:checked:border-success dark:checked:bg-success",
+      warning:
+        "border-warning text-warning checked:border-warning checked:bg-warning focus:ring-0 dark:border-warning dark:checked:border-warning dark:checked:bg-warning",
+    },
+    indeterminate:
+      "border-brand bg-brand bg-dash-icon dark:border-brand dark:bg-brand",
+  },
   sidebar: {
     root: {
       base: "h-full w-full bg-neutral-primary-soft text-heading",
