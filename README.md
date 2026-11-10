@@ -72,7 +72,10 @@ Aplicación web de **DolyNation**, plataforma académica de adquisición lingü�
 ```text
 src/
 ├── app/                        # App Router: layouts, rutas y estados globales
-│   ├── layout.tsx              # RootLayout con fuentes, LocaleProvider y AppShell
+│   ├── api/v1/[...path]/       # Proxy BFF hacia BACKEND_INTERNAL_URL + cookies HttpOnly de refresh
+│   ├── login/page.tsx          # Vista de Inicio de Sesión (Reanudar DolySesion)
+│   ├── register/page.tsx       # Vista de Registro de Usuario (Crear DolyCuenta)
+│   ├── layout.tsx              # RootLayout con fuentes, LocaleProvider, AuthProvider y AppShell
 │   ├── page.tsx                # Vista de Inicio (racha, generador IA, lecturas y kit UI)
 │   ├── loading.tsx             # Skeleton accesible de carga de ruta
 │   ├── error.tsx               # Error boundary global con recuperación
@@ -80,34 +83,43 @@ src/
 │   ├── globals.css             # Tokens de tema (:root + @theme inline) y utilidades a11y
 │   └── favicon.ico
 ├── components/
+│   ├── auth/                   # Protección de rutas privadas
+│   │   ├── require-auth.tsx    # Guardia de sesión que redirige a /login?redirect=<ruta>
+│   │   └── index.ts
 │   ├── layout/                 # Shell responsivo de la aplicación
 │   │   ├── app-shell.tsx       # Estructura principal (SkipLink + Header + Sidebar + Main + Footer)
-│   │   ├── header.tsx          # Barra superior con marca, selector de edición y racha
+│   │   ├── header.tsx          # Barra superior con marca, selector de edición, racha y sesión
 │   │   ├── sidebar.tsx         # Navegación lateral fija en escritorio y drawer en móvil/tablet
 │   │   ├── footer.tsx          # Pie de página institucional
 │   │   └── index.ts
-│   └── ui/                     # Componentes base reutilizables y accesibles
+│   └── ui/                     # Componentes base reutilizables y accesibles (Flowbite B&W)
 │       ├── alert.tsx           # Alertas semánticas y bloques de observación con citas
 │       ├── badge.tsx           # Clasificadores lingüísticos ([EN] INGLÉS, NIVEL MEDIO, etc.)
 │       ├── button.tsx          # Botón con variantes, tamaños, carga y foco visible
 │       ├── card.tsx            # Superficies editoriales (default, subtle, outline, dark)
+│       ├── checkbox.tsx        # Casilla de verificación accesible en Blanco y Negro
 │       ├── container.tsx       # Contenedor responsivo con anchos controlados (sm, md, lg, xl)
+│       ├── flowbite-theme.ts   # Tema centralizado de flowbite-react (Blanco y Negro)
 │       ├── input.tsx           # Input con label explícito, hint, error y estados accesibles
 │       └── index.ts
+├── context/                    # Contexto global de autenticación y sesión
+│   ├── auth-context.tsx        # AuthProvider y hook useAuth() con accessToken en memoria
+│   └── index.ts
 ├── hooks/                      # Hooks reutilizables de cliente
 │   ├── use-api-request.ts      # Estado reactivo para peticiones al httpClient
 │   ├── use-disclosure.ts       # Control de menús/drawers con cierre por tecla Escape
 │   └── index.ts
 ├── i18n/                       # Internacionalización (Español Académico / English Academic)
-│   ├── dictionaries.ts         # Diccionarios tipados ES/EN
+│   ├── dictionaries.ts         # Diccionarios tipados ES/EN (incluye vistas auth)
 │   ├── locale-context.tsx      # Proveedor y hook useLocale()
 │   └── index.ts
-├── lib/                        # Configuración de entorno y cliente HTTP base
-│   ├── env.ts                  # Lectura y normalización de NEXT_PUBLIC_API_BASE_URL
-│   ├── api-errors.ts           # Envelope ApiResponse<T>, ErrorCode y clase ApiClientError
-│   ├── http-client.ts          # Cliente fetch tipado con timeout, Bearer token y errores uniformes
-│   └── index.ts
-└── middleware.ts               # Middleware base para cabeceras y futura protección de rutas
+└── lib/                        # Configuración de entorno, cliente HTTP y cliente Auth
+    ├── env.ts                  # Resolución del proxy interno /api/v1
+    ├── api-errors.ts           # Envelope ApiResponse<T>, ErrorCode y clase ApiClientError
+    ├── auth-token-store.ts     # Almacén en memoria para accessToken y single-flight refresh
+    ├── auth-client.ts          # Cliente para /auth/register, /auth/login, /auth/refresh, /auth/logout y /auth/me
+    ├── http-client.ts          # Cliente fetch con Bearer automático e interceptor de 401 -> refresh
+    └── index.ts
 ```
 
 ## Cómo agregar una vista nueva
