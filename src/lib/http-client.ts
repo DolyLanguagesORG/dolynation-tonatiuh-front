@@ -3,6 +3,11 @@ import {
   type ApiResponse,
   ErrorCode,
 } from "@/lib/api-errors";
+import {
+  executeSingleFlightRefresh,
+  getAccessToken,
+  notifySessionUnauthorized,
+} from "@/lib/auth-token-store";
 import { buildApiUrl, env } from "@/lib/env";
 
 export interface HttpRequestOptions extends Omit<RequestInit, "body"> {
@@ -16,8 +21,17 @@ export interface HttpRequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
   /**
    * Token JWT opcional para adjuntar en `Authorization: Bearer <token>`.
+   * Si se omite y `skipAuth` no es `true`, se utiliza el access token en memoria.
    */
   accessToken?: string | null;
+  /**
+   * Si es `true`, omite el token en memoria y no ejecuta el interceptor de refresh en 401.
+   */
+  skipAuth?: boolean;
+  /**
+   * Bandera interna que asegura que una petición con 401 dispare el refresh una única vez.
+   */
+  _isRetryAfterRefresh?: boolean;
   /**
    * Tiempo máximo de espera en milisegundos (por defecto 15 000 ms).
    */
@@ -39,8 +53,11 @@ function isJsonEnvelope<T>(payload: unknown): payload is ApiResponse<T> {
  * proxy de Next.js** (`/api/v1/...`), desempaquetando el envelope
  * `ApiResponse<T>` y normalizando cualquier fallo en `ApiClientError`.
  *
- * La petición es siempre al mismo origen: el proxy del servidor la reenvía a
- * `BACKEND_INTERNAL_URL`. El navegador nunca ve la dirección del backend.
+ * Incluye soporte para:
+ * - Inyección automática del `accessToken` desde memoria (nunca `localStorage`).
+ * - Interceptor de `401 Unauthorized`: intenta `POST /auth/refresh` una vez;
+ *   si tiene éxito reintenta la petición original, y si falla limpia la sesión
+ *   y notifica la redirección a `/login`.
  */
 export async function apiRequest<T>(
   path: string,
@@ -57,6 +74,8 @@ export async function apiRequest<T>(
     query,
     body,
     accessToken,
+    skipAuth = false,
+    _isRetryAfterRefresh = false,
     timeoutMs = DEFAULT_TIMEOUT_MS,
     headers: customHeaders,
     signal: externalSignal,
@@ -77,8 +96,15 @@ export async function apiRequest<T>(
     headers.set("Content-Type", "application/json");
   }
 
-  if (accessToken) {
-    headers.set("Authorization", `Bearer ${accessToken}`);
+  const resolvedToken =
+    accessToken !== undefined
+      ? accessToken
+      : skipAuth
+        ? null
+        : getAccessToken();
+
+  if (resolvedToken && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${resolvedToken}`);
   }
 
   const controller = new AbortController();
@@ -107,6 +133,19 @@ export async function apiRequest<T>(
       body: serializedBody,
       signal: controller.signal,
     });
+
+    if (response.status === 401 && !skipAuth && !_isRetryAfterRefresh) {
+      const refreshedAccessToken = await executeSingleFlightRefresh();
+      if (refreshedAccessToken) {
+        return apiRequest<T>(path, {
+          ...options,
+          accessToken: refreshedAccessToken,
+          _isRetryAfterRefresh: true,
+        });
+      }
+
+      notifySessionUnauthorized();
+    }
 
     const contentType = response.headers.get("content-type") ?? "";
     let parsedBody: unknown = null;

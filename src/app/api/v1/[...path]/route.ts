@@ -13,16 +13,16 @@ import { backendInternalUrl } from "@/lib/server/backend-url";
  * Ventajas frente a llamar al backend desde el navegador:
  *
  * - La URL y el puerto del backend no se filtran al cliente.
- * - Se puede anadir la sesion en el servidor (front#3, front#4) sin
- *   exponer tokens en el JS del navegador.
+ * - Gestiona la cookie `HttpOnly` de `refreshToken` en el servidor (front#3)
+ *   para restaurar sesiones sin persistir tokens en `localStorage`.
  * - El navegador solo habla con un origen: no hay CORS ni preflight.
  * - `BACKEND_INTERNAL_URL` se lee en tiempo de ejecucion, no se hornea en
  *   el build: staging y produccion pueden apuntar a backends distintos.
- *
- * La ruta canonica del backend es `/api/v1` (ver `API_PREFIX` en el backend),
- * de modo que aqui la ruta publica coincide con la interna y no hay que
- * traducir prefijos.
  */
+
+const REFRESH_COOKIE_NAME = "doly_refresh_token";
+const SESSION_FLAG_COOKIE_NAME = "doly_session";
+const REFRESH_COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 días
 
 /**
  * Cabeceras que se reenvian al backend. Todo lo demas se descarta: las
@@ -82,7 +82,6 @@ function sanitizeSegments(segments: string[]): string[] | null {
     try {
       segment = decodeURIComponent(raw);
     } catch {
-      // Segmento con percent-encoding invalido.
       return null;
     }
 
@@ -90,13 +89,10 @@ function sanitizeSegments(segments: string[]): string[] | null {
       return null;
     }
 
-    // Un separador incrustado permitiria salir del prefijo de la URL base.
     if (segment.includes("/") || segment.includes("\\")) {
       return null;
     }
 
-    // Caracteres de control: no tienen sentido en una ruta y se usan para
-    // inyectar cabeceras.
     if (/[\u0000-\u001f\u007f]/.test(segment)) {
       return null;
     }
@@ -119,16 +115,107 @@ function buildTargetUrl(
   const basePath = base.pathname.replace(/\/+$/, "");
   const path = segments.length > 0 ? `/${segments.join("/")}` : "";
 
-  // La ruta se resuelve sobre el origen de la URL base: `new URL` exige una
-  // URL absoluta.
   const target = new URL(`${basePath}${path}`, base);
 
-  // Los parametros de consulta se copian tal cual, incluidos los repetidos.
   searchParams.forEach((value, key) => {
     target.searchParams.append(key, value);
   });
 
   return target;
+}
+
+function buildCookieString(params: {
+  name: string;
+  value: string;
+  httpOnly: boolean;
+  maxAge: number;
+}): string {
+  const isProd = process.env.NODE_ENV === "production";
+  const parts = [
+    `${params.name}=${encodeURIComponent(params.value)}`,
+    "Path=/",
+    "SameSite=Lax",
+    `Max-Age=${params.maxAge}`,
+  ];
+  if (params.httpOnly) {
+    parts.push("HttpOnly");
+  }
+  if (isProd) {
+    parts.push("Secure");
+  }
+  return parts.join("; ");
+}
+
+function appendAuthCookies(headers: Headers, refreshToken: string): void {
+  headers.append(
+    "set-cookie",
+    buildCookieString({
+      name: REFRESH_COOKIE_NAME,
+      value: refreshToken,
+      httpOnly: true,
+      maxAge: REFRESH_COOKIE_MAX_AGE,
+    }),
+  );
+  headers.append(
+    "set-cookie",
+    buildCookieString({
+      name: SESSION_FLAG_COOKIE_NAME,
+      value: "1",
+      httpOnly: false,
+      maxAge: REFRESH_COOKIE_MAX_AGE,
+    }),
+  );
+}
+
+function clearAuthCookies(headers: Headers): void {
+  headers.append(
+    "set-cookie",
+    buildCookieString({
+      name: REFRESH_COOKIE_NAME,
+      value: "",
+      httpOnly: true,
+      maxAge: 0,
+    }),
+  );
+  headers.append(
+    "set-cookie",
+    buildCookieString({
+      name: SESSION_FLAG_COOKIE_NAME,
+      value: "",
+      httpOnly: false,
+      maxAge: 0,
+    }),
+  );
+}
+
+function extractRefreshTokenFromEnvelope(payload: unknown): string | null {
+  if (typeof payload !== "object" || payload === null || !("data" in payload)) {
+    return null;
+  }
+  const data = (payload as { data?: unknown }).data;
+  if (typeof data !== "object" || data === null) {
+    return null;
+  }
+
+  if (
+    "refreshToken" in data &&
+    typeof (data as { refreshToken?: unknown }).refreshToken === "string"
+  ) {
+    return (data as { refreshToken: string }).refreshToken;
+  }
+
+  if (
+    "tokens" in data &&
+    typeof (data as { tokens?: unknown }).tokens === "object" &&
+    (data as { tokens?: unknown }).tokens !== null
+  ) {
+    const tokens = (data as { tokens: { refreshToken?: unknown } }).tokens;
+    if (typeof tokens.refreshToken === "string") {
+      return tokens.refreshToken;
+    }
+  }
+
+  return null;
 }
 
 async function proxy(request: NextRequest, path: string[]): Promise<Response> {
@@ -170,7 +257,6 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
     }
   }
 
-  // El backend necesita saber quien es el llamante real.
   const forwardedFor = request.headers.get("x-forwarded-for");
   const clientIp = request.headers.get("x-real-ip") ?? forwardedFor;
   if (clientIp) {
@@ -178,8 +264,38 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
   }
   headers.set("x-forwarded-proto", request.nextUrl.protocol.replace(":", ""));
 
+  const routeKey = segments.join("/");
   const hasBody = method !== "GET" && method !== "HEAD";
-  const body = hasBody ? await request.arrayBuffer() : undefined;
+  let body: BodyInit | undefined;
+
+  if (hasBody) {
+    if (routeKey === "auth/refresh" && method === "POST") {
+      const rawText = await request.text();
+      let hasExplicitRefreshToken = false;
+
+      if (rawText.trim().length > 0) {
+        try {
+          const parsed = JSON.parse(rawText) as { refreshToken?: unknown };
+          hasExplicitRefreshToken =
+            typeof parsed?.refreshToken === "string" &&
+            parsed.refreshToken.trim().length > 0;
+        } catch {
+          hasExplicitRefreshToken = false;
+        }
+      }
+
+      if (hasExplicitRefreshToken) {
+        body = rawText;
+      } else {
+        const cookieRefreshToken =
+          request.cookies.get(REFRESH_COOKIE_NAME)?.value ?? "";
+        body = JSON.stringify({ refreshToken: cookieRefreshToken });
+        headers.set("content-type", "application/json");
+      }
+    } else {
+      body = await request.arrayBuffer();
+    }
+  }
 
   let upstream: Response;
   try {
@@ -188,12 +304,9 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
       headers,
       body,
       redirect: "manual",
-      // La peticion es a un servicio interno: no debe cachearse.
       cache: "no-store",
     });
   } catch {
-    // El backend no respondio. Se devuelve 503 con el envelope del
-    // backend para que el cliente lo trate igual que un fallo de la API.
     return apiError(
       503,
       "SERVICE_UNAVAILABLE",
@@ -207,10 +320,53 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
     responseHeaders.set("content-type", contentType);
   }
 
-  // Cabecera para diagnostico: deja ver que el proxy esta en el camino.
   responseHeaders.set("x-dolynation-proxy", "nextjs");
 
-  return new Response(upstream.body, {
+  const isAuthTokenIssuedRoute =
+    method === "POST" &&
+    (routeKey === "auth/login" ||
+      routeKey === "auth/register" ||
+      routeKey === "auth/refresh");
+
+  if (routeKey === "auth/logout" && method === "POST") {
+    clearAuthCookies(responseHeaders);
+  } else if (
+    routeKey === "auth/refresh" &&
+    method === "POST" &&
+    !upstream.ok
+  ) {
+    clearAuthCookies(responseHeaders);
+  }
+
+  if (
+    isAuthTokenIssuedRoute &&
+    upstream.ok &&
+    contentType?.includes("application/json")
+  ) {
+    const rawJson = await upstream.text();
+    try {
+      const parsed = JSON.parse(rawJson) as unknown;
+      const issuedRefreshToken = extractRefreshTokenFromEnvelope(parsed);
+      if (issuedRefreshToken) {
+        appendAuthCookies(responseHeaders, issuedRefreshToken);
+      }
+    } catch {
+      // Si el cuerpo no es JSON valido, se reenvia tal cual sin anexar cookies.
+    }
+
+    return new Response(rawJson, {
+      status: upstream.status,
+      statusText: upstream.statusText,
+      headers: responseHeaders,
+    });
+  }
+
+  const isNullBodyStatus =
+    upstream.status === 204 ||
+    upstream.status === 205 ||
+    upstream.status === 304;
+
+  return new Response(isNullBodyStatus ? null : upstream.body, {
     status: upstream.status,
     statusText: upstream.statusText,
     headers: responseHeaders,
@@ -236,8 +392,4 @@ export const DELETE = handler;
 export const HEAD = handler;
 export const OPTIONS = handler;
 
-/**
- * El proxy no debe cachearse: cada peticion refleja el estado actual del
- * backend.
- */
 export const dynamic = "force-dynamic";
