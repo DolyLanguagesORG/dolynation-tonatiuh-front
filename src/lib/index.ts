@@ -32,3 +32,18 @@ export {
   httpClient,
   type HttpRequestOptions,
 } from "@/lib/http-client";
+export {
+  DEFAULT_CATEGORIES,
+  DEFAULT_DIFFICULTIES,
+  DEFAULT_LANGUAGES,
+  DEFAULT_SIZES,
+  studyClient,
+  type CatalogCategory,
+  type DifficultyOption,
+  type ReadingDifficulty,
+  type ReadingDto,
+  type ReadingSize,
+  type ReadingSizeOption,
+  type StudyParameters,
+  type TargetLanguageCode,
+} from "@/lib/study-client";
