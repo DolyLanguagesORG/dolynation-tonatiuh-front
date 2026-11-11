@@ -106,8 +106,8 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
     {
       id: "create-ai",
       label: t.nav.createAiText,
-      href: "/#generar-lectura",
-      isActive: false,
+      href: "/generate",
+      isActive: pathname === "/generate",
       icon: (
         <svg
           aria-hidden="true"
@@ -162,8 +162,8 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
       }}
     >
       <div className="flex flex-col gap-3 p-3.5">
-        <a
-          href="#generar-lectura"
+        <Link
+          href="/generate"
           onClick={onItemClick}
           className="block w-full"
         >
@@ -185,7 +185,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
           >
             {t.nav.newReadingCta}
           </Button>
-        </a>
+        </Link>
 
         <SidebarItems>
           <SidebarItemGroup>
