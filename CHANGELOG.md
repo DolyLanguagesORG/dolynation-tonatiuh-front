@@ -11,6 +11,26 @@ un PR de release contra `develop` que sube la versión y escribe esta sección; 
 mergearlo se crean el tag anotado y la GitHub Release. Ver
 [`conventions/versioning.md`](https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs/blob/develop/conventions/versioning.md).
 
+## [0.4.0](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.3.3...v0.4.0) (2026-11-12)
+
+
+### Features
+
+* **auth:** maquetar e integrar vistas de login y registro ([#70](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/70)) ([2e43c2f](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/2e43c2fa61060a589aa9e74179bc771c3771c79e))
+* **kanban:** las issues pasan a 'In Review' solas ([#75](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/75)) ([cf49b60](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/cf49b605e3a33d99e31cf6e60cfe361274615073)), closes [#66](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/66)
+* **kanban:** las issues pasan a 'In Review' solas ([#76](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/76)) ([9cd786f](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/9cd786fbf9a20c8ceab77dc2bcd5b50973556233)), closes [#66](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/66)
+* **kanban:** las issues pasan a 'In Review' solas ([#77](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/77)) ([ba80d67](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/ba80d674d3148bf90a2846a894c2fe3fff68e901)), closes [#66](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/66)
+* **kanban:** las issues pasan a 'In Review' solas ([#78](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/78)) ([5488a84](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/5488a8413f2138f6bc117f90a5b777a6e1643ce2)), closes [#66](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/66)
+* **kanban:** las issues pasan a 'In Review' solas ([#79](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/79)) ([433bb92](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/433bb922d77f38b29fcdbf723ac1c340ed7eca7d)), closes [#66](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/66)
+* **kanban:** las issues pasan a 'In Review' solas ([#80](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/80)) ([2967e99](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/2967e99ed91e3dd504de853ccd992229135fcb84)), closes [#66](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/66)
+
+
+### Bug Fixes
+
+* **ci:** el .env del servidor se escribe con umask 077 y la llave del host se fija ([#73](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/73)) ([346f215](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/346f2153c8bfd8c4472cea9d21b506cf503a723b)), closes [#6](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/6)
+* **ci:** validar la rama normalizada (los acentos no bloquean el PR) ([#71](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/71)) ([17d139e](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/17d139e777878193b3078187a6d2ed319c83aa36)), closes [#46](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/46)
+* **ci:** validar los workflows con actionlint ([#81](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/81)) ([1bb4b4d](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/1bb4b4d36c53aff98863184dafddf5b8f84ac9d1)), closes [#46](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/46)
+
 ## [0.3.3](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.3.2...v0.3.3) (2026-11-09)
 
 
