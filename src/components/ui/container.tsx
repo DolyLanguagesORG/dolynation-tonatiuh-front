@@ -1,6 +1,6 @@
 import { type HTMLAttributes } from "react";
 
-export type ContainerSize = "sm" | "md" | "lg" | "xl" | "full";
+export type ContainerSize = "sm" | "md" | "lg" | "xl" | "full" | "none";
 
 export interface ContainerProps extends HTMLAttributes<HTMLDivElement> {
   size?: ContainerSize;
@@ -13,6 +13,7 @@ const SIZE_CLASSES: Record<ContainerSize, string> = {
   lg: "max-w-4xl",
   xl: "max-w-6xl",
   full: "max-w-full",
+  none: "",
 };
 
 /**

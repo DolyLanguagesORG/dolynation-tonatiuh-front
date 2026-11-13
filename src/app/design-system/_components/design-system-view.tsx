@@ -74,7 +74,7 @@ export function DesignSystemView() {
   const [selectedPlan, setSelectedPlan] = useState<"basic" | "pro">("pro");
   const [activeStep, setActiveStep] = useState(2);
   const [page, setPage] = useState(1);
-  const [sampleInput, setSampleInput] = useState("elena@university.edu");
+  const [sampleInput, setSampleInput] = useState("estudiante@universidad.edu");
   const [samplePassword, setSamplePassword] = useState("DolyAcademic!2026");
   const [sampleSummary, setSampleSummary] = useState(
     "La lectura contrasta sistemas distribuidos tolerantes a fallos frente a cachés locales.",
@@ -199,15 +199,15 @@ export function DesignSystemView() {
 
           <div className="flex flex-wrap items-center gap-3">
             <ActionLink
-              href="/generate"
+              href="#design-system-forms"
               variant="primary"
               size="sm"
               leftIcon={<Icon name="sparkles" size="xs" />}
             >
-              ActionLink → /generate
+              ActionLink → #forms
             </ActionLink>
-            <ActionLink href="/readings" variant="secondary" size="sm">
-              ActionLink → /readings
+            <ActionLink href="#design-system-tables" variant="secondary" size="sm">
+              ActionLink → #tables
             </ActionLink>
             <IconButton icon="bookmark" variant="secondary" aria-label="Guardar" />
             <IconButton icon="volume-2" variant="outline" aria-label="Audio" />
@@ -217,7 +217,7 @@ export function DesignSystemView() {
       </section>
 
       {/* 03. Formularios */}
-      <section className="flex flex-col gap-4">
+      <section id="design-system-forms" className="flex flex-col gap-4">
         <Eyebrow tone="muted">
           03. {locale === "es" ? "CONTROLES DE FORMULARIO" : "FORM CONTROLS"}
         </Eyebrow>
@@ -292,7 +292,7 @@ export function DesignSystemView() {
               selected={selectedPlan === "basic"}
               badge="BASIC"
               title="Dolly"
-              meta="GRATIS"
+              meta="10 lecturas / día"
               description="1 idioma activo y lecturas diarias adaptadas."
               onClick={() => setSelectedPlan("basic")}
             />
@@ -301,7 +301,7 @@ export function DesignSystemView() {
               emphasis="filled"
               badge="ALL ACCESS"
               title="Dolly Pro"
-              meta="$19.99/mes"
+              meta="Cuotas ilimitadas"
               description="4 idiomas simultáneos y retroalimentación ilimitada."
               onClick={() => setSelectedPlan("pro")}
             />
@@ -378,7 +378,7 @@ export function DesignSystemView() {
       </section>
 
       {/* 06. Tablas, Paginación y Estados */}
-      <section className="flex flex-col gap-4">
+      <section id="design-system-tables" className="flex flex-col gap-4">
         <Eyebrow tone="muted">
           06. {locale === "es" ? "TABLAS, PAGINACIÓN Y ESTADOS" : "TABLES, PAGINATION & STATES"}
         </Eyebrow>
@@ -428,8 +428,8 @@ export function DesignSystemView() {
             title="Sin lecturas pendientes"
             description="Genera un texto adaptado a tu nivel CEFR para practicar hoy."
             actions={
-              <ActionLink href="/generate" variant="primary" size="sm">
-                Ir al generador
+              <ActionLink href="#design-system-forms" variant="primary" size="sm">
+                Ir a formularios demo
               </ActionLink>
             }
           />

@@ -70,8 +70,8 @@ export function ChoiceCard({
         .join(" ")}
       {...rest}
     >
-      <div className="flex w-full items-start justify-between gap-2">
-        <div className="flex flex-col gap-1">
+      <div className="flex w-full flex-wrap items-start justify-between gap-2">
+        <div className="flex min-w-0 flex-col gap-1">
           {badge && (
             <Badge
               variant={isFilled ? "outline" : selected ? "primary" : "secondary"}
@@ -92,7 +92,7 @@ export function ChoiceCard({
         <div className="flex shrink-0 items-center gap-2">
           {meta && (
             <span
-              className={`font-mono text-[11px] font-semibold uppercase ${
+              className={`font-mono text-[11px] font-semibold whitespace-nowrap uppercase ${
                 isFilled ? "text-white/80" : "text-muted"
               }`}
             >

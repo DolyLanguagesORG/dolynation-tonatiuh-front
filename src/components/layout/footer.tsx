@@ -7,11 +7,16 @@ import { VersionBadge } from "@/components/layout/version-badge";
 import { dolyFlowbiteTheme } from "@/components/ui";
 import { useLocale } from "@/i18n";
 
+export interface FooterProps {
+  /** Indica si la vista `/design-system` está habilitada para enlazarla desde el pie. */
+  designSystemEnabled?: boolean;
+}
+
 /**
  * Pie de página editorial de DolyNation construido con `Footer` de `flowbite-react`
  * y el tema MCP de Flowbite en Blanco y Negro.
  */
-export function Footer() {
+export function Footer({ designSystemEnabled = true }: FooterProps) {
   const { t } = useLocale();
 
   return (
@@ -32,37 +37,39 @@ export function Footer() {
         </div>
 
         <FooterLinkGroup className="flex flex-wrap items-center gap-4 text-[11px] font-semibold tracking-wider text-body uppercase sm:gap-6">
+          {designSystemEnabled && (
+            <li>
+              <Link
+                href="/design-system"
+                className="inline-flex min-h-6 items-center transition-colors hover:text-heading"
+              >
+                {t.designSystem.navLabel}
+              </Link>
+            </li>
+          )}
           <li>
             <Link
-              href="/design-system"
-              className="inline-flex min-h-6 items-center transition-colors hover:text-heading"
-            >
-              {t.designSystem.navLabel}
-            </Link>
-          </li>
-          <li>
-            <a
-              href="#terminos"
+              href="/terms"
               className="inline-flex min-h-6 items-center transition-colors hover:text-heading"
             >
               {t.footer.termsOfUse}
-            </a>
+            </Link>
           </li>
           <li>
-            <a
-              href="#privacidad"
+            <Link
+              href="/privacy"
               className="inline-flex min-h-6 items-center transition-colors hover:text-heading"
             >
               {t.footer.privacyPolicy}
-            </a>
+            </Link>
           </li>
           <li>
-            <a
-              href="#soporte"
+            <Link
+              href="/support"
               className="inline-flex min-h-6 items-center transition-colors hover:text-heading"
             >
               {t.footer.technicalSupport}
-            </a>
+            </Link>
           </li>
         </FooterLinkGroup>
       </div>
