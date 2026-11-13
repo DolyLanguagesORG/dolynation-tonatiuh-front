@@ -7,3 +7,7 @@ export {
   RequireAuth,
   type RequireAuthProps,
 } from "@/components/auth/require-auth";
+export {
+  RouteAccessGuard,
+  type RouteAccessGuardProps,
+} from "@/components/auth/route-access-guard";

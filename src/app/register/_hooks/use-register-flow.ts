@@ -1,17 +1,11 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { type FormEvent, useEffect, useRef, useState } from "react";
+import { type FormEvent, useRef, useState } from "react";
 
-import { sanitizeRedirectPath, type SubscriptionPlanId, useAuth } from "@/context";
+import { sanitizeRedirectPath, useAuth } from "@/context";
 import { useLocale } from "@/i18n";
-import {
-  ApiClientError,
-  ErrorCode,
-  subscriptionsService,
-  type SubscriptionPlanItem,
-  type TargetLanguageCode,
-} from "@/lib";
+import { ApiClientError, ErrorCode } from "@/lib";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -45,48 +39,21 @@ export function evaluatePasswordStrength(password: string): {
 }
 
 /**
- * Hook de orquestación del registro y onboarding en 4 pasos (`/register`).
+ * Hook de orquestación del Paso 1 de registro (`/register`).
+ * Los pasos 2, 3 y 4 viven en rutas protegidas dedicadas (`/verify-email`,
+ * `/select-plan` y `/setup-preferences`).
  */
 export function useRegisterFlow() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { locale, t } = useLocale();
-  const {
-    user,
-    register,
-    isAuthenticated,
-    onboarding,
-    confirmEmailVerification,
-    selectPlan,
-    selectLanguages,
-  } = useAuth();
+  const { register, isAuthenticated, onboarding } = useAuth();
 
   const redirectTarget = sanitizeRedirectPath(
     searchParams.get("redirect"),
     "/",
   );
 
-  const initialStepParam = Number.parseInt(
-    searchParams.get("step") ?? "1",
-    10,
-  );
-
-  const determineInitialStep = (): RegisterStepNumber => {
-    if (initialStepParam >= 1 && initialStepParam <= 4) {
-      return initialStepParam as RegisterStepNumber;
-    }
-    if (!isAuthenticated) return 1;
-    if (!onboarding.emailVerified) return 2;
-    if (!onboarding.hasSelectedPlan) return 3;
-    if (!onboarding.isOnboardingComplete) return 4;
-    return 1;
-  };
-
-  const [activeStep, setActiveStep] = useState<RegisterStepNumber>(
-    determineInitialStep(),
-  );
-
-  // Paso 1: Datos de cuenta
   const firstNameRef = useRef<HTMLInputElement>(null);
   const emailRef = useRef<HTMLInputElement>(null);
   const passwordRef = useRef<HTMLInputElement>(null);
@@ -117,87 +84,7 @@ export function useRegisterFlow() {
     message: string;
   } | null>(null);
 
-  const [infoNotice, setInfoNotice] = useState<{
-    title: string;
-    message: string;
-  } | null>(null);
-
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Paso 2: Confirmación de correo
-  const [isVerifyingEmail, setIsVerifyingEmail] = useState(false);
-  const [isResendingEmail, setIsResendingEmail] = useState(false);
-  const [emailVerificationNotice, setEmailVerificationNotice] = useState<
-    string | null
-  >(null);
-
-  // Paso 3: Plan de suscripción
-  const [plansCatalog, setPlansCatalog] = useState<SubscriptionPlanItem[]>([]);
-  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlanId>(
-    onboarding.subscriptionPlan ?? "dolly_plus",
-  );
-  const [isSubmittingPlan, setIsSubmittingPlan] = useState(false);
-  const [planError, setPlanError] = useState<string | null>(null);
-
-  // Paso 4: Idiomas objetivo
-  const [selectedLanguages, setSelectedLanguages] = useState<
-    TargetLanguageCode[]
-  >(
-    onboarding.selectedLanguages.length > 0
-      ? onboarding.selectedLanguages
-      : ["en"],
-  );
-  const [isSubmittingLanguages, setIsSubmittingLanguages] = useState(false);
-  const [languagesError, setLanguagesError] = useState<string | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-    subscriptionsService
-      .getPlans()
-      .then((res) => {
-        if (!cancelled && Array.isArray(res.data)) {
-          setPlansCatalog(res.data);
-        }
-      })
-      .catch(() => {
-        // Conservamos los textos localizados de respaldo si falla la precarga del catálogo público.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (isAuthenticated && onboarding.isOnboardingComplete) {
-      router.replace(redirectTarget);
-    }
-  }, [isAuthenticated, onboarding.isOnboardingComplete, redirectTarget, router]);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      if (!onboarding.emailVerified && activeStep < 2) {
-        setActiveStep(2);
-      } else if (
-        onboarding.emailVerified &&
-        !onboarding.hasSelectedPlan &&
-        activeStep < 3
-      ) {
-        setActiveStep(3);
-      } else if (
-        onboarding.hasSelectedPlan &&
-        !onboarding.isOnboardingComplete &&
-        activeStep < 4
-      ) {
-        setActiveStep(4);
-      }
-    }
-  }, [
-    isAuthenticated,
-    onboarding.emailVerified,
-    onboarding.hasSelectedPlan,
-    onboarding.isOnboardingComplete,
-    activeStep,
-  ]);
 
   const buildFullName = (first: string, last: string): string =>
     [first.trim(), last.trim()].filter(Boolean).join(" ");
@@ -262,7 +149,6 @@ export function useRegisterFlow() {
     if (isSubmitting) return;
 
     setApiError(null);
-    setInfoNotice(null);
 
     const firstNameError = validateFirstName(firstName, lastName);
     const emailError = validateEmail(email);
@@ -301,12 +187,20 @@ export function useRegisterFlow() {
 
     setIsSubmitting(true);
     try {
-      await register({
+      const result = await register({
         email,
         password,
         fullName: buildFullName(firstName, lastName),
+        locale,
       });
-      setActiveStep(2);
+
+      if (result.needsEmailVerification) {
+        router.replace("/verify-email");
+      } else if (result.user.subscriptionTier === null) {
+        router.replace("/select-plan");
+      } else {
+        router.replace(redirectTarget);
+      }
     } catch (error) {
       if (error instanceof ApiClientError) {
         const userMessage = error.getUserMessage(locale);
@@ -349,134 +243,6 @@ export function useRegisterFlow() {
     }
   };
 
-  const handleConfirmEmail = (): void => {
-    setIsVerifyingEmail(true);
-    setTimeout(() => {
-      confirmEmailVerification();
-      setIsVerifyingEmail(false);
-      setEmailVerificationNotice(
-        t.auth.stepper.step2VerifyEmail.confirmedSuccessAlert,
-      );
-      setTimeout(() => {
-        setActiveStep(3);
-      }, 1000);
-    }, 600);
-  };
-
-  const handleResendEmail = (): void => {
-    setIsResendingEmail(true);
-    setTimeout(() => {
-      setIsResendingEmail(false);
-      setEmailVerificationNotice(
-        t.auth.stepper.step2VerifyEmail.resendSuccessAlert,
-      );
-    }, 500);
-  };
-
-  const activePlanLimit =
-    plansCatalog.find((plan) => plan.id === selectedPlan)?.maxLanguages ??
-    (selectedPlan === "dolly" ? 1 : selectedPlan === "dolly_plus" ? 2 : 4);
-
-  const handleSelectPlan = (plan: SubscriptionPlanId): void => {
-    setSelectedPlan(plan);
-    setPlanError(null);
-  };
-
-  const handleStep3Submit = async (): Promise<void> => {
-    if (!selectedPlan) {
-      setPlanError(t.auth.stepper.step3Plan.selectPlanRequired);
-      return;
-    }
-    if (isSubmittingPlan) return;
-
-    setPlanError(null);
-    setIsSubmittingPlan(true);
-    try {
-      await selectPlan(selectedPlan);
-      setSelectedLanguages((prev) => prev.slice(0, activePlanLimit));
-      setActiveStep(4);
-    } catch (error) {
-      if (error instanceof ApiClientError) {
-        setPlanError(error.getUserMessage(locale));
-      } else {
-        setPlanError(
-          locale === "es"
-            ? "No fue posible registrar tu plan de suscripción. Inténtalo de nuevo."
-            : "Could not save your subscription plan. Please try again.",
-        );
-      }
-    } finally {
-      setIsSubmittingPlan(false);
-    }
-  };
-
-  const handleToggleLanguage = (code: TargetLanguageCode): void => {
-    setLanguagesError(null);
-    if (selectedLanguages.includes(code)) {
-      if (selectedLanguages.length === 1) {
-        setLanguagesError(t.auth.stepper.step4Languages.atLeastOneAlert);
-        return;
-      }
-      setSelectedLanguages(selectedLanguages.filter((item) => item !== code));
-    } else if (activePlanLimit === 1) {
-      setSelectedLanguages([code]);
-    } else {
-      if (
-        selectedPlan !== "dolly_pro" &&
-        selectedLanguages.length >= activePlanLimit
-      ) {
-        setLanguagesError(t.auth.stepper.step4Languages.limitReachedAlert);
-        return;
-      }
-      setSelectedLanguages([...selectedLanguages, code]);
-    }
-  };
-
-  const handleSelectAllLanguages = (): void => {
-    if (selectedPlan === "dolly_pro") {
-      setSelectedLanguages(["en", "fr", "es", "it"]);
-      setLanguagesError(null);
-    }
-  };
-
-  const handleStep4Submit = async (): Promise<void> => {
-    if (selectedLanguages.length === 0) {
-      setLanguagesError(t.auth.stepper.step4Languages.atLeastOneAlert);
-      return;
-    }
-    if (isSubmittingLanguages) return;
-
-    setLanguagesError(null);
-    setIsSubmittingLanguages(true);
-    try {
-      await selectLanguages(selectedLanguages);
-      router.replace(redirectTarget);
-    } catch (error) {
-      if (error instanceof ApiClientError) {
-        setLanguagesError(error.getUserMessage(locale));
-      } else {
-        setLanguagesError(
-          locale === "es"
-            ? "No fue posible guardar tus idiomas de estudio. Inténtalo de nuevo."
-            : "Could not save your study languages. Please try again.",
-        );
-      }
-    } finally {
-      setIsSubmittingLanguages(false);
-    }
-  };
-
-  const targetLanguageOptions: readonly {
-    code: TargetLanguageCode;
-    label: string;
-  }[] = [
-    { code: "en", label: t.auth.register.targetLanguages.en },
-    { code: "fr", label: t.auth.register.targetLanguages.fr },
-    { code: "es", label: t.auth.register.targetLanguages.es },
-    { code: "it", label: t.auth.register.targetLanguages.it },
-  ];
-
-  const registeredEmail = user?.email || email || "correo@universidad.edu";
   const loginHref =
     redirectTarget && redirectTarget !== "/"
       ? `/login?redirect=${encodeURIComponent(redirectTarget)}`
@@ -484,8 +250,7 @@ export function useRegisterFlow() {
 
   return {
     t,
-    activeStep,
-    setActiveStep,
+    locale,
     isAuthenticated,
     onboarding,
     firstNameRef,
@@ -512,35 +277,11 @@ export function useRegisterFlow() {
     validateTerms,
     apiError,
     setApiError,
-    infoNotice,
-    setInfoNotice,
     isSubmitting,
     strength,
     strengthLabel,
     strengthTone,
     handleStep1Submit,
-    registeredEmail,
-    isVerifyingEmail,
-    isResendingEmail,
-    emailVerificationNotice,
-    setEmailVerificationNotice,
-    handleConfirmEmail,
-    handleResendEmail,
-    selectedPlan,
-    activePlanLimit,
-    planError,
-    setPlanError,
-    isSubmittingPlan,
-    handleSelectPlan,
-    handleStep3Submit,
-    selectedLanguages,
-    languagesError,
-    setLanguagesError,
-    isSubmittingLanguages,
-    targetLanguageOptions,
-    handleToggleLanguage,
-    handleSelectAllLanguages,
-    handleStep4Submit,
     loginHref,
   };
 }

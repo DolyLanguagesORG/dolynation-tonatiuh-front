@@ -10,11 +10,11 @@ export interface RegisterStepperProps {
   isAuthenticated: boolean;
   onboarding: OnboardingState;
   stepsLabels: Dictionary["auth"]["stepper"]["steps"];
-  onStepSelect: (step: RegisterStepNumber) => void;
+  onStepSelect?: (step: RegisterStepNumber) => void;
 }
 
 /**
- * Enlace de dominio del flujo de registro sobre el primitivo global `Stepper`.
+ * Enlace de dominio del flujo de onboarding sobre el primitivo global `Stepper`.
  */
 export function RegisterStepper({
   activeStep,
@@ -36,16 +36,21 @@ export function RegisterStepper({
     isCurrent: activeStep === item.step,
     isCompleted:
       item.step < activeStep ||
-      (item.step === 1 && isAuthenticated) ||
+      (item.step === 1 && (isAuthenticated || onboarding.emailVerified)) ||
       (item.step === 2 && onboarding.emailVerified) ||
-      (item.step === 3 && onboarding.hasSelectedPlan),
+      (item.step === 3 && onboarding.hasSelectedPlan) ||
+      (item.step === 4 && onboarding.isOnboardingComplete),
   }));
 
   return (
     <Stepper
       ariaLabel="Progreso de registro"
       items={items}
-      onStepSelect={(step) => onStepSelect(step as RegisterStepNumber)}
+      onStepSelect={
+        onStepSelect
+          ? (step) => onStepSelect(step as RegisterStepNumber)
+          : undefined
+      }
     />
   );
 }

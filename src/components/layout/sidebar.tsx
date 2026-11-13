@@ -50,7 +50,8 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
   const { user, isAuthenticated, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const displayName = user?.fullName?.trim() || user?.email || "Elena Rostova";
+  const displayName =
+    user?.fullName?.trim() || user?.email || t.nav.studentRole;
   const initials = getInitials(displayName);
 
   const handleLogout = async (): Promise<void> => {
@@ -77,6 +78,13 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
       href: "/readings",
       isActive: pathname.startsWith("/readings") || pathname.startsWith("/history"),
       icon: "book-open",
+    },
+    {
+      id: "glossary",
+      label: t.nav.glossary,
+      href: "/glossary",
+      isActive: pathname.startsWith("/glossary"),
+      icon: "bookmark",
     },
     {
       id: "create-ai",
@@ -142,7 +150,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
       {/* Ficha inferior del estudiante activo */}
       <div className="flex flex-col gap-3 border-t border-default bg-neutral-primary-soft p-3.5">
         <Link
-          href={isAuthenticated ? "/profile" : "/login"}
+          href="/profile"
           onClick={onItemClick}
           className="flex items-center justify-between gap-2.5 rounded-base p-1 transition-colors hover:bg-neutral-secondary-soft"
         >
@@ -172,7 +180,7 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
           </span>
         </Link>
 
-        {isAuthenticated ? (
+        {isAuthenticated && (
           <Button
             variant="secondary"
             size="sm"
@@ -183,27 +191,6 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
           >
             {isLoggingOut ? t.nav.signingOut : t.nav.signOut}
           </Button>
-        ) : (
-          <div className="grid grid-cols-2 gap-1.5">
-            <ActionLink
-              href="/login"
-              variant="secondary"
-              size="xs"
-              onClick={onItemClick}
-              className="px-2"
-            >
-              {t.nav.signIn}
-            </ActionLink>
-            <ActionLink
-              href="/register"
-              variant="primary"
-              size="xs"
-              onClick={onItemClick}
-              className="px-2"
-            >
-              {t.nav.createAccount}
-            </ActionLink>
-          </div>
         )}
       </div>
     </FlowbiteSidebar>

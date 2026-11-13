@@ -1,84 +1,56 @@
 "use client";
 
-import { Alert, Button, ChoiceCard, Icon } from "@/components/ui";
+import {
+  Alert,
+  Button,
+  ChoiceCard,
+  Icon,
+  SkeletonCard,
+} from "@/components/ui";
 import { type SubscriptionPlanId } from "@/context";
-import { type Dictionary } from "@/i18n";
+import { type Dictionary, useLocale } from "@/i18n";
+import { type SubscriptionPlanItem } from "@/lib";
+import { useSubscriptionPlans } from "@/lib/hooks/use-subscription-plans";
+import { formatPlanFromBackend } from "@/lib/plan-presentation";
 
 export interface StepPlanSelectionProps {
   t: Dictionary;
   selectedPlan: SubscriptionPlanId;
   planError: string | null;
   isSubmittingPlan: boolean;
+  plans?: readonly SubscriptionPlanItem[];
   onDismissError: () => void;
   onSelectPlan: (plan: SubscriptionPlanId) => void;
-  onBack: () => void;
+  onBack?: () => void;
   onSubmit: () => void;
 }
 
-interface PlanDefinition {
-  id: SubscriptionPlanId;
-  name: string;
-  badge: string;
-  price: string;
-  period: string;
-  description: string;
-  features: readonly string[];
-}
-
 /**
- * Paso 3 del onboarding: selección paramétrica del plan de suscripción.
+ * Paso 3 del onboarding: selección paramétrica del plan de suscripción
+ * alimentada desde `GET /subscriptions/plans`.
  */
 export function StepPlanSelection({
   t,
   selectedPlan,
   planError,
   isSubmittingPlan,
+  plans: providedPlans,
   onDismissError,
   onSelectPlan,
   onBack,
   onSubmit,
 }: StepPlanSelectionProps) {
+  const { locale } = useLocale();
   const s3 = t.auth.stepper.step3Plan;
+  const loadedPlans = useSubscriptionPlans(locale);
+  const rawPlans =
+    providedPlans && providedPlans.length > 0 ? providedPlans : loadedPlans.plans;
+  const isLoadingPlans = !providedPlans && loadedPlans.isLoading;
+  const plansLoadError = !providedPlans ? loadedPlans.error : null;
 
-  const planDefinitions: readonly PlanDefinition[] = [
-    {
-      id: "dolly",
-      name: s3.planDolyName,
-      badge: s3.planDolyBadge,
-      price: s3.planDolyPrice,
-      period: s3.planDolyPeriod,
-      description: s3.planDolyDesc,
-      features: [s3.planDolyFeature1, s3.planDolyFeature2, s3.planDolyFeature3],
-    },
-    {
-      id: "dolly_plus",
-      name: s3.planDolyPlusName,
-      badge: s3.planDolyPlusBadge,
-      price: s3.planDolyPlusPrice,
-      period: s3.planDolyPlusPeriod,
-      description: s3.planDolyPlusDesc,
-      features: [
-        s3.planDolyPlusFeature1,
-        s3.planDolyPlusFeature2,
-        s3.planDolyPlusFeature3,
-        s3.planDolyPlusFeature4,
-      ],
-    },
-    {
-      id: "dolly_pro",
-      name: s3.planDolyProName,
-      badge: s3.planDolyProBadge,
-      price: s3.planDolyProPrice,
-      period: s3.planDolyProPeriod,
-      description: s3.planDolyProDesc,
-      features: [
-        s3.planDolyProFeature1,
-        s3.planDolyProFeature2,
-        s3.planDolyProFeature3,
-        s3.planDolyProFeature4,
-      ],
-    },
-  ];
+  const planDefinitions = rawPlans.map((plan) =>
+    formatPlanFromBackend(plan, locale),
+  );
 
   return (
     <div className="flex flex-col gap-6">
@@ -92,51 +64,100 @@ export function StepPlanSelection({
         </Alert>
       )}
 
-      <div role="radiogroup" aria-label={s3.title} className="flex flex-col gap-4">
-        {planDefinitions.map((plan) => {
-          const isSelected = selectedPlan === plan.id;
-          return (
-            <ChoiceCard
-              key={plan.id}
-              selected={isSelected}
-              badge={isSelected ? s3.currentSelection : plan.badge}
-              title={
-                <span className="font-serif text-lg font-bold text-heading sm:text-xl">
-                  {plan.name}
-                </span>
-              }
-              meta={`${plan.price} · ${plan.period}`}
-              description={plan.description}
-              onClick={() => onSelectPlan(plan.id)}
+      {plansLoadError && (
+        <Alert
+          variant="error"
+          title={
+            locale === "es"
+              ? "No se pudieron cargar los planes"
+              : "Could not load subscription plans"
+          }
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span>{plansLoadError}</span>
+            <Button
+              type="button"
+              variant="secondary"
+              size="xs"
+              onClick={() => void loadedPlans.reload()}
             >
-              <ul className="flex flex-col gap-1.5 border-t border-default pt-3 text-xs text-heading">
-                {plan.features.map((feature, index) => (
-                  <li
-                    key={feature}
-                    className={`flex items-center gap-2 ${
-                      index === 0 ? "font-semibold" : "text-muted"
-                    }`}
-                  >
-                    <Icon name="check" size="xs" strokeWidth={2.4} />
-                    <span>{feature}</span>
-                  </li>
-                ))}
-              </ul>
-            </ChoiceCard>
-          );
-        })}
+              {locale === "es" ? "Reintentar" : "Retry"}
+            </Button>
+          </div>
+        </Alert>
+      )}
+
+      <div
+        role="radiogroup"
+        aria-label={s3.title}
+        className="grid grid-cols-1 gap-4 md:grid-cols-3"
+      >
+        {isLoadingPlans
+          ? [1, 2, 3].map((slot) => (
+              <SkeletonCard
+                key={slot}
+                lines={4}
+                label={
+                  locale === "es" ? "Cargando planes..." : "Loading plans..."
+                }
+              />
+            ))
+          : planDefinitions.map((plan) => {
+              const isSelected = selectedPlan === plan.id;
+              return (
+                <ChoiceCard
+                  key={plan.id}
+                  selected={isSelected}
+                  className="h-full"
+                  badge={isSelected ? s3.currentSelection : plan.tierBadge}
+                  title={
+                    <span className="font-serif text-lg font-bold text-heading sm:text-xl">
+                      {plan.name}
+                    </span>
+                  }
+                  meta={plan.quotaHeadline}
+                  description={plan.description}
+                  onClick={() => onSelectPlan(plan.id)}
+                >
+                  <ul className="mt-auto flex w-full flex-col gap-1.5 border-t border-default pt-3 text-xs text-heading">
+                    {plan.features.map((feature, index) => (
+                      <li
+                        key={feature}
+                        className={`flex items-start gap-2 ${
+                          index === 0 ? "font-semibold" : "text-muted"
+                        }`}
+                      >
+                        <Icon
+                          name="check"
+                          size="xs"
+                          strokeWidth={2.4}
+                          className="mt-0.5 shrink-0"
+                        />
+                        <span>{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </ChoiceCard>
+              );
+            })}
       </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-3 pt-2">
-        <Button
-          type="button"
-          variant="outline"
-          size="md"
-          leftIcon={<Icon name="arrow-left" size="xs" />}
-          onClick={onBack}
-        >
-          Volver a correo
-        </Button>
+      <div
+        className={`flex flex-wrap items-center gap-3 pt-2 ${
+          onBack ? "justify-between" : "justify-end"
+        }`}
+      >
+        {onBack && (
+          <Button
+            type="button"
+            variant="outline"
+            size="md"
+            leftIcon={<Icon name="arrow-left" size="xs" />}
+            onClick={onBack}
+          >
+            Volver a correo
+          </Button>
+        )}
 
         <Button
           type="button"

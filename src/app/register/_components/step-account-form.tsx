@@ -7,7 +7,6 @@ import {
   Alert,
   Button,
   Checkbox,
-  Divider,
   Icon,
   Input,
   PasswordInput,
@@ -39,7 +38,6 @@ export interface StepAccountFormProps {
     acceptTerms?: string;
   };
   apiError: { code: string; message: string } | null;
-  infoNotice: { title: string; message: string } | null;
   isSubmitting: boolean;
   activeStrengthSegments: number;
   strengthLabel: string;
@@ -52,8 +50,6 @@ export interface StepAccountFormProps {
   onPasswordChange: (value: string) => void;
   onPasswordBlur: () => void;
   onAcceptTermsChange: (checked: boolean) => void;
-  onShowOAuthNotice: () => void;
-  onDismissInfo: () => void;
   onDismissError: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
 }
@@ -75,7 +71,6 @@ export function StepAccountForm({
   touched,
   fieldErrors,
   apiError,
-  infoNotice,
   isSubmitting,
   activeStrengthSegments,
   strengthLabel,
@@ -88,43 +83,11 @@ export function StepAccountForm({
   onPasswordChange,
   onPasswordBlur,
   onAcceptTermsChange,
-  onShowOAuthNotice,
-  onDismissInfo,
   onDismissError,
   onSubmit,
 }: StepAccountFormProps) {
   return (
     <div className="flex flex-col gap-6">
-      <Button
-        type="button"
-        variant="secondary"
-        size="md"
-        fullWidth
-        disabled={isSubmitting}
-        onClick={onShowOAuthNotice}
-        leftIcon={
-          <span aria-hidden="true" className="font-sans text-sm font-bold text-ink">
-            G
-          </span>
-        }
-        className="normal-case tracking-normal"
-      >
-        {t.auth.register.googleButton}
-      </Button>
-
-      <Divider label={t.auth.register.divider} />
-
-      {infoNotice && (
-        <Alert
-          variant="info"
-          title={infoNotice.title}
-          code="AUTH_NOTICE"
-          onDismiss={onDismissInfo}
-        >
-          {infoNotice.message}
-        </Alert>
-      )}
-
       {apiError && (
         <Alert
           variant="error"
@@ -230,14 +193,18 @@ export function StepAccountForm({
               <span>
                 {t.auth.register.termsPrefix}
                 <Link
-                  href="/register#terminos"
+                  href="/terms"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="font-semibold text-ink underline underline-offset-2 hover:text-muted"
                 >
                   {t.auth.register.termsServiceLink}
                 </Link>
                 {t.auth.register.termsMiddle}
                 <Link
-                  href="/register#etica-datos"
+                  href="/privacy"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="font-semibold text-ink underline underline-offset-2 hover:text-muted"
                 >
                   {t.auth.register.termsEthicsLink}

@@ -53,6 +53,21 @@ export function useLoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
+    if (searchParams.get("reset") === "success") {
+      setInfoNotice({
+        title:
+          locale === "es"
+            ? "Contraseña restablecida"
+            : "Password updated",
+        message:
+          locale === "es"
+            ? "Tu contraseña se actualizó correctamente. Inicia sesión con tu nueva contraseña."
+            : "Your password was updated successfully. Sign in with your new password.",
+      });
+    }
+  }, [locale, searchParams]);
+
+  useEffect(() => {
     if (isAuthenticated) {
       router.replace(redirectTarget);
     }
@@ -109,18 +124,8 @@ export function useLoginForm() {
     }));
   };
 
-  const showOAuthNotice = (): void => {
-    setInfoNotice({
-      title: t.auth.oauthUnavailableTitle,
-      message: t.auth.oauthUnavailableMessage,
-    });
-  };
-
-  const showPasswordRecoveryNotice = (): void => {
-    setInfoNotice({
-      title: t.auth.passwordRecoveryNoticeTitle,
-      message: t.auth.passwordRecoveryNoticeMessage,
-    });
+  const clearNotices = (): void => {
+    setInfoNotice(null);
   };
 
   const handleSubmit = async (
@@ -149,10 +154,18 @@ export function useLoginForm() {
 
     setIsSubmitting(true);
     try {
-      await login({ email, password });
-      router.replace(redirectTarget);
+      const loggedUser = await login({ email, password });
+      if (loggedUser.subscriptionTier === null) {
+        router.replace("/select-plan");
+      } else {
+        router.replace(redirectTarget);
+      }
     } catch (error) {
       if (error instanceof ApiClientError) {
+        if (error.code === ErrorCode.AUTH_EMAIL_NOT_VERIFIED) {
+          router.replace("/verify-email");
+          return;
+        }
         setApiError({
           code: error.code,
           message: error.getUserMessage(locale),
@@ -211,8 +224,7 @@ export function useLoginForm() {
     handlePasswordChange,
     handleEmailBlur,
     handlePasswordBlur,
-    showOAuthNotice,
-    showPasswordRecoveryNotice,
+    clearNotices,
     handleSubmit,
   };
 }

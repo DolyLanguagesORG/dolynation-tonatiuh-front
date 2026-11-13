@@ -7,7 +7,6 @@ import {
   Alert,
   Button,
   Checkbox,
-  Divider,
   Icon,
   Input,
   PasswordInput,
@@ -38,8 +37,6 @@ export function LoginView() {
     handlePasswordChange,
     handleEmailBlur,
     handlePasswordBlur,
-    showOAuthNotice,
-    showPasswordRecoveryNotice,
     handleSubmit,
   } = useLoginForm();
 
@@ -60,30 +57,11 @@ export function LoginView() {
         </>
       }
       legalLinks={[
-        { href: "/login#terminos", label: t.auth.login.academicTerms },
-        { href: "/login#privacidad", label: t.auth.login.privacyPolicy },
-        { href: "/login#soporte", label: t.auth.login.technicalSupport },
+        { href: "/terms", label: t.auth.login.academicTerms },
+        { href: "/privacy", label: t.auth.login.privacyPolicy },
+        { href: "/support", label: t.auth.login.technicalSupport },
       ]}
     >
-      <Button
-        type="button"
-        variant="secondary"
-        size="md"
-        fullWidth
-        disabled={isSubmitting}
-        onClick={showOAuthNotice}
-        leftIcon={
-          <span aria-hidden="true" className="font-sans text-sm font-bold text-ink">
-            G
-          </span>
-        }
-        className="normal-case tracking-normal"
-      >
-        {t.auth.login.googleButton}
-      </Button>
-
-      <Divider label={t.auth.login.divider} />
-
       {infoNotice && (
         <Alert
           variant="info"
@@ -138,14 +116,12 @@ export function LoginView() {
           hideLabel={t.auth.login.hidePasswordAria}
           error={touched.password ? fieldErrors.password : undefined}
           labelAction={
-            <Button
-              variant="ghost"
-              size="xs"
-              onClick={showPasswordRecoveryNotice}
-              className="h-auto min-h-0 px-0 py-0 text-xs font-medium normal-case tracking-normal text-muted underline-offset-4 hover:bg-transparent hover:text-ink hover:underline"
+            <Link
+              href="/forgot-password"
+              className="text-xs font-medium text-muted underline-offset-4 transition-colors hover:text-ink hover:underline"
             >
               {t.auth.login.forgotPasswordLink}
-            </Button>
+            </Link>
           }
           onChange={(event) => handlePasswordChange(event.target.value)}
           onBlur={handlePasswordBlur}

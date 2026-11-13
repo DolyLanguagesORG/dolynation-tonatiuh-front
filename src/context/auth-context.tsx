@@ -12,12 +12,15 @@ import {
 } from "react";
 
 import {
+  type AccountAccessPhase,
   ApiClientError,
   authService,
   type AuthUser,
+  type CategoriesSettings,
   ErrorCode,
   type LanguagesSettings,
   type LoginInput,
+  MIN_USER_CATEGORIES,
   registerAuthLifecycleHandlers,
   type RegisterInput,
   settingsService,
@@ -25,6 +28,7 @@ import {
   type SubscriptionTier,
   type TargetLanguageCode,
   type UserSubscriptionResponse,
+  type VerifyEmailResponse,
 } from "@/lib";
 
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
@@ -39,42 +43,67 @@ export interface OnboardingState {
   hasSelectedPlan: boolean;
   subscriptionPlan: SubscriptionPlanId | null;
   selectedLanguages: TargetLanguageCode[];
+  selectedCategories: string[];
+  hasConfiguredLanguages: boolean;
+  hasConfiguredCategories: boolean;
+  canGenerateReadings: boolean;
   isOnboardingComplete: boolean;
 }
 
 export type RegisterWithPreferencesInput = RegisterInput;
 
+export interface RegisterResult {
+  user: AuthUser;
+  needsEmailVerification: boolean;
+}
+
+export interface SavePreferencesInput {
+  languages?: TargetLanguageCode[];
+  categories: string[];
+}
+
 export interface AuthContextValue {
   user: AuthUser | null;
   subscription: UserSubscriptionResponse | null;
   languagesSettings: LanguagesSettings | null;
+  categoriesSettings: CategoriesSettings | null;
   status: AuthStatus;
+  accessPhase: AccountAccessPhase;
   isAuthenticated: boolean;
   isLoading: boolean;
+  pendingVerificationEmail: string | null;
   onboarding: OnboardingState;
   login: (input: LoginInput) => Promise<AuthUser>;
-  register: (input: RegisterWithPreferencesInput) => Promise<AuthUser>;
+  register: (input: RegisterWithPreferencesInput) => Promise<RegisterResult>;
+  verifyEmailWithToken: (token: string) => Promise<VerifyEmailResponse>;
+  resendVerificationEmail: (email?: string) => Promise<void>;
+  clearPendingVerification: () => void;
   logout: () => Promise<void>;
   logoutAll: () => Promise<void>;
   refreshSession: () => Promise<boolean>;
   reloadAccountState: () => Promise<void>;
-  confirmEmailVerification: () => void;
+  refreshPreferences: () => Promise<void>;
   selectPlan: (plan: SubscriptionPlanId) => Promise<UserSubscriptionResponse>;
   selectLanguages: (
     languages: TargetLanguageCode[],
   ) => Promise<LanguagesSettings>;
+  savePreferences: (input: SavePreferencesInput) => Promise<void>;
   updateOnboardingState: (partial: Partial<OnboardingState>) => void;
 }
 
 const SESSION_FLAG_COOKIE_NAME = "doly_session";
 const USER_SNAPSHOT_STORAGE_KEY = "doly_user_snapshot";
-const EMAIL_VERIFIED_STORAGE_KEY = "doly_email_verified_hint";
+const PENDING_VERIFICATION_STORAGE_KEY = "doly.pending_verification_email";
 
 const EMPTY_ONBOARDING: OnboardingState = {
   emailVerified: false,
   hasSelectedPlan: false,
   subscriptionPlan: null,
   selectedLanguages: [],
+  selectedCategories: [],
+  hasConfiguredLanguages: false,
+  hasConfiguredCategories: false,
+  canGenerateReadings: false,
   isOnboardingComplete: false,
 };
 
@@ -119,7 +148,7 @@ function hasSessionCookieFlag(): boolean {
 
 /**
  * Persiste únicamente datos públicos de vista en `sessionStorage` para preservar el
- * nombre/correo durante el flujo `/register` previo a elegir plan (ningún token JWT).
+ * nombre/correo durante el paso de selección de plan (ningún token JWT).
  */
 function saveUserSnapshot(user: AuthUser | null): void {
   if (typeof window === "undefined") return;
@@ -149,44 +178,73 @@ function loadUserSnapshot(): AuthUser | null {
   }
 }
 
-function saveEmailVerifiedHint(email: string, verified: boolean): void {
+/**
+ * Guarda o limpia el correo pendiente de confirmar en `localStorage` (nunca tokens)
+ * para sincronizar el bloqueo de verificación entre pestañas del mismo navegador.
+ */
+function savePendingVerificationEmail(email: string | null): void {
   if (typeof window === "undefined") return;
   try {
-    const normalized = email.trim().toLowerCase();
-    if (!verified) {
-      window.sessionStorage.removeItem(EMAIL_VERIFIED_STORAGE_KEY);
+    if (!email || !email.trim()) {
+      window.localStorage.removeItem(PENDING_VERIFICATION_STORAGE_KEY);
       return;
     }
-    window.sessionStorage.setItem(EMAIL_VERIFIED_STORAGE_KEY, normalized);
-  } catch {
-    // Sin impacto funcional si sessionStorage no está disponible.
-  }
-}
-
-function isEmailVerifiedInSession(email?: string | null): boolean {
-  if (typeof window === "undefined" || !email) return false;
-  try {
-    return (
-      window.sessionStorage.getItem(EMAIL_VERIFIED_STORAGE_KEY) ===
-      email.trim().toLowerCase()
+    window.localStorage.setItem(
+      PENDING_VERIFICATION_STORAGE_KEY,
+      email.trim().toLowerCase(),
     );
   } catch {
-    return false;
+    // Sin impacto funcional si localStorage no está disponible.
   }
 }
 
-function clearBrowserSessionHints(): void {
+function loadPendingVerificationEmail(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const value = window.localStorage.getItem(PENDING_VERIFICATION_STORAGE_KEY);
+    return value && value.trim().length > 0 ? value.trim() : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearBrowserSessionHints(options?: {
+  preservePendingEmail?: boolean;
+}): void {
   saveUserSnapshot(null);
-  if (typeof window !== "undefined") {
-    try {
-      window.sessionStorage.removeItem(EMAIL_VERIFIED_STORAGE_KEY);
-    } catch {
-      // Ignorado intencionalmente.
-    }
+  if (!options?.preservePendingEmail) {
+    savePendingVerificationEmail(null);
   }
   if (typeof document !== "undefined") {
     document.cookie = `${SESSION_FLAG_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
   }
+}
+
+function buildOnboardingState(params: {
+  emailVerified: boolean;
+  tier: SubscriptionPlanId | null;
+  selectedLanguages: TargetLanguageCode[];
+  selectedCategories: string[];
+}): OnboardingState {
+  const hasSelectedPlan = Boolean(params.tier);
+  const hasConfiguredLanguages =
+    params.tier === "dolly_pro" || params.selectedLanguages.length >= 1;
+  const hasConfiguredCategories =
+    params.selectedCategories.length >= MIN_USER_CATEGORIES;
+  const canGenerateReadings =
+    hasSelectedPlan && hasConfiguredLanguages && hasConfiguredCategories;
+
+  return {
+    emailVerified: params.emailVerified,
+    hasSelectedPlan,
+    subscriptionPlan: params.tier,
+    selectedLanguages: params.selectedLanguages,
+    selectedCategories: params.selectedCategories,
+    hasConfiguredLanguages,
+    hasConfiguredCategories,
+    canGenerateReadings,
+    isOnboardingComplete: canGenerateReadings,
+  };
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -195,94 +253,130 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useState<UserSubscriptionResponse | null>(null);
   const [languagesSettings, setLanguagesSettings] =
     useState<LanguagesSettings | null>(null);
+  const [categoriesSettings, setCategoriesSettings] =
+    useState<CategoriesSettings | null>(null);
   const [status, setStatus] = useState<AuthStatus>("loading");
+  const [subscriptionRequired, setSubscriptionRequired] = useState(false);
+  const [pendingVerificationEmail, setPendingVerificationEmailState] = useState<
+    string | null
+  >(null);
   const [onboarding, setOnboarding] =
     useState<OnboardingState>(EMPTY_ONBOARDING);
 
   const isBootstrappedRef = useRef(false);
+  const isUnloadingRef = useRef(false);
 
-  const clearSessionState = useCallback((): void => {
-    clearBrowserSessionHints();
-    setUser(null);
-    setSubscription(null);
-    setLanguagesSettings(null);
-    setOnboarding(EMPTY_ONBOARDING);
-    setStatus("unauthenticated");
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const markUnloading = (): void => {
+      isUnloadingRef.current = true;
+    };
+    const clearUnloading = (): void => {
+      isUnloadingRef.current = false;
+    };
+    window.addEventListener("beforeunload", markUnloading);
+    window.addEventListener("pagehide", markUnloading);
+    window.addEventListener("pageshow", clearUnloading);
+    return () => {
+      window.removeEventListener("beforeunload", markUnloading);
+      window.removeEventListener("pagehide", markUnloading);
+      window.removeEventListener("pageshow", clearUnloading);
+    };
   }, []);
 
+  const updatePendingVerificationEmail = useCallback(
+    (email: string | null): void => {
+      savePendingVerificationEmail(email);
+      setPendingVerificationEmailState(
+        email && email.trim().length > 0 ? email.trim().toLowerCase() : null,
+      );
+    },
+    [],
+  );
+
+  const clearSessionState = useCallback(
+    (options?: { preservePendingEmail?: boolean }): void => {
+      clearBrowserSessionHints(options);
+      setUser(null);
+      setSubscription(null);
+      setLanguagesSettings(null);
+      setCategoriesSettings(null);
+      setSubscriptionRequired(false);
+      if (!options?.preservePendingEmail) {
+        setPendingVerificationEmailState(null);
+      }
+      setOnboarding(EMPTY_ONBOARDING);
+      setStatus("unauthenticated");
+    },
+    [],
+  );
+
   /**
-   * Carga suscripción e idiomas actuales cuando el usuario ya cuenta con un plan activo.
+   * Sincroniza suscripción, idiomas y categorías actuales cuando ya hay plan activo.
    */
-  const syncSubscriptionAndLanguages = useCallback(
-    async (
-      authenticatedUser: AuthUser,
-      options?: { assumeEmailVerified?: boolean },
-    ): Promise<void> => {
-      const [subResult, langResult] = await Promise.allSettled([
+  const syncSubscribedAccountSettings = useCallback(
+    async (authenticatedUser: AuthUser): Promise<void> => {
+      const [subResult, langResult, catResult] = await Promise.allSettled([
         subscriptionsService.getCurrentSubscription(),
         settingsService.getLanguages(),
+        settingsService.getCategories(),
       ]);
 
       const nextSubscription =
         subResult.status === "fulfilled" ? subResult.value.data : null;
       const nextLanguages =
         langResult.status === "fulfilled" ? langResult.value.data : null;
+      const nextCategories =
+        catResult.status === "fulfilled" ? catResult.value.data : null;
 
       setSubscription(nextSubscription);
       setLanguagesSettings(nextLanguages);
+      setCategoriesSettings(nextCategories);
 
       const resolvedTier =
         nextSubscription?.tier ?? authenticatedUser.subscriptionTier ?? null;
       const selectedLanguages = nextLanguages?.selected ?? [];
-      const hasSelectedPlan = Boolean(resolvedTier);
-      const emailVerified =
-        hasSelectedPlan ||
-        Boolean(options?.assumeEmailVerified) ||
-        isEmailVerifiedInSession(authenticatedUser.email);
+      const selectedCategories = nextCategories?.selected ?? [];
 
-      setOnboarding({
-        emailVerified,
-        hasSelectedPlan,
-        subscriptionPlan: resolvedTier,
-        selectedLanguages,
-        isOnboardingComplete: hasSelectedPlan && selectedLanguages.length > 0,
-      });
+      setOnboarding(
+        buildOnboardingState({
+          emailVerified: Boolean(authenticatedUser.emailVerifiedAt),
+          tier: resolvedTier,
+          selectedLanguages,
+          selectedCategories,
+        }),
+      );
     },
     [],
   );
 
   const applyAuthenticatedUser = useCallback(
-    async (
-      authenticatedUser: AuthUser,
-      options?: { isNewRegistration?: boolean },
-    ): Promise<void> => {
+    async (authenticatedUser: AuthUser): Promise<void> => {
+      updatePendingVerificationEmail(null);
       setUser(authenticatedUser);
       saveUserSnapshot(authenticatedUser);
       setStatus("authenticated");
 
       if (authenticatedUser.subscriptionTier) {
-        await syncSubscriptionAndLanguages(authenticatedUser, {
-          assumeEmailVerified: !options?.isNewRegistration,
-        });
+        setSubscriptionRequired(false);
+        await syncSubscribedAccountSettings(authenticatedUser);
         return;
       }
 
       setSubscription(null);
       setLanguagesSettings(null);
-
-      const emailVerified = options?.isNewRegistration
-        ? false
-        : isEmailVerifiedInSession(authenticatedUser.email);
-
-      setOnboarding({
-        emailVerified,
-        hasSelectedPlan: false,
-        subscriptionPlan: null,
-        selectedLanguages: [],
-        isOnboardingComplete: false,
-      });
+      setCategoriesSettings(null);
+      setSubscriptionRequired(true);
+      setOnboarding(
+        buildOnboardingState({
+          emailVerified: true,
+          tier: null,
+          selectedLanguages: [],
+          selectedCategories: [],
+        }),
+      );
     },
-    [syncSubscriptionAndLanguages],
+    [syncSubscribedAccountSettings, updatePendingVerificationEmail],
   );
 
   const reloadAccountState = useCallback(async (): Promise<void> => {
@@ -292,40 +386,107 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       if (
         error instanceof ApiClientError &&
+        error.code === ErrorCode.AUTH_EMAIL_NOT_VERIFIED
+      ) {
+        const snapshot = loadUserSnapshot();
+        const fallbackEmail = snapshot?.email ?? user?.email ?? null;
+        clearSessionState({ preservePendingEmail: true });
+        if (fallbackEmail) {
+          updatePendingVerificationEmail(fallbackEmail);
+        }
+        return;
+      }
+
+      if (
+        error instanceof ApiClientError &&
         error.code === ErrorCode.SUBSCRIPTION_REQUIRED
       ) {
-        // Sesión autenticada pero aún sin plan en el Paso 3 del registro.
+        // JWT válido + correo confirmado, pero el backend bloquea hasta seleccionar plan.
         const snapshot = loadUserSnapshot();
-        const email = snapshot?.email ?? user?.email ?? null;
-        setUser(snapshot ? { ...snapshot, subscriptionTier: null } : user);
+        const resolvedUser = snapshot
+          ? { ...snapshot, subscriptionTier: null }
+          : user
+            ? { ...user, subscriptionTier: null }
+            : null;
+        updatePendingVerificationEmail(null);
+        setUser(resolvedUser);
         setSubscription(null);
         setLanguagesSettings(null);
+        setCategoriesSettings(null);
+        setSubscriptionRequired(true);
         setStatus("authenticated");
-        setOnboarding({
-          emailVerified: isEmailVerifiedInSession(email),
-          hasSelectedPlan: false,
-          subscriptionPlan: null,
-          selectedLanguages: [],
-          isOnboardingComplete: false,
-        });
+        setOnboarding(
+          buildOnboardingState({
+            emailVerified: true,
+            tier: null,
+            selectedLanguages: [],
+            selectedCategories: [],
+          }),
+        );
+        return;
+      }
+
+      if (isUnloadingRef.current) {
+        return;
+      }
+
+      if (
+        error instanceof ApiClientError &&
+        error.code === ErrorCode.NETWORK_ERROR
+      ) {
+        // Nunca borramos `doly_session` ante un abort de navegación o fallo de red.
+        const snapshot = loadUserSnapshot();
+        if (snapshot) {
+          setUser(snapshot);
+          setSubscriptionRequired(!snapshot.subscriptionTier);
+          setStatus("authenticated");
+        }
         return;
       }
 
       if (error instanceof ApiClientError && error.isUnauthorized) {
-        clearSessionState();
+        const storedPending = loadPendingVerificationEmail();
+        clearSessionState({ preservePendingEmail: Boolean(storedPending) });
+        if (storedPending) {
+          setPendingVerificationEmailState(storedPending);
+        }
         return;
       }
 
-      throw error;
+      const storedPending = loadPendingVerificationEmail();
+      clearSessionState({ preservePendingEmail: Boolean(storedPending) });
+      if (storedPending) {
+        setPendingVerificationEmailState(storedPending);
+      }
     }
-  }, [applyAuthenticatedUser, clearSessionState, user]);
+  }, [
+    applyAuthenticatedUser,
+    clearSessionState,
+    updatePendingVerificationEmail,
+    user,
+  ]);
+
+  const refreshPreferences = useCallback(async (): Promise<void> => {
+    if (!user?.subscriptionTier) {
+      return;
+    }
+    await syncSubscribedAccountSettings(user);
+  }, [syncSubscribedAccountSettings, user]);
 
   const refreshSession = useCallback(async (): Promise<boolean> => {
     try {
       const response = await authService.refresh();
       return Boolean(response.data?.authenticated);
-    } catch {
-      clearSessionState();
+    } catch (error) {
+      if (
+        isUnloadingRef.current ||
+        (error instanceof ApiClientError &&
+          error.code === ErrorCode.NETWORK_ERROR)
+      ) {
+        return false;
+      }
+      const storedPending = loadPendingVerificationEmail();
+      clearSessionState({ preservePendingEmail: Boolean(storedPending) });
       return false;
     }
   }, [clearSessionState]);
@@ -333,7 +494,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     registerAuthLifecycleHandlers({
       onRefresh: refreshSession,
-      onUnauthorized: clearSessionState,
+      onUnauthorized: () => clearSessionState({ preservePendingEmail: false }),
     });
 
     return () => {
@@ -344,21 +505,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, [refreshSession, clearSessionState]);
 
-  // Hidratación inicial de sesión desde cookies `HttpOnly` a través del proxy BFF
+  // Sincronización entre pestañas cuando el usuario confirma o cancela la espera del correo.
+  useEffect(() => {
+    const handleStorage = (event: StorageEvent): void => {
+      if (event.key !== PENDING_VERIFICATION_STORAGE_KEY) {
+        return;
+      }
+      const nextEmail = event.newValue ? event.newValue.trim() : null;
+      setPendingVerificationEmailState(nextEmail);
+      if (!nextEmail && hasSessionCookieFlag()) {
+        void reloadAccountState();
+      }
+    };
+
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, [reloadAccountState]);
+
+  // Hidratación inicial desde cookies `HttpOnly` + estado de verificación pendiente.
   useEffect(() => {
     if (isBootstrappedRef.current) return;
     isBootstrappedRef.current = true;
 
     const bootstrapSession = async (): Promise<void> => {
+      const pendingEmail = loadPendingVerificationEmail();
+      if (pendingEmail) {
+        setPendingVerificationEmailState(pendingEmail);
+      }
+
       if (!hasSessionCookieFlag()) {
-        clearSessionState();
+        clearSessionState({ preservePendingEmail: Boolean(pendingEmail) });
         return;
       }
 
       try {
         await reloadAccountState();
       } catch {
-        clearSessionState();
+        clearSessionState({ preservePendingEmail: Boolean(pendingEmail) });
       }
     };
 
@@ -368,48 +551,86 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = useCallback(
     async (input: LoginInput): Promise<AuthUser> => {
-      const response = await authService.login({
-        email: input.email.trim(),
-        password: input.password,
-      });
+      const normalizedEmail = input.email.trim();
+      try {
+        const response = await authService.login({
+          email: normalizedEmail,
+          password: input.password,
+        });
 
-      const loggedUser = response.data.user;
-      if (!loggedUser.subscriptionTier) {
-        // Usuario existente que vuelve antes de finalizar plan: conserva su acceso directo a planes
-        saveEmailVerifiedHint(loggedUser.email, true);
+        const loggedUser = response.data.user;
+        await applyAuthenticatedUser(loggedUser);
+        return loggedUser;
+      } catch (error) {
+        if (
+          error instanceof ApiClientError &&
+          error.code === ErrorCode.AUTH_EMAIL_NOT_VERIFIED
+        ) {
+          updatePendingVerificationEmail(normalizedEmail);
+        }
+        throw error;
       }
-
-      await applyAuthenticatedUser(loggedUser);
-      return loggedUser;
     },
-    [applyAuthenticatedUser],
+    [applyAuthenticatedUser, updatePendingVerificationEmail],
   );
 
   const register = useCallback(
-    async (input: RegisterWithPreferencesInput): Promise<AuthUser> => {
+    async (input: RegisterWithPreferencesInput): Promise<RegisterResult> => {
       const response = await authService.register({
         email: input.email.trim(),
         password: input.password,
         fullName: input.fullName.trim(),
+        ...(input.locale ? { locale: input.locale } : {}),
       });
 
       const createdUser = response.data.user;
-      saveEmailVerifiedHint(createdUser.email, false);
-      await applyAuthenticatedUser(createdUser, { isNewRegistration: true });
-      return createdUser;
+      const needsEmailVerification =
+        Boolean(response.data.emailVerificationRequired) ||
+        !response.data.authenticated;
+
+      if (needsEmailVerification) {
+        clearSessionState({ preservePendingEmail: false });
+        updatePendingVerificationEmail(createdUser.email);
+        return {
+          user: createdUser,
+          needsEmailVerification: true,
+        };
+      }
+
+      await applyAuthenticatedUser(createdUser);
+      return {
+        user: createdUser,
+        needsEmailVerification: false,
+      };
+    },
+    [applyAuthenticatedUser, clearSessionState, updatePendingVerificationEmail],
+  );
+
+  const verifyEmailWithToken = useCallback(
+    async (token: string): Promise<VerifyEmailResponse> => {
+      const response = await authService.verifyEmail({ token });
+      const payload = response.data;
+      await applyAuthenticatedUser(payload.user);
+      return payload;
     },
     [applyAuthenticatedUser],
   );
 
-  const confirmEmailVerification = useCallback((): void => {
-    if (user?.email) {
-      saveEmailVerifiedHint(user.email, true);
-    }
-    setOnboarding((prev) => ({
-      ...prev,
-      emailVerified: true,
-    }));
-  }, [user]);
+  const resendVerificationEmail = useCallback(
+    async (email?: string): Promise<void> => {
+      const target =
+        email?.trim() || pendingVerificationEmail || user?.email || "";
+      if (!target) {
+        return;
+      }
+      await authService.resendVerification({ email: target });
+    },
+    [pendingVerificationEmail, user?.email],
+  );
+
+  const clearPendingVerification = useCallback((): void => {
+    clearSessionState({ preservePendingEmail: false });
+  }, [clearSessionState]);
 
   const selectPlan = useCallback(
     async (plan: SubscriptionPlanId): Promise<UserSubscriptionResponse> => {
@@ -418,38 +639,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       const updatedSubscription = response.data;
       setSubscription(updatedSubscription);
+      setSubscriptionRequired(false);
 
-      const updatedUser = user
-        ? { ...user, subscriptionTier: updatedSubscription.tier }
-        : null;
-      if (updatedUser) {
-        setUser(updatedUser);
-        saveUserSnapshot(updatedUser);
-        saveEmailVerifiedHint(updatedUser.email, true);
+      const snapshot = loadUserSnapshot();
+      const baseUser = user ?? snapshot;
+      if (baseUser) {
+        const nextUser: AuthUser = {
+          ...baseUser,
+          subscriptionTier: updatedSubscription.tier,
+        };
+        setUser(nextUser);
+        saveUserSnapshot(nextUser);
+        await syncSubscribedAccountSettings(nextUser);
+      } else {
+        await reloadAccountState();
       }
-
-      let selectedLanguages = onboarding.selectedLanguages;
-      try {
-        const langResponse = await settingsService.getLanguages();
-        setLanguagesSettings(langResponse.data);
-        selectedLanguages = langResponse.data.selected;
-      } catch {
-        // Si aún no hay idiomas elegidos, el Paso 4 completará la configuración.
-      }
-
-      const hasPlan = Boolean(updatedSubscription.tier);
-      setOnboarding((prev) => ({
-        ...prev,
-        emailVerified: true,
-        hasSelectedPlan: hasPlan,
-        subscriptionPlan: updatedSubscription.tier,
-        selectedLanguages,
-        isOnboardingComplete: hasPlan && selectedLanguages.length > 0,
-      }));
 
       return updatedSubscription;
     },
-    [onboarding.selectedLanguages, user],
+    [reloadAccountState, syncSubscribedAccountSettings, user],
   );
 
   const selectLanguages = useCallback(
@@ -458,17 +666,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const updatedLanguages = response.data;
       setLanguagesSettings(updatedLanguages);
 
-      setOnboarding((prev) => ({
-        ...prev,
-        emailVerified: true,
-        hasSelectedPlan: true,
-        selectedLanguages: updatedLanguages.selected,
-        isOnboardingComplete: updatedLanguages.selected.length > 0,
-      }));
+      setOnboarding((prev) =>
+        buildOnboardingState({
+          emailVerified: true,
+          tier: prev.subscriptionPlan,
+          selectedLanguages: updatedLanguages.selected,
+          selectedCategories: prev.selectedCategories,
+        }),
+      );
 
       return updatedLanguages;
     },
     [],
+  );
+
+  const savePreferences = useCallback(
+    async (input: SavePreferencesInput): Promise<void> => {
+      const tier = user?.subscriptionTier ?? onboarding.subscriptionPlan;
+      const savedLanguages = languagesSettings?.selected ?? [];
+      let nextLanguages = savedLanguages;
+
+      const requestedLanguages = input.languages ?? [];
+      const languagesChanged =
+        requestedLanguages.length > 0 &&
+        (requestedLanguages.length !== savedLanguages.length ||
+          requestedLanguages.some((code, index) => code !== savedLanguages[index]));
+
+      if (tier !== "dolly_pro" && languagesChanged) {
+        const langRes = await settingsService.updateLanguages({
+          languages: requestedLanguages,
+        });
+        setLanguagesSettings(langRes.data);
+        nextLanguages = langRes.data.selected;
+      }
+
+      const catRes = await settingsService.updateCategories({
+        categories: input.categories,
+      });
+      setCategoriesSettings(catRes.data);
+
+      setOnboarding(
+        buildOnboardingState({
+          emailVerified: true,
+          tier: tier ?? null,
+          selectedLanguages: nextLanguages,
+          selectedCategories: catRes.data.selected,
+        }),
+      );
+    },
+    [languagesSettings?.selected, onboarding.subscriptionPlan, user?.subscriptionTier],
   );
 
   const updateOnboardingState = useCallback(
@@ -487,7 +733,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Aunque falle la red, limpiamos el estado local inmediatamente.
     } finally {
-      clearSessionState();
+      clearSessionState({ preservePendingEmail: false });
     }
   }, [clearSessionState]);
 
@@ -497,48 +743,78 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       // Mismo criterio de limpieza segura ante fallos de red.
     } finally {
-      clearSessionState();
+      clearSessionState({ preservePendingEmail: false });
     }
   }, [clearSessionState]);
 
   const isAuthenticated = status === "authenticated";
+
+  const accessPhase = useMemo<AccountAccessPhase>(() => {
+    if (status === "loading") {
+      return "loading";
+    }
+    if (pendingVerificationEmail) {
+      return "unverified_email";
+    }
+    if (status === "authenticated") {
+      if (subscriptionRequired || !user?.subscriptionTier) {
+        return "plan_required";
+      }
+      return "ready";
+    }
+    return "unauthenticated";
+  }, [pendingVerificationEmail, status, subscriptionRequired, user?.subscriptionTier]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
       subscription,
       languagesSettings,
+      categoriesSettings,
       status,
+      accessPhase,
       isAuthenticated,
       isLoading: status === "loading",
+      pendingVerificationEmail,
       onboarding,
       login,
       register,
+      verifyEmailWithToken,
+      resendVerificationEmail,
+      clearPendingVerification,
       logout,
       logoutAll,
       refreshSession,
       reloadAccountState,
-      confirmEmailVerification,
+      refreshPreferences,
       selectPlan,
       selectLanguages,
+      savePreferences,
       updateOnboardingState,
     }),
     [
       user,
       subscription,
       languagesSettings,
+      categoriesSettings,
       status,
+      accessPhase,
       isAuthenticated,
+      pendingVerificationEmail,
       onboarding,
       login,
       register,
+      verifyEmailWithToken,
+      resendVerificationEmail,
+      clearPendingVerification,
       logout,
       logoutAll,
       refreshSession,
       reloadAccountState,
-      confirmEmailVerification,
+      refreshPreferences,
       selectPlan,
       selectLanguages,
+      savePreferences,
       updateOnboardingState,
     ],
   );

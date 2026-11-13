@@ -13,7 +13,8 @@ export interface HeaderProps {
   onToggleMobileMenu: () => void;
   /**
    * Cuando es `true`, renderiza la barra superior minimalista de las vistas
-   * de autenticación (`/login` y `/register`) según los wireframes.
+   * de autenticación y onboarding (`/login`, `/register`, `/verify-email`,
+   * `/select-plan`, `/setup-preferences`).
    */
   isAuthRoute?: boolean;
 }
@@ -41,7 +42,7 @@ function LocaleEditionButton() {
 /**
  * Barra superior del shell editorial DolyNation.
  * Soporta tanto el modo de aplicación (con menú móvil, racha y cierre de sesión)
- * como el modo de autenticación (`/login` y `/register`) fiel a los wireframes.
+ * como el modo minimalista para autenticación y vistas bloqueadas de onboarding.
  */
 export function Header({
   isMobileMenuOpen,
@@ -50,7 +51,7 @@ export function Header({
 }: HeaderProps) {
   const pathname = usePathname();
   const { locale, t } = useLocale();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, accessPhase, isAuthenticated, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleLogout = async (): Promise<void> => {
@@ -69,49 +70,83 @@ export function Header({
       : `Streak: ${streakCount} days`;
 
   if (isAuthRoute) {
+    const isUnverifiedLock = accessPhase === "unverified_email";
+    const isPlanLock = accessPhase === "plan_required";
+    const isIsolatedShowcase = pathname === "/design-system";
+    const hideBrandLink = isUnverifiedLock || isIsolatedShowcase;
+    const brandHref = isPlanLock ? "/select-plan" : "/";
+
     return (
       <header className="sticky top-0 z-30 flex h-14 w-full shrink-0 items-center justify-between border-b border-border bg-surface px-4 sm:px-8 lg:px-12">
         <div className="flex items-center gap-3">
-          <Link
-            href="/"
-            className="font-serif text-lg font-bold tracking-tight text-ink sm:text-xl"
-          >
-            DolyNation
-          </Link>
+          {hideBrandLink ? (
+            <span className="font-serif text-lg font-bold tracking-tight text-ink sm:text-xl">
+              DolyNation
+            </span>
+          ) : (
+            <Link
+              href={brandHref}
+              className="font-serif text-lg font-bold tracking-tight text-ink sm:text-xl"
+            >
+              DolyNation
+            </Link>
+          )}
 
           <span aria-hidden="true" className="h-4 w-px bg-border-strong" />
 
           <LocaleEditionButton />
         </div>
 
-        <nav
-          aria-label={
-            locale === "es" ? "Acceso a cuenta" : "Account access"
-          }
-          className="flex items-center gap-3 sm:gap-5"
-        >
-          <Link
-            href="/login"
-            aria-current={pathname === "/login" ? "page" : undefined}
-            className={`text-xs font-semibold transition-colors ${
-              pathname === "/login"
-                ? "text-ink underline underline-offset-4"
-                : "text-muted hover:text-ink"
-            }`}
+        {isIsolatedShowcase ? (
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-[10px] font-semibold tracking-wider text-muted uppercase">
+              UI KIT
+            </span>
+          </div>
+        ) : isUnverifiedLock ? (
+          <div className="flex items-center gap-2" />
+        ) : isAuthenticated ? (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="xs"
+              isLoading={isLoggingOut}
+              onClick={handleLogout}
+              className="normal-case tracking-normal"
+            >
+              {isLoggingOut ? t.nav.signingOut : t.nav.signOut}
+            </Button>
+          </div>
+        ) : (
+          <nav
+            aria-label={
+              locale === "es" ? "Acceso a cuenta" : "Account access"
+            }
+            className="flex items-center gap-3 sm:gap-5"
           >
-            {t.auth.topSignIn}
-          </Link>
+            <Link
+              href="/login"
+              aria-current={pathname === "/login" ? "page" : undefined}
+              className={`text-xs font-semibold transition-colors ${
+                pathname === "/login"
+                  ? "text-ink underline underline-offset-4"
+                  : "text-muted hover:text-ink"
+              }`}
+            >
+              {t.auth.topSignIn}
+            </Link>
 
-          <ActionLink
-            href="/register"
-            variant="primary"
-            size="sm"
-            aria-current={pathname === "/register" ? "page" : undefined}
-            className="normal-case tracking-normal"
-          >
-            {t.auth.topCreateAccount}
-          </ActionLink>
-        </nav>
+            <ActionLink
+              href="/register"
+              variant="primary"
+              size="xs"
+              aria-current={pathname === "/register" ? "page" : undefined}
+              className="normal-case tracking-normal"
+            >
+              {t.auth.topCreateAccount}
+            </ActionLink>
+          </nav>
+        )}
       </header>
     );
   }
@@ -155,7 +190,7 @@ export function Header({
           {isAuthenticated && (
             <div className="hidden items-center gap-1 sm:flex">
               <ActionLink
-                href="/readings"
+                href="/glossary"
                 variant="ghost"
                 size="xs"
                 aria-label={t.meta.savedAnnotations}

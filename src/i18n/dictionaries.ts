@@ -15,6 +15,7 @@ export interface Dictionary {
     newReadingCta: string;
     home: string;
     myReadings: string;
+    glossary: string;
     createAiText: string;
     profileAndProgress: string;
     studentRole: string;
@@ -115,47 +116,30 @@ export interface Dictionary {
         title: string;
         subtitle: string;
         pendingBadge: string;
+        verifyingBadge: string;
         verifiedBadge: string;
+        errorBadge: string;
         sentNotice: string;
         instruction: string;
+        verifyingNotice: string;
+        tokenInvalidMessage: string;
+        emailInputLabel: string;
+        emailInputPlaceholder: string;
+        resendEmailRequired: string;
         confirmButton: string;
         confirmingButton: string;
         resendButton: string;
         resendingButton: string;
+        resendCooldownPrefix: string;
         confirmedSuccessAlert: string;
         resendSuccessAlert: string;
         nextStepButton: string;
+        useAnotherAccountButton: string;
       };
       step3Plan: {
         title: string;
         subtitle: string;
         currentSelection: string;
-        planDolyName: string;
-        planDolyBadge: string;
-        planDolyPrice: string;
-        planDolyPeriod: string;
-        planDolyDesc: string;
-        planDolyFeature1: string;
-        planDolyFeature2: string;
-        planDolyFeature3: string;
-        planDolyPlusName: string;
-        planDolyPlusBadge: string;
-        planDolyPlusPrice: string;
-        planDolyPlusPeriod: string;
-        planDolyPlusDesc: string;
-        planDolyPlusFeature1: string;
-        planDolyPlusFeature2: string;
-        planDolyPlusFeature3: string;
-        planDolyPlusFeature4: string;
-        planDolyProName: string;
-        planDolyProBadge: string;
-        planDolyProPrice: string;
-        planDolyProPeriod: string;
-        planDolyProDesc: string;
-        planDolyProFeature1: string;
-        planDolyProFeature2: string;
-        planDolyProFeature3: string;
-        planDolyProFeature4: string;
         submitButton: string;
         selectPlanRequired: string;
       };
@@ -172,6 +156,27 @@ export interface Dictionary {
         selectAllButton: string;
         clearButton: string;
         submitButton: string;
+      };
+      step4Preferences: {
+        title: string;
+        subtitle: string;
+        languagesSectionTitle: string;
+        languagesLockedNotice: string;
+        proLanguagesTitle: string;
+        proLanguagesDesc: string;
+        categoriesSectionTitle: string;
+        categoriesSubtitle: string;
+        categoriesCounterPrefix: string;
+        categoriesMinBadgeMissing: string;
+        categoriesMinBadgeReady: string;
+        categoriesMinAlert: string;
+        categoriesMaxAlertPrefix: string;
+        addCustomLabel: string;
+        addCustomPlaceholder: string;
+        addCustomButton: string;
+        saveButton: string;
+        cancelButton: string;
+        cancelHint: string;
       };
       gate: {
         badge: string;
@@ -210,6 +215,11 @@ export interface Dictionary {
     rereadButton: string;
     uiKitTitle: string;
     uiKitSubtitle: string;
+    preferencesSetupBadge: string;
+    preferencesSetupTitle: string;
+    preferencesSetupBody: string;
+    preferencesSetupCta: string;
+    generationBlockedCta: string;
   };
   study: {
     pageBadge: string;
@@ -237,6 +247,10 @@ export interface Dictionary {
     errorRequiredLength: string;
     emptyCategoriesNotice: string;
     loadingParametersNotice: string;
+    generationBlockedTitle: string;
+    generationBlockedCategories: string;
+    generationBlockedLanguages: string;
+    goToPreferencesButton: string;
   };
   profile: {
     eyebrow: string;
@@ -249,8 +263,8 @@ export interface Dictionary {
     stats: {
       totalReadings: string;
       totalReadingsUnit: string;
-      focusHours: string;
-      focusHoursUnit: string;
+      passedReadings: string;
+      passedReadingsUnit: string;
       activeVocabulary: string;
       activeVocabularyUnit: string;
       globalAccuracy: string;
@@ -271,6 +285,10 @@ export interface Dictionary {
     savingPreferences: string;
     savedProfileNotice: string;
     savedPreferencesNotice: string;
+    minCategoriesNotice: string;
+    addCustomCategoryPrompt: string;
+    addCustomCategoryPlaceholder: string;
+    addCustomCategoryButton: string;
   };
   readings: {
     historyTitle: string;
@@ -303,10 +321,21 @@ export interface Dictionary {
     backToConfigButton: string;
     continueEvaluationButton: string;
     detectedVocabularyTitle: string;
+    consultedTermsTitle: string;
     termsSuffix: string;
     aiContextTitle: string;
     suggestedTranslationLabel: string;
+    literalMeaningLabel: string;
     meaningInTextLabel: string;
+    wordBreakdownTitle: string;
+    wordBreakdownNoteLabel: string;
+    otherWaysTitle: string;
+    otherContextsTitle: string;
+    selectionActionLabel: string;
+    entryTypeWord: string;
+    entryTypePhrase: string;
+    cachedBadge: string;
+    refreshAnalysisButton: string;
     pronounceButton: string;
     detailedExplanationButton: string;
     saveTermButton: string;
@@ -356,6 +385,38 @@ export interface Dictionary {
       sessionFooterStandard: string;
     };
   };
+  glossary: {
+    eyebrow: string;
+    title: string;
+    subtitle: string;
+    tabAll: string;
+    tabWords: string;
+    tabPhrases: string;
+    filterSavedOnly: string;
+    filterAllConsultations: string;
+    allLanguagesFilter: string;
+    searchPlaceholder: string;
+    statsTotal: string;
+    statsWords: string;
+    statsPhrases: string;
+    statsSaved: string;
+    entryTypeWord: string;
+    entryTypePhrase: string;
+    savedBadge: string;
+    literalLabel: string;
+    readingContextLabel: string;
+    breakdownLabel: string;
+    alternativesLabel: string;
+    otherContextsLabel: string;
+    sourceReadingLabel: string;
+    openReadingButton: string;
+    addToGlossaryButton: string;
+    removeFromGlossaryButton: string;
+    pronounceButton: string;
+    emptyTitle: string;
+    emptyDescription: string;
+    emptyAction: string;
+  };
   designSystem: {
     eyebrow: string;
     title: string;
@@ -373,13 +434,14 @@ export const dictionaries: Record<Locale, Dictionary> = {
       closeMenu: "Cerrar menú de navegación",
       savedAnnotations: "Anotaciones y glosario guardados",
       settings: "Preferencias de lectura y cuenta",
-      streakLabel: "Racha: 14 días",
+      streakLabel: "Racha: 0 días",
     },
     nav: {
       primaryAriaLabel: "Principal",
       newReadingCta: "NUEVA LECTURA",
       home: "Inicio",
       myReadings: "Mis Lecturas",
+      glossary: "Glosario",
       createAiText: "Crear Texto IA",
       profileAndProgress: "Perfil y Progreso",
       studentRole: "ESTUDIANTE ACTIVA",
@@ -437,11 +499,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
         googleButton: "Registrarse con cuenta de Google",
         divider: "O COMPLETA TU REGISTRO",
         firstNameLabel: "Nombre",
-        firstNamePlaceholder: "Elena",
+        firstNamePlaceholder: "María",
         lastNameLabel: "Apellidos",
-        lastNamePlaceholder: "Rostova",
+        lastNamePlaceholder: "González",
         emailLabel: "Correo electrónico",
-        emailPlaceholder: "elena.rostova@universidad.edu",
+        emailPlaceholder: "estudiante@universidad.edu",
         passwordLabel: "Contraseña de acceso",
         showPasswordText: "MOSTRAR",
         hidePasswordText: "OCULTAR",
@@ -487,59 +549,47 @@ export const dictionaries: Record<Locale, Dictionary> = {
           step1: "Datos",
           step2: "Verificar",
           step3: "Plan",
-          step4: "Idiomas",
+          step4: "Preferencias",
         },
         step2VerifyEmail: {
           title: "Verificación de Correo Electrónico",
           subtitle:
-            "Tu cuenta ha sido creada exitosamente. Hemos enviado un correo con instrucciones de activación a:",
+            "Tu cuenta ha sido creada. Enviamos un enlace de confirmación firmado a:",
           pendingBadge: "VALIDACIÓN PENDIENTE",
+          verifyingBadge: "VALIDANDO ENLACE",
           verifiedBadge: "CORREO VALIDADO",
-          sentNotice: "Revisa tu bandeja de entrada y la carpeta de spam.",
+          errorBadge: "ENLACE INVÁLIDO",
+          sentNotice:
+            "Revisa tu bandeja de entrada (y la carpeta de spam) y haz clic en el botón del correo para activar tu cuenta.",
           instruction:
-            "Para activar tu sesión y continuar al plan de estudio, haz clic en el botón de confirmación:",
+            "Por seguridad, debes confirmar tu correo electrónico mediante el enlace firmado enviado antes de elegir un plan y acceder a la plataforma.",
+          verifyingNotice:
+            "Validando tu enlace firmado y activando tu sesión segura...",
+          tokenInvalidMessage:
+            "El enlace de verificación es inválido o ya expiró. Solicita un nuevo correo de confirmación.",
+          emailInputLabel: "Correo de la cuenta",
+          emailInputPlaceholder: "estudiante@universidad.edu",
+          resendEmailRequired:
+            "Ingresa tu correo electrónico para reenviar el enlace de confirmación.",
           confirmButton: "Confirmar correo electrónico ✓",
           confirmingButton: "Confirmando correo...",
           resendButton: "Reenviar correo de verificación",
           resendingButton: "Reenviando...",
+          resendCooldownPrefix: "Reenviar disponible en",
           confirmedSuccessAlert:
             "¡Correo verificado con éxito! Redirigiendo a la selección de plan...",
           resendSuccessAlert:
-            "Se ha enviado un nuevo enlace de confirmación a tu dirección de correo.",
+            "Se ha enviado un nuevo enlace firmado de confirmación a tu correo.",
           nextStepButton: "Continuar a selección de plan →",
+          useAnotherAccountButton:
+            "¿Correo incorrecto? Usar otra cuenta o iniciar sesión",
         },
         step3Plan: {
           title: "Selecciona tu Plan de Suscripción",
           subtitle:
-            "Elige el nivel de membresía académica para desbloquear tus lecturas contextuales.",
+            "Elige tu nivel de membresía académica para continuar y configurar tu cuenta.",
           currentSelection: "PLAN SELECCIONADO",
-          planDolyName: "Dolly",
-          planDolyBadge: "PLAN BÁSICO",
-          planDolyPrice: "Gratis",
-          planDolyPeriod: "Acceso esencial",
-          planDolyDesc: "Ideal para iniciar el hábito de lectura diaria con 1 idioma meta.",
-          planDolyFeature1: "1 idioma de estudio y hasta 5 categorías",
-          planDolyFeature2: "Hasta 10 lecturas contextuales CEFR por día",
-          planDolyFeature3: "15 consultas diarias al tutor IA y registro de racha",
-          planDolyPlusName: "Dolly Plus",
-          planDolyPlusBadge: "RECOMENDADO · INTERMEDIO",
-          planDolyPlusPrice: "$9.99",
-          planDolyPlusPeriod: "/ mes · Facturación mensual",
-          planDolyPlusDesc: "Para estudiantes activos que buscan bilingüismo con análisis profundo.",
-          planDolyPlusFeature1: "Hasta 2 idiomas simultáneos y 15 categorías",
-          planDolyPlusFeature2: "Hasta 20 lecturas contextuales por día",
-          planDolyPlusFeature3: "30 consultas diarias al tutor IA y feedback CEFR",
-          planDolyPlusFeature4: "Prioridad académica y seguimiento de puntajes",
-          planDolyProName: "Dolly Pro",
-          planDolyProBadge: "ACCESO TOTAL · MÁXIMO",
-          planDolyProPrice: "$19.99",
-          planDolyProPeriod: "/ mes · Membresía completa",
-          planDolyProDesc: "Acceso total sin límites a todos los idiomas, categorías y tutoría IA.",
-          planDolyProFeature1: "Todos los idiomas disponibles (hasta 4 simultáneos)",
-          planDolyProFeature2: "Categorías temáticas ilimitadas y personalizadas",
-          planDolyProFeature3: "Lecturas y consultas ilimitadas al tutor IA",
-          planDolyProFeature4: "Ensayos complejos C1–C2 y seguimiento completo",
-          submitButton: "Confirmar plan y elegir idiomas →",
+          submitButton: "Confirmar plan y configurar preferencias →",
           selectPlanRequired: "Por favor selecciona un plan para continuar.",
         },
         step4Languages: {
@@ -557,6 +607,33 @@ export const dictionaries: Record<Locale, Dictionary> = {
           clearButton: "Limpiar selección",
           submitButton: "Finalizar registro y comenzar a leer →",
         },
+        step4Preferences: {
+          title: "Configura tus Preferencias de Estudio",
+          subtitle:
+            "Ajusta tus idiomas y registra al menos 3 categorías temáticas para poder generar lecturas personalizadas.",
+          languagesSectionTitle: "01. IDIOMAS DE ESTUDIO SEGÚN TU PLAN",
+          languagesLockedNotice:
+            "Tu selección de idioma ya está activa en este periodo. Puedes completar o ajustar tus categorías.",
+          proLanguagesTitle: "Todos los idiomas desbloqueados automáticamente (Dolly Pro)",
+          proLanguagesDesc:
+            "Tu suscripción Dolly Pro incluye Español, Inglés, Francés e Italiano listos para practicar. Solo falta registrar tus categorías temáticas.",
+          categoriesSectionTitle: "02. CATEGORÍAS TEMÁTICAS (MÍNIMO 3)",
+          categoriesSubtitle:
+            "Selecciona al menos 3 intereses o agrega los tuyos para habilitar el generador de lecturas con IA.",
+          categoriesCounterPrefix: "Mínimo requerido:",
+          categoriesMinBadgeMissing: "Faltan categorías para generar lecturas",
+          categoriesMinBadgeReady: "Mínimo completo",
+          categoriesMinAlert:
+            "Debes seleccionar o registrar al menos 3 categorías para guardar y generar lecturas.",
+          categoriesMaxAlertPrefix: "Tu plan actual permite hasta",
+          addCustomLabel: "Agregar categoría personalizada",
+          addCustomPlaceholder: "Ej. Neurociencia, Astronomía, Bioética...",
+          addCustomButton: "+ Agregar",
+          saveButton: "Guardar preferencias y comenzar →",
+          cancelButton: "Cancelar y explorar después",
+          cancelHint:
+            "Si cancelas ahora podrás navegar por la plataforma, pero no podrás generar lecturas hasta registrar tus idiomas y al menos 3 categorías.",
+        },
         gate: {
           badge: "SUSCRIPCIÓN REQUERIDA",
           title: "Selecciona tu plan para desbloquear DolyNation",
@@ -570,7 +647,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       },
     },
     home: {
-      welcomeHeading: "Bienvenido de vuelta, Elena.",
+      welcomeHeading: "Bienvenido de vuelta.",
       welcomeSubtitle:
         "¿Listo para tu sesión de lectura contextual y rigurosa de hoy?",
       streakTitle: "RACHA DE CONSISTENCIA",
@@ -579,8 +656,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
         "Objetivo diario: 20 minutos de análisis contextual cumplido hoy.",
       weeklyLogTitle: "REGISTRO SEMANAL (ÚLTIMOS 7 DÍAS)",
       weekDays: ["L", "M", "X", "J", "V", "S", "D"],
-      syntacticRetention: "RETENCIÓN SINTÁCTICA: 94.2%",
-      acquiredVocabulary: "VOCABULARIO ADQUIRIDO: +38 PALABRAS",
+      syntacticRetention: "PRECISIÓN PROMEDIO: —",
+      acquiredVocabulary: "TÉRMINOS CONSULTADOS: 0",
       wordsUnit: "palabras",
       generateSectionTitle: "GENERAR LECTURA",
       stepTargetLanguage: "01. IDIOMA META",
@@ -600,6 +677,12 @@ export const dictionaries: Record<Locale, Dictionary> = {
       uiKitTitle: "SISTEMA BASE DE COMPONENTES & ESTADO DEL CLIENTE HTTP",
       uiKitSubtitle:
         "Verificación interactiva de tokens editoriales, estados accesibles (foco, error, deshabilitado) y cliente API.",
+      preferencesSetupBadge: "CONFIGURACIÓN PENDIENTE",
+      preferencesSetupTitle: "Completa tus categorías e idiomas para generar lecturas",
+      preferencesSetupBody:
+        "Ya cuentas con un plan activo y puedes explorar la plataforma, pero necesitas al menos 3 categorías temáticas (y tus idiomas según tu plan) para generar nuevas lecturas con IA.",
+      preferencesSetupCta: "Configurar preferencias (mín. 3 categorías) →",
+      generationBlockedCta: "Completa mínimo 3 categorías para generar →",
     },
     study: {
       pageBadge: "LECTURAS CON IA • CONFIGURACIÓN DE ESTUDIO",
@@ -632,6 +715,12 @@ export const dictionaries: Record<Locale, Dictionary> = {
       errorRequiredLength: "Selecciona la longitud deseada del texto.",
       emptyCategoriesNotice: "No hay categorías disponibles en este momento.",
       loadingParametersNotice: "Cargando opciones y preferencias de estudio...",
+      generationBlockedTitle: "Generación bloqueada por preferencias incompletas",
+      generationBlockedCategories:
+        "Debes registrar al menos 3 categorías favoritas en tu cuenta antes de generar nuevas lecturas.",
+      generationBlockedLanguages:
+        "Debes seleccionar al menos un idioma meta de estudio para tu plan antes de generar lecturas.",
+      goToPreferencesButton: "Ir a configurar preferencias →",
     },
     profile: {
       eyebrow: "[EXPEDIENTE ACADÉMICO] / PERFIL & RENDIMIENTO",
@@ -644,8 +733,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
       stats: {
         totalReadings: "LECTURAS TOTALES",
         totalReadingsUnit: "textos",
-        focusHours: "TIEMPO DE FOCO",
-        focusHoursUnit: "horas est.",
+        passedReadings: "LECTURAS APROBADAS",
+        passedReadingsUnit: "aprobadas",
         activeVocabulary: "VOCABULARIO ACTIVO",
         activeVocabularyUnit: "términos",
         globalAccuracy: "PRECISIÓN GLOBAL",
@@ -667,6 +756,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
       savingPreferences: "Sincronizando preferencias...",
       savedProfileNotice: "Perfil actualizado correctamente.",
       savedPreferencesNotice: "Preferencias de estudio sincronizadas.",
+      minCategoriesNotice:
+        "Se requieren mínimo 3 categorías seleccionadas para generar lecturas.",
+      addCustomCategoryPrompt: "Agregar categoría propia",
+      addCustomCategoryPlaceholder: "Ej. Filosofía, Genética...",
+      addCustomCategoryButton: "+ Agregar",
     },
     readings: {
       historyTitle: "Historial de Lecturas",
@@ -701,17 +795,29 @@ export const dictionaries: Record<Locale, Dictionary> = {
       backToConfigButton: "Volver a la configuración",
       continueEvaluationButton: "CONTINUAR CON LA EVALUACIÓN",
       detectedVocabularyTitle: "VOCABULARIO DETECTADO EN ESTA LECTURA",
+      consultedTermsTitle: "AYUDAS Y TÉRMINOS CONSULTADOS EN ESTA LECTURA",
       termsSuffix: "Términos clave",
-      aiContextTitle: "CONTEXTO & TRADUCCIÓN • IA",
-      suggestedTranslationLabel: "Análisis contextual:",
-      meaningInTextLabel: "Sentido en el texto:",
+      aiContextTitle: "AYUDA & EXPLICACIÓN • IA",
+      suggestedTranslationLabel: "Explicación contextual:",
+      literalMeaningLabel: "Sentido literal",
+      meaningInTextLabel: "Qué significa en esta lectura",
+      wordBreakdownTitle: "Desglose palabra por palabra",
+      wordBreakdownNoteLabel: "Función:",
+      otherWaysTitle: "Otras formas de decirlo",
+      otherContextsTitle: "Otros contextos de uso",
+      selectionActionLabel: "Pedir ayuda / Explicar",
+      entryTypeWord: "PALABRA",
+      entryTypePhrase: "ORACIÓN · EXPRESIÓN",
+      cachedBadge: "EN CACHÉ",
+      refreshAnalysisButton: "Regenerar ayuda",
       pronounceButton: "Pronunciar",
-      detailedExplanationButton: "Explicación detallada",
-      saveTermButton: "Guardar",
-      savedTermButton: "Guardado",
+      detailedExplanationButton: "Profundizar con Tutor IA",
+      saveTermButton: "Guardar en glosario",
+      savedTermButton: "Guardado en glosario",
       clickWordHint:
-        "Haz clic en cualquier palabra del texto para consultar su análisis contextual con IA.",
-      loadingContextNotice: "Analizando término en el contexto del texto...",
+        "Haz clic en una palabra o selecciona una frase u oración para ver su desglose y explicación contextual.",
+      loadingContextNotice:
+        "Generando explicación en el idioma de la lectura...",
       eval: {
         backToReading: "Volver o consultar texto original",
         activeSessionBadge: "• SESIÓN ACTIVA",
@@ -775,6 +881,40 @@ export const dictionaries: Record<Locale, Dictionary> = {
         sessionFooterStandard: "SISTEMA DE CALIFICACIÓN NORMALIZADO (CEFR / ACTFL)",
       },
     },
+    glossary: {
+      eyebrow: "[REPOSITORIO LÉXICO] / GLOSARIO PERSONAL",
+      title: "Glosario y Ayudas Contextuales",
+      subtitle:
+        "Repasa palabras, frases y expresiones explicadas a partir de tus lecturas, con su desglose literal, sentido contextual, alternativas y otros usos.",
+      tabAll: "TODO",
+      tabWords: "PALABRAS",
+      tabPhrases: "ORACIONES Y EXPRESIONES",
+      filterSavedOnly: "SOLO GUARDADOS",
+      filterAllConsultations: "TODAS LAS CONSULTAS",
+      allLanguagesFilter: "TODOS LOS IDIOMAS",
+      searchPlaceholder: "Buscar palabra, expresión o contexto...",
+      statsTotal: "ENTRADAS",
+      statsWords: "PALABRAS",
+      statsPhrases: "ORACIONES",
+      statsSaved: "GUARDADOS",
+      entryTypeWord: "PALABRA",
+      entryTypePhrase: "ORACIÓN · EXPRESIÓN",
+      savedBadge: "GUARDADO",
+      literalLabel: "Sentido literal",
+      readingContextLabel: "Explicación en la lectura",
+      breakdownLabel: "Desglose palabra por palabra",
+      alternativesLabel: "Otras formas de decirlo",
+      otherContextsLabel: "Otros contextos de uso",
+      sourceReadingLabel: "Lectura de origen:",
+      openReadingButton: "Abrir lectura",
+      addToGlossaryButton: "Guardar en glosario",
+      removeFromGlossaryButton: "Quitar de guardados",
+      pronounceButton: "Pronunciar",
+      emptyTitle: "Aún no tienes entradas en tu glosario con estos filtros",
+      emptyDescription:
+        "Abre cualquier lectura, haz clic en una palabra o selecciona una oración para pedir ayuda y guárdala en tu glosario.",
+      emptyAction: "Ir a mis lecturas",
+    },
     designSystem: {
       eyebrow: "[ARQUITECTURA UI] / BIBLIOTECA ESTANDARIZADA",
       title: "Sistema de Diseño y Componentes Base",
@@ -791,13 +931,14 @@ export const dictionaries: Record<Locale, Dictionary> = {
       closeMenu: "Close navigation menu",
       savedAnnotations: "Saved annotations and glossary",
       settings: "Reading and account preferences",
-      streakLabel: "Streak: 14 days",
+      streakLabel: "Streak: 0 days",
     },
     nav: {
       primaryAriaLabel: "Primary",
       newReadingCta: "NEW READING",
       home: "Home",
       myReadings: "My Readings",
+      glossary: "Glossary",
       createAiText: "Create AI Text",
       profileAndProgress: "Profile & Progress",
       studentRole: "ACTIVE STUDENT",
@@ -854,11 +995,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
         googleButton: "Register with Google account",
         divider: "OR COMPLETE YOUR REGISTRATION",
         firstNameLabel: "First name",
-        firstNamePlaceholder: "Elena",
+        firstNamePlaceholder: "Maria",
         lastNameLabel: "Last name",
-        lastNamePlaceholder: "Rostova",
+        lastNamePlaceholder: "Gonzalez",
         emailLabel: "Email address",
-        emailPlaceholder: "elena.rostova@university.edu",
+        emailPlaceholder: "student@university.edu",
         passwordLabel: "Access password",
         showPasswordText: "SHOW",
         hidePasswordText: "HIDE",
@@ -902,59 +1043,47 @@ export const dictionaries: Record<Locale, Dictionary> = {
           step1: "Details",
           step2: "Verify",
           step3: "Plan",
-          step4: "Languages",
+          step4: "Preferences",
         },
         step2VerifyEmail: {
           title: "Email Verification",
           subtitle:
-            "Your academic account was successfully created. We have sent verification details to:",
+            "Your academic account has been created. We have sent a signed confirmation link to:",
           pendingBadge: "VERIFICATION PENDING",
+          verifyingBadge: "VERIFYING LINK",
           verifiedBadge: "EMAIL VERIFIED",
-          sentNotice: "Please check your inbox and spam folder.",
+          errorBadge: "INVALID LINK",
+          sentNotice:
+            "Please check your inbox (and spam folder) and click the confirmation button inside the email.",
           instruction:
-            "To confirm your account and continue to plan selection, click the confirmation button below:",
+            "For security, you must confirm your email via the signed link before selecting a subscription plan and accessing the platform.",
+          verifyingNotice:
+            "Validating your signed confirmation link and activating your secure session...",
+          tokenInvalidMessage:
+            "This verification link is invalid or has expired. Request a new confirmation email below.",
+          emailInputLabel: "Account email",
+          emailInputPlaceholder: "student@university.edu",
+          resendEmailRequired:
+            "Enter your email address to resend the confirmation link.",
           confirmButton: "Confirm email address ✓",
           confirmingButton: "Confirming...",
           resendButton: "Resend verification email",
           resendingButton: "Resending...",
+          resendCooldownPrefix: "Resend available in",
           confirmedSuccessAlert:
-            "Email verified successfully! Advancing to subscription plan...",
+            "Email verified successfully! Redirecting to plan selection...",
           resendSuccessAlert:
-            "A new verification link has been sent to your email address.",
+            "A new signed verification link has been sent to your email address.",
           nextStepButton: "Continue to plan selection →",
+          useAnotherAccountButton:
+            "Wrong email? Use another account or sign in",
         },
         step3Plan: {
           title: "Select Your Subscription Plan",
           subtitle:
-            "Choose your academic membership tier to unlock your contextual reading experience.",
+            "Choose your academic membership tier to continue and configure your study account.",
           currentSelection: "SELECTED PLAN",
-          planDolyName: "Dolly",
-          planDolyBadge: "BASIC PLAN",
-          planDolyPrice: "Free",
-          planDolyPeriod: "Essential academic access",
-          planDolyDesc: "Perfect for starting daily reading habits with 1 target language.",
-          planDolyFeature1: "1 study language and up to 5 categories",
-          planDolyFeature2: "Up to 10 CEFR-adapted readings per day",
-          planDolyFeature3: "15 daily AI tutor questions and streak log",
-          planDolyPlusName: "Dolly Plus",
-          planDolyPlusBadge: "RECOMMENDED · MID TIER",
-          planDolyPlusPrice: "$9.99",
-          planDolyPlusPeriod: "/ month · Billed monthly",
-          planDolyPlusDesc: "For active learners pursuing bilingualism with in-depth analysis.",
-          planDolyPlusFeature1: "Up to 2 simultaneous languages and 15 categories",
-          planDolyPlusFeature2: "Up to 20 contextual readings per day",
-          planDolyPlusFeature3: "30 daily AI tutor questions and CEFR feedback",
-          planDolyPlusFeature4: "Priority reading queue and score tracking",
-          planDolyProName: "Dolly Pro",
-          planDolyProBadge: "ALL ACCESS · MAXIMUM TIER",
-          planDolyProPrice: "$19.99",
-          planDolyProPeriod: "/ month · Full membership",
-          planDolyProDesc: "Unlimited access to all languages, custom categories, and AI tutoring.",
-          planDolyProFeature1: "All available languages (up to 4 simultaneously)",
-          planDolyProFeature2: "Unlimited custom thematic categories",
-          planDolyProFeature3: "Unlimited AI readings and tutor explanations",
-          planDolyProFeature4: "Complex C1–C2 essays and full progress metrics",
-          submitButton: "Confirm plan & choose languages →",
+          submitButton: "Confirm plan & configure preferences →",
           selectPlanRequired: "Please select a plan to continue.",
         },
         step4Languages: {
@@ -972,6 +1101,33 @@ export const dictionaries: Record<Locale, Dictionary> = {
           clearButton: "Clear selection",
           submitButton: "Finish registration & start reading →",
         },
+        step4Preferences: {
+          title: "Configure Your Study Preferences",
+          subtitle:
+            "Select your target languages and at least 3 thematic categories to enable personalized reading generation.",
+          languagesSectionTitle: "01. STUDY LANGUAGES FOR YOUR PLAN",
+          languagesLockedNotice:
+            "Your language selection is already active for this cycle. You can finish or update your categories below.",
+          proLanguagesTitle: "All languages unlocked automatically (Dolly Pro)",
+          proLanguagesDesc:
+            "Your Dolly Pro plan already includes Spanish, English, French, and Italian ready to practice. You only need to pick your categories.",
+          categoriesSectionTitle: "02. THEMATIC CATEGORIES (MINIMUM 3)",
+          categoriesSubtitle:
+            "Choose at least 3 interests or add your own custom topics to unlock the AI reading generator.",
+          categoriesCounterPrefix: "Minimum required:",
+          categoriesMinBadgeMissing: "More categories needed to generate readings",
+          categoriesMinBadgeReady: "Minimum reached",
+          categoriesMinAlert:
+            "You must select or add at least 3 categories to save and generate readings.",
+          categoriesMaxAlertPrefix: "Your current plan allows up to",
+          addCustomLabel: "Add custom category",
+          addCustomPlaceholder: "E.g. Neuroscience, Astronomy, Bioethics...",
+          addCustomButton: "+ Add",
+          saveButton: "Save preferences & start reading →",
+          cancelButton: "Cancel & explore later",
+          cancelHint:
+            "If you cancel now you can browse the platform, but reading generation remains locked until you configure languages and at least 3 categories.",
+        },
         gate: {
           badge: "SUBSCRIPTION REQUIRED",
           title: "Select your plan to unlock DolyNation",
@@ -985,7 +1141,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       },
     },
     home: {
-      welcomeHeading: "Welcome back, Elena.",
+      welcomeHeading: "Welcome back.",
       welcomeSubtitle:
         "Ready for your rigorous contextual reading session today?",
       streakTitle: "CONSISTENCY STREAK",
@@ -994,8 +1150,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
         "Daily goal: 20 minutes of contextual analysis completed today.",
       weeklyLogTitle: "WEEKLY LOG (LAST 7 DAYS)",
       weekDays: ["M", "T", "W", "T", "F", "S", "S"],
-      syntacticRetention: "SYNTACTIC RETENTION: 94.2%",
-      acquiredVocabulary: "ACQUIRED VOCABULARY: +38 WORDS",
+      syntacticRetention: "AVERAGE ACCURACY: —",
+      acquiredVocabulary: "LOOKED-UP TERMS: 0",
       wordsUnit: "words",
       generateSectionTitle: "GENERATE READING",
       stepTargetLanguage: "01. TARGET LANGUAGE",
@@ -1015,6 +1171,12 @@ export const dictionaries: Record<Locale, Dictionary> = {
       uiKitTitle: "BASE COMPONENT SYSTEM & HTTP CLIENT STATUS",
       uiKitSubtitle:
         "Interactive verification of editorial tokens, accessible states (focus, error, disabled), and API client.",
+      preferencesSetupBadge: "SETUP PENDING",
+      preferencesSetupTitle: "Complete your categories and languages to generate readings",
+      preferencesSetupBody:
+        "Your subscription is active and you can browse the platform, but you need at least 3 thematic categories (and languages for your plan) before generating new AI readings.",
+      preferencesSetupCta: "Configure preferences (min. 3 categories) →",
+      generationBlockedCta: "Add at least 3 categories to generate →",
     },
     study: {
       pageBadge: "AI READINGS • STUDY CONFIGURATION",
@@ -1047,6 +1209,12 @@ export const dictionaries: Record<Locale, Dictionary> = {
       errorRequiredLength: "Please select a text length option.",
       emptyCategoriesNotice: "No categories currently available.",
       loadingParametersNotice: "Loading options and study preferences...",
+      generationBlockedTitle: "Reading generation locked until setup is complete",
+      generationBlockedCategories:
+        "You must register at least 3 favorite categories in your account before generating new readings.",
+      generationBlockedLanguages:
+        "You must select at least one study language for your plan before generating readings.",
+      goToPreferencesButton: "Go to setup preferences →",
     },
     profile: {
       eyebrow: "[ACADEMIC RECORD] / PROFILE & PERFORMANCE",
@@ -1059,8 +1227,8 @@ export const dictionaries: Record<Locale, Dictionary> = {
       stats: {
         totalReadings: "TOTAL READINGS",
         totalReadingsUnit: "texts",
-        focusHours: "FOCUS TIME",
-        focusHoursUnit: "est. hours",
+        passedReadings: "PASSED READINGS",
+        passedReadingsUnit: "passed",
         activeVocabulary: "ACTIVE VOCABULARY",
         activeVocabularyUnit: "terms",
         globalAccuracy: "GLOBAL ACCURACY",
@@ -1082,6 +1250,11 @@ export const dictionaries: Record<Locale, Dictionary> = {
       savingPreferences: "Syncing preferences...",
       savedProfileNotice: "Profile updated successfully.",
       savedPreferencesNotice: "Study preferences synced.",
+      minCategoriesNotice:
+        "A minimum of 3 selected categories is required to generate readings.",
+      addCustomCategoryPrompt: "Add custom category",
+      addCustomCategoryPlaceholder: "E.g. Philosophy, Genetics...",
+      addCustomCategoryButton: "+ Add",
     },
     readings: {
       historyTitle: "Reading History",
@@ -1116,17 +1289,29 @@ export const dictionaries: Record<Locale, Dictionary> = {
       backToConfigButton: "Back to configuration",
       continueEvaluationButton: "CONTINUE TO EVALUATION",
       detectedVocabularyTitle: "DETECTED VOCABULARY IN THIS READING",
+      consultedTermsTitle: "CONSULTED HELP & KEY TERMS IN THIS READING",
       termsSuffix: "Key Terms",
-      aiContextTitle: "CONTEXT & TRANSLATION • AI",
-      suggestedTranslationLabel: "Contextual analysis:",
-      meaningInTextLabel: "Meaning in text:",
+      aiContextTitle: "CONTEXTUAL HELP • AI",
+      suggestedTranslationLabel: "Contextual explanation:",
+      literalMeaningLabel: "Literal sense",
+      meaningInTextLabel: "Meaning in this reading",
+      wordBreakdownTitle: "Word-by-word breakdown",
+      wordBreakdownNoteLabel: "Role:",
+      otherWaysTitle: "Other ways to say it",
+      otherContextsTitle: "Used in other contexts",
+      selectionActionLabel: "Ask help / Explain",
+      entryTypeWord: "WORD",
+      entryTypePhrase: "PHRASE · SENTENCE",
+      cachedBadge: "CACHED",
+      refreshAnalysisButton: "Regenerate help",
       pronounceButton: "Pronounce",
-      detailedExplanationButton: "Detailed explanation",
-      saveTermButton: "Save",
-      savedTermButton: "Saved",
+      detailedExplanationButton: "Deepen with AI Tutor",
+      saveTermButton: "Save to glossary",
+      savedTermButton: "Saved in glossary",
       clickWordHint:
-        "Click any word in the text to inspect its AI contextual analysis.",
-      loadingContextNotice: "Analyzing term within reading context...",
+        "Click any word or highlight a phrase or sentence to inspect its word-by-word breakdown and contextual explanation.",
+      loadingContextNotice:
+        "Generating contextual help in the reading language...",
       eval: {
         backToReading: "Back to original reading text",
         activeSessionBadge: "• ACTIVE SESSION",
@@ -1189,6 +1374,40 @@ export const dictionaries: Record<Locale, Dictionary> = {
         homeButton: "Home",
         sessionFooterStandard: "STANDARDIZED GRADING SYSTEM (CEFR / ACTFL)",
       },
+    },
+    glossary: {
+      eyebrow: "[LEXICAL REPOSITORY] / PERSONAL GLOSSARY",
+      title: "Glossary & Contextual Help",
+      subtitle:
+        "Review words, phrases, and expressions explained from your readings, complete with literal breakdowns, contextual meaning, alternatives, and other usage scenarios.",
+      tabAll: "ALL",
+      tabWords: "WORDS",
+      tabPhrases: "PHRASES & SENTENCES",
+      filterSavedOnly: "SAVED ONLY",
+      filterAllConsultations: "ALL CONSULTATIONS",
+      allLanguagesFilter: "ALL LANGUAGES",
+      searchPlaceholder: "Search word, expression, or context...",
+      statsTotal: "ENTRIES",
+      statsWords: "WORDS",
+      statsPhrases: "PHRASES",
+      statsSaved: "SAVED",
+      entryTypeWord: "WORD",
+      entryTypePhrase: "PHRASE · SENTENCE",
+      savedBadge: "SAVED",
+      literalLabel: "Literal sense",
+      readingContextLabel: "Meaning in reading",
+      breakdownLabel: "Word-by-word breakdown",
+      alternativesLabel: "Other ways to say it",
+      otherContextsLabel: "Used in other contexts",
+      sourceReadingLabel: "Source reading:",
+      openReadingButton: "Open reading",
+      addToGlossaryButton: "Save to glossary",
+      removeFromGlossaryButton: "Remove from saved",
+      pronounceButton: "Pronounce",
+      emptyTitle: "No glossary entries match these filters yet",
+      emptyDescription:
+        "Open any reading, click a word or highlight a sentence to ask for contextual help, and bookmark it to your glossary.",
+      emptyAction: "Go to my readings",
     },
     designSystem: {
       eyebrow: "[UI ARCHITECTURE] / STANDARDIZED LIBRARY",

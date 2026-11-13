@@ -38,6 +38,7 @@ export * from "@/lib/services/evaluation-service";
 export * from "@/lib/services/history-service";
 export * from "@/lib/services/ia-service";
 export * from "@/lib/services/readings-service";
+export * from "@/lib/services/route-access-service";
 export * from "@/lib/services/settings-service";
 export * from "@/lib/services/subscriptions-service";
 export * from "@/lib/services/system-service";
