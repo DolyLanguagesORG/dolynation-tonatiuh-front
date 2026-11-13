@@ -193,13 +193,13 @@ export default function HomePage() {
                 </div>
                 <div className="flex flex-col gap-1 rounded-xs border border-border bg-surface p-3">
                   <span className="font-serif text-sm font-bold text-ink">
-                    {t.auth.stepper.step3Plan.planDolyVipName}
+                    {t.auth.stepper.step3Plan.planDolyProName}
                   </span>
                   <span className="text-[11px] font-semibold text-muted">
-                    {t.auth.stepper.step3Plan.planDolyVipPrice} · Ilimitado
+                    {t.auth.stepper.step3Plan.planDolyProPrice} · Hasta 4 idiomas
                   </span>
                   <p className="text-[10px] text-muted">
-                    {t.auth.stepper.step3Plan.planDolyVipFeature1}
+                    {t.auth.stepper.step3Plan.planDolyProFeature1}
                   </p>
                 </div>
               </div>
@@ -243,11 +243,11 @@ export default function HomePage() {
               </h1>
               <p className="max-w-lg text-xs leading-relaxed text-muted sm:text-sm">
                 Has seleccionado tu plan (
-                {onboarding.subscriptionPlan === "doly"
-                  ? "Doly Básico"
-                  : onboarding.subscriptionPlan === "doly_plus"
-                    ? "Doly Plus"
-                    : "Doly VIP"}
+                {onboarding.subscriptionPlan === "dolly"
+                  ? "Dolly"
+                  : onboarding.subscriptionPlan === "dolly_plus"
+                    ? "Dolly Plus"
+                    : "Dolly Pro"}
                 ). Ahora elige los idiomas que deseas aprender para desbloquear tu acceso.
               </p>
             </div>

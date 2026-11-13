@@ -1,246 +1,339 @@
 "use client";
 
-import { usePathname, useRouter } from "next/navigation";
 import {
   createContext,
-  type ReactNode,
   useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
+  type ReactNode,
 } from "react";
 
 import {
-  authClient,
-  type AuthSessionPayload,
+  ApiClientError,
+  authService,
   type AuthUser,
-  clearAuthTokens,
-  getRefreshToken,
+  ErrorCode,
+  type LanguagesSettings,
   type LoginInput,
   registerAuthLifecycleHandlers,
   type RegisterInput,
-  setAuthTokens,
+  settingsService,
+  subscriptionsService,
+  type SubscriptionTier,
+  type TargetLanguageCode,
+  type UserSubscriptionResponse,
 } from "@/lib";
 
 export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
 
-export type SubscriptionPlanId = "doly" | "doly_plus" | "doly_vip";
+/**
+ * Niveles oficiales de suscripción del backend (`dolynation-atl-back`).
+ */
+export type SubscriptionPlanId = SubscriptionTier;
 
 export interface OnboardingState {
   emailVerified: boolean;
-  subscriptionPlan: SubscriptionPlanId | null;
-  selectedLanguages: string[];
-  isOnboardingComplete: boolean;
   hasSelectedPlan: boolean;
+  subscriptionPlan: SubscriptionPlanId | null;
+  selectedLanguages: TargetLanguageCode[];
+  isOnboardingComplete: boolean;
 }
 
-export interface RegisterWithPreferencesInput extends RegisterInput {
-  preferredLanguage?: string;
-}
+export type RegisterWithPreferencesInput = RegisterInput;
 
 export interface AuthContextValue {
   user: AuthUser | null;
-  accessToken: string | null;
+  subscription: UserSubscriptionResponse | null;
+  languagesSettings: LanguagesSettings | null;
   status: AuthStatus;
   isAuthenticated: boolean;
-  preferredLanguage: string;
+  isLoading: boolean;
   onboarding: OnboardingState;
-  setPreferredLanguage: (lang: string) => void;
-  verifyEmailMock: () => void;
-  selectPlanMock: (plan: SubscriptionPlanId) => void;
-  selectLanguagesMock: (languages: string[]) => void;
-  resetOnboardingMock: () => void;
-  login: (input: LoginInput) => Promise<AuthSessionPayload>;
-  register: (
-    input: RegisterWithPreferencesInput,
-  ) => Promise<AuthSessionPayload>;
-  refreshSession: () => Promise<string | null>;
-  logout: (options?: { redirectTo?: string }) => Promise<void>;
-  clearSession: () => void;
+  login: (input: LoginInput) => Promise<AuthUser>;
+  register: (input: RegisterWithPreferencesInput) => Promise<AuthUser>;
+  logout: () => Promise<void>;
+  logoutAll: () => Promise<void>;
+  refreshSession: () => Promise<boolean>;
+  reloadAccountState: () => Promise<void>;
+  confirmEmailVerification: () => void;
+  selectPlan: (plan: SubscriptionPlanId) => Promise<UserSubscriptionResponse>;
+  selectLanguages: (
+    languages: TargetLanguageCode[],
+  ) => Promise<LanguagesSettings>;
+  updateOnboardingState: (partial: Partial<OnboardingState>) => void;
 }
 
-const AuthContext = createContext<AuthContextValue | null>(null);
+const SESSION_FLAG_COOKIE_NAME = "doly_session";
+const USER_SNAPSHOT_STORAGE_KEY = "doly_user_snapshot";
+const EMAIL_VERIFIED_STORAGE_KEY = "doly_email_verified_hint";
 
-const PUBLIC_AUTH_PATHS = new Set(["/login", "/register"]);
-
-const ONBOARDING_STORAGE_PREFIX = "doly_onboarding_";
-
-function getStorageKey(email: string): string {
-  return `${ONBOARDING_STORAGE_PREFIX}${email.trim().toLowerCase()}`;
-}
-
-function loadStoredOnboarding(email?: string | null): OnboardingState | null {
-  if (typeof window === "undefined" || !email) {
-    return null;
-  }
-  try {
-    const raw = window.localStorage.getItem(getStorageKey(email));
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as Partial<OnboardingState>;
-    const plan = parsed.subscriptionPlan ?? null;
-    return {
-      emailVerified: Boolean(parsed.emailVerified),
-      subscriptionPlan: plan,
-      selectedLanguages: Array.isArray(parsed.selectedLanguages)
-        ? parsed.selectedLanguages
-        : [],
-      isOnboardingComplete: Boolean(parsed.isOnboardingComplete),
-      hasSelectedPlan: Boolean(plan),
-    };
-  } catch {
-    return null;
-  }
-}
-
-function saveStoredOnboarding(email: string, state: OnboardingState): void {
-  if (typeof window === "undefined" || !email) {
-    return;
-  }
-  try {
-    window.localStorage.setItem(getStorageKey(email), JSON.stringify(state));
-  } catch {
-    // Manejo de restricciones en almacenamiento local o modo incógnito
-  }
-}
-
-const DEFAULT_COMPLETED_ONBOARDING: OnboardingState = {
-  emailVerified: true,
-  subscriptionPlan: "doly_plus",
-  selectedLanguages: ["en"],
-  isOnboardingComplete: true,
-  hasSelectedPlan: true,
-};
-
-const DEFAULT_FRESH_ONBOARDING: OnboardingState = {
+const EMPTY_ONBOARDING: OnboardingState = {
   emailVerified: false,
+  hasSelectedPlan: false,
   subscriptionPlan: null,
   selectedLanguages: [],
   isOnboardingComplete: false,
-  hasSelectedPlan: false,
 };
 
+const AuthContext = createContext<AuthContextValue | null>(null);
+
 /**
- * Valida que una ruta de redirección post-login sea interna al mismo origen
- * (evita vulnerabilidades Open Redirect).
+ * Valida que la ruta de redirección sea interna para prevenir open redirects.
  */
 export function sanitizeRedirectPath(
   candidate: string | null | undefined,
   fallback = "/",
 ): string {
-  if (!candidate) {
+  if (!candidate || typeof candidate !== "string") {
     return fallback;
   }
 
   const trimmed = candidate.trim();
-  if (
-    !trimmed.startsWith("/") ||
-    trimmed.startsWith("//") ||
-    trimmed.includes("\\") ||
-    PUBLIC_AUTH_PATHS.has(trimmed.split("?")[0] ?? "")
-  ) {
+  if (!trimmed.startsWith("/") || trimmed.startsWith("//")) {
     return fallback;
   }
 
-  return trimmed;
+  try {
+    const parsed = new URL(trimmed, "http://localhost");
+    if (parsed.origin !== "http://localhost") {
+      return fallback;
+    }
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return fallback;
+  }
 }
 
-function hasSessionFlagCookie(): boolean {
+function hasSessionCookieFlag(): boolean {
   if (typeof document === "undefined") {
     return false;
   }
+
   return document.cookie
     .split(";")
-    .some((cookie) => cookie.trim().startsWith("doly_session=1"));
+    .some((entry) => entry.trim().startsWith(`${SESSION_FLAG_COOKIE_NAME}=1`));
 }
 
 /**
- * Proveedor de estado de sesión de DolyNation.
- *
- * - Conserva el `accessToken` exclusivamente en memoria/contexto (jamás en `localStorage`).
- * - Conecta el interceptor de `401` del `httpClient` para ejecutar `POST /auth/refresh`
- *   una sola vez y, si falla, limpiar la sesión y redirigir a `/login`.
- * - Gestiona el estado de onboarding del stepper (validación de correo, selección de plan y selección de idiomas).
+ * Persiste únicamente datos públicos de vista en `sessionStorage` para preservar el
+ * nombre/correo durante el flujo `/register` previo a elegir plan (ningún token JWT).
  */
+function saveUserSnapshot(user: AuthUser | null): void {
+  if (typeof window === "undefined") return;
+  try {
+    if (!user) {
+      window.sessionStorage.removeItem(USER_SNAPSHOT_STORAGE_KEY);
+      return;
+    }
+    window.sessionStorage.setItem(
+      USER_SNAPSHOT_STORAGE_KEY,
+      JSON.stringify(user),
+    );
+  } catch {
+    // Sin impacto funcional si sessionStorage no está disponible.
+  }
+}
+
+function loadUserSnapshot(): AuthUser | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.sessionStorage.getItem(USER_SNAPSHOT_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as AuthUser;
+    return parsed && typeof parsed.email === "string" ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveEmailVerifiedHint(email: string, verified: boolean): void {
+  if (typeof window === "undefined") return;
+  try {
+    const normalized = email.trim().toLowerCase();
+    if (!verified) {
+      window.sessionStorage.removeItem(EMAIL_VERIFIED_STORAGE_KEY);
+      return;
+    }
+    window.sessionStorage.setItem(EMAIL_VERIFIED_STORAGE_KEY, normalized);
+  } catch {
+    // Sin impacto funcional si sessionStorage no está disponible.
+  }
+}
+
+function isEmailVerifiedInSession(email?: string | null): boolean {
+  if (typeof window === "undefined" || !email) return false;
+  try {
+    return (
+      window.sessionStorage.getItem(EMAIL_VERIFIED_STORAGE_KEY) ===
+      email.trim().toLowerCase()
+    );
+  } catch {
+    return false;
+  }
+}
+
+function clearBrowserSessionHints(): void {
+  saveUserSnapshot(null);
+  if (typeof window !== "undefined") {
+    try {
+      window.sessionStorage.removeItem(EMAIL_VERIFIED_STORAGE_KEY);
+    } catch {
+      // Ignorado intencionalmente.
+    }
+  }
+  if (typeof document !== "undefined") {
+    document.cookie = `${SESSION_FLAG_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const router = useRouter();
-  const pathname = usePathname();
-
   const [user, setUser] = useState<AuthUser | null>(null);
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [subscription, setSubscription] =
+    useState<UserSubscriptionResponse | null>(null);
+  const [languagesSettings, setLanguagesSettings] =
+    useState<LanguagesSettings | null>(null);
   const [status, setStatus] = useState<AuthStatus>("loading");
-  const [preferredLanguage, setPreferredLanguage] = useState<string>("en");
-  const [onboarding, setOnboarding] = useState<OnboardingState>(
-    DEFAULT_COMPLETED_ONBOARDING,
-  );
+  const [onboarding, setOnboarding] =
+    useState<OnboardingState>(EMPTY_ONBOARDING);
 
-  const clearSession = useCallback((): void => {
-    clearAuthTokens();
-    setAccessToken(null);
+  const isBootstrappedRef = useRef(false);
+
+  const clearSessionState = useCallback((): void => {
+    clearBrowserSessionHints();
     setUser(null);
+    setSubscription(null);
+    setLanguagesSettings(null);
+    setOnboarding(EMPTY_ONBOARDING);
     setStatus("unauthenticated");
-    setOnboarding(DEFAULT_COMPLETED_ONBOARDING);
   }, []);
 
-  const refreshSession = useCallback(async (): Promise<string | null> => {
-    try {
-      const refreshResponse = await authClient.refresh();
-      const newAccessToken = refreshResponse.data?.accessToken ?? null;
-      const newRefreshToken = refreshResponse.data?.refreshToken ?? null;
+  /**
+   * Carga suscripción e idiomas actuales cuando el usuario ya cuenta con un plan activo.
+   */
+  const syncSubscriptionAndLanguages = useCallback(
+    async (
+      authenticatedUser: AuthUser,
+      options?: { assumeEmailVerified?: boolean },
+    ): Promise<void> => {
+      const [subResult, langResult] = await Promise.allSettled([
+        subscriptionsService.getCurrentSubscription(),
+        settingsService.getLanguages(),
+      ]);
 
-      if (!newAccessToken) {
-        clearSession();
-        return null;
-      }
+      const nextSubscription =
+        subResult.status === "fulfilled" ? subResult.value.data : null;
+      const nextLanguages =
+        langResult.status === "fulfilled" ? langResult.value.data : null;
 
-      setAuthTokens({
-        accessToken: newAccessToken,
-        refreshToken: newRefreshToken,
+      setSubscription(nextSubscription);
+      setLanguagesSettings(nextLanguages);
+
+      const resolvedTier =
+        nextSubscription?.tier ?? authenticatedUser.subscriptionTier ?? null;
+      const selectedLanguages = nextLanguages?.selected ?? [];
+      const hasSelectedPlan = Boolean(resolvedTier);
+      const emailVerified =
+        hasSelectedPlan ||
+        Boolean(options?.assumeEmailVerified) ||
+        isEmailVerifiedInSession(authenticatedUser.email);
+
+      setOnboarding({
+        emailVerified,
+        hasSelectedPlan,
+        subscriptionPlan: resolvedTier,
+        selectedLanguages,
+        isOnboardingComplete: hasSelectedPlan && selectedLanguages.length > 0,
       });
-      setAccessToken(newAccessToken);
+    },
+    [],
+  );
 
-      try {
-        const meResponse = await authClient.me(newAccessToken);
-        if (meResponse.data) {
-          const profile = meResponse.data;
-          setUser(profile);
-          const savedOnboarding = loadStoredOnboarding(profile.email);
-          if (savedOnboarding) {
-            setOnboarding(savedOnboarding);
-            if (savedOnboarding.selectedLanguages[0]) {
-              setPreferredLanguage(savedOnboarding.selectedLanguages[0]);
-            }
-          } else {
-            setOnboarding(DEFAULT_COMPLETED_ONBOARDING);
-          }
-        }
-      } catch {
-        // En caso de fallo transitorio en /auth/me se conserva el token en memoria
+  const applyAuthenticatedUser = useCallback(
+    async (
+      authenticatedUser: AuthUser,
+      options?: { isNewRegistration?: boolean },
+    ): Promise<void> => {
+      setUser(authenticatedUser);
+      saveUserSnapshot(authenticatedUser);
+      setStatus("authenticated");
+
+      if (authenticatedUser.subscriptionTier) {
+        await syncSubscriptionAndLanguages(authenticatedUser, {
+          assumeEmailVerified: !options?.isNewRegistration,
+        });
+        return;
       }
 
-      setStatus("authenticated");
-      return newAccessToken;
-    } catch {
-      clearSession();
-      return null;
-    }
-  }, [clearSession]);
+      setSubscription(null);
+      setLanguagesSettings(null);
 
-  const handleUnauthorizedRedirect = useCallback((): void => {
-    clearSession();
-    if (!PUBLIC_AUTH_PATHS.has(pathname)) {
-      const nextParam =
-        pathname && pathname !== "/"
-          ? `?redirect=${encodeURIComponent(pathname)}`
-          : "";
-      router.replace(`/login${nextParam}`);
+      const emailVerified = options?.isNewRegistration
+        ? false
+        : isEmailVerifiedInSession(authenticatedUser.email);
+
+      setOnboarding({
+        emailVerified,
+        hasSelectedPlan: false,
+        subscriptionPlan: null,
+        selectedLanguages: [],
+        isOnboardingComplete: false,
+      });
+    },
+    [syncSubscriptionAndLanguages],
+  );
+
+  const reloadAccountState = useCallback(async (): Promise<void> => {
+    try {
+      const meResponse = await authService.me();
+      await applyAuthenticatedUser(meResponse.data);
+    } catch (error) {
+      if (
+        error instanceof ApiClientError &&
+        error.code === ErrorCode.SUBSCRIPTION_REQUIRED
+      ) {
+        // Sesión autenticada pero aún sin plan en el Paso 3 del registro.
+        const snapshot = loadUserSnapshot();
+        const email = snapshot?.email ?? user?.email ?? null;
+        setUser(snapshot ? { ...snapshot, subscriptionTier: null } : user);
+        setSubscription(null);
+        setLanguagesSettings(null);
+        setStatus("authenticated");
+        setOnboarding({
+          emailVerified: isEmailVerifiedInSession(email),
+          hasSelectedPlan: false,
+          subscriptionPlan: null,
+          selectedLanguages: [],
+          isOnboardingComplete: false,
+        });
+        return;
+      }
+
+      if (error instanceof ApiClientError && error.isUnauthorized) {
+        clearSessionState();
+        return;
+      }
+
+      throw error;
     }
-  }, [clearSession, pathname, router]);
+  }, [applyAuthenticatedUser, clearSessionState, user]);
+
+  const refreshSession = useCallback(async (): Promise<boolean> => {
+    try {
+      const response = await authService.refresh();
+      return Boolean(response.data?.authenticated);
+    } catch {
+      clearSessionState();
+      return false;
+    }
+  }, [clearSessionState]);
 
   useEffect(() => {
     registerAuthLifecycleHandlers({
       onRefresh: refreshSession,
-      onUnauthorized: handleUnauthorizedRedirect,
+      onUnauthorized: clearSessionState,
     });
 
     return () => {
@@ -249,222 +342,214 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         onUnauthorized: null,
       });
     };
-  }, [refreshSession, handleUnauthorizedRedirect]);
+  }, [refreshSession, clearSessionState]);
 
+  // Hidratación inicial de sesión desde cookies `HttpOnly` a través del proxy BFF
   useEffect(() => {
-    let isMounted = true;
+    if (isBootstrappedRef.current) return;
+    isBootstrappedRef.current = true;
 
     const bootstrapSession = async (): Promise<void> => {
-      if (!hasSessionFlagCookie() && !getRefreshToken()) {
-        if (isMounted) {
-          setStatus("unauthenticated");
-        }
+      if (!hasSessionCookieFlag()) {
+        clearSessionState();
         return;
       }
 
-      await refreshSession();
+      try {
+        await reloadAccountState();
+      } catch {
+        clearSessionState();
+      }
     };
 
     void bootstrapSession();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [refreshSession]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const login = useCallback(
-    async (input: LoginInput): Promise<AuthSessionPayload> => {
-      const response = await authClient.login(input);
-      const session = response.data;
-
-      setAuthTokens({
-        accessToken: session.tokens.accessToken,
-        refreshToken: session.tokens.refreshToken,
+    async (input: LoginInput): Promise<AuthUser> => {
+      const response = await authService.login({
+        email: input.email.trim(),
+        password: input.password,
       });
-      setAccessToken(session.tokens.accessToken);
-      setUser(session.user);
-      setStatus("authenticated");
 
-      const existingOnboarding = loadStoredOnboarding(session.user.email);
-      if (existingOnboarding) {
-        setOnboarding(existingOnboarding);
-        if (existingOnboarding.selectedLanguages[0]) {
-          setPreferredLanguage(existingOnboarding.selectedLanguages[0]);
-        }
-      } else {
-        setOnboarding(DEFAULT_COMPLETED_ONBOARDING);
-        saveStoredOnboarding(session.user.email, DEFAULT_COMPLETED_ONBOARDING);
+      const loggedUser = response.data.user;
+      if (!loggedUser.subscriptionTier) {
+        // Usuario existente que vuelve antes de finalizar plan: conserva su acceso directo a planes
+        saveEmailVerifiedHint(loggedUser.email, true);
       }
 
-      return session;
+      await applyAuthenticatedUser(loggedUser);
+      return loggedUser;
     },
-    [],
+    [applyAuthenticatedUser],
   );
 
   const register = useCallback(
-    async (
-      input: RegisterWithPreferencesInput,
-    ): Promise<AuthSessionPayload> => {
-      const response = await authClient.register({
-        email: input.email,
+    async (input: RegisterWithPreferencesInput): Promise<AuthUser> => {
+      const response = await authService.register({
+        email: input.email.trim(),
         password: input.password,
-        fullName: input.fullName,
+        fullName: input.fullName.trim(),
       });
-      const session = response.data;
 
-      setAuthTokens({
-        accessToken: session.tokens.accessToken,
-        refreshToken: session.tokens.refreshToken,
+      const createdUser = response.data.user;
+      saveEmailVerifiedHint(createdUser.email, false);
+      await applyAuthenticatedUser(createdUser, { isNewRegistration: true });
+      return createdUser;
+    },
+    [applyAuthenticatedUser],
+  );
+
+  const confirmEmailVerification = useCallback((): void => {
+    if (user?.email) {
+      saveEmailVerifiedHint(user.email, true);
+    }
+    setOnboarding((prev) => ({
+      ...prev,
+      emailVerified: true,
+    }));
+  }, [user]);
+
+  const selectPlan = useCallback(
+    async (plan: SubscriptionPlanId): Promise<UserSubscriptionResponse> => {
+      const response = await subscriptionsService.selectSubscription({
+        tier: plan,
       });
-      setAccessToken(session.tokens.accessToken);
-      setUser(session.user);
-      setStatus("authenticated");
+      const updatedSubscription = response.data;
+      setSubscription(updatedSubscription);
 
-      // Para un nuevo registro, se inicializa el stepper con correo sin verificar y sin plan seleccionado
-      const freshOnboarding: OnboardingState = {
-        ...DEFAULT_FRESH_ONBOARDING,
-        selectedLanguages: input.preferredLanguage
-          ? [input.preferredLanguage]
-          : [],
-      };
-      setOnboarding(freshOnboarding);
-      saveStoredOnboarding(session.user.email, freshOnboarding);
+      const updatedUser = user
+        ? { ...user, subscriptionTier: updatedSubscription.tier }
+        : null;
+      if (updatedUser) {
+        setUser(updatedUser);
+        saveUserSnapshot(updatedUser);
+        saveEmailVerifiedHint(updatedUser.email, true);
+      }
 
-      return session;
+      let selectedLanguages = onboarding.selectedLanguages;
+      try {
+        const langResponse = await settingsService.getLanguages();
+        setLanguagesSettings(langResponse.data);
+        selectedLanguages = langResponse.data.selected;
+      } catch {
+        // Si aún no hay idiomas elegidos, el Paso 4 completará la configuración.
+      }
+
+      const hasPlan = Boolean(updatedSubscription.tier);
+      setOnboarding((prev) => ({
+        ...prev,
+        emailVerified: true,
+        hasSelectedPlan: hasPlan,
+        subscriptionPlan: updatedSubscription.tier,
+        selectedLanguages,
+        isOnboardingComplete: hasPlan && selectedLanguages.length > 0,
+      }));
+
+      return updatedSubscription;
+    },
+    [onboarding.selectedLanguages, user],
+  );
+
+  const selectLanguages = useCallback(
+    async (languages: TargetLanguageCode[]): Promise<LanguagesSettings> => {
+      const response = await settingsService.updateLanguages({ languages });
+      const updatedLanguages = response.data;
+      setLanguagesSettings(updatedLanguages);
+
+      setOnboarding((prev) => ({
+        ...prev,
+        emailVerified: true,
+        hasSelectedPlan: true,
+        selectedLanguages: updatedLanguages.selected,
+        isOnboardingComplete: updatedLanguages.selected.length > 0,
+      }));
+
+      return updatedLanguages;
     },
     [],
   );
 
-  const verifyEmailMock = useCallback((): void => {
-    setOnboarding((prev) => {
-      const next: OnboardingState = {
+  const updateOnboardingState = useCallback(
+    (partial: Partial<OnboardingState>): void => {
+      setOnboarding((prev) => ({
         ...prev,
-        emailVerified: true,
-      };
-      if (user?.email) {
-        saveStoredOnboarding(user.email, next);
-      }
-      return next;
-    });
-  }, [user]);
-
-  const selectPlanMock = useCallback(
-    (plan: SubscriptionPlanId): void => {
-      setOnboarding((prev) => {
-        let adjustedLanguages = [...prev.selectedLanguages];
-        if (plan === "doly" && adjustedLanguages.length > 1) {
-          adjustedLanguages = adjustedLanguages.slice(0, 1);
-        } else if (plan === "doly_plus" && adjustedLanguages.length > 2) {
-          adjustedLanguages = adjustedLanguages.slice(0, 2);
-        }
-
-        const next: OnboardingState = {
-          ...prev,
-          subscriptionPlan: plan,
-          hasSelectedPlan: true,
-          selectedLanguages: adjustedLanguages,
-        };
-        if (user?.email) {
-          saveStoredOnboarding(user.email, next);
-        }
-        return next;
-      });
+        ...partial,
+      }));
     },
-    [user],
+    [],
   );
 
-  const selectLanguagesMock = useCallback(
-    (languages: string[]): void => {
-      setOnboarding((prev) => {
-        const next: OnboardingState = {
-          ...prev,
-          selectedLanguages: languages,
-          isOnboardingComplete: true,
-        };
-        if (languages[0]) {
-          setPreferredLanguage(languages[0]);
-        }
-        if (user?.email) {
-          saveStoredOnboarding(user.email, next);
-        }
-        return next;
-      });
-    },
-    [user],
-  );
-
-  const resetOnboardingMock = useCallback((): void => {
-    if (user?.email) {
-      saveStoredOnboarding(user.email, DEFAULT_FRESH_ONBOARDING);
+  const logout = useCallback(async (): Promise<void> => {
+    try {
+      await authService.logout();
+    } catch {
+      // Aunque falle la red, limpiamos el estado local inmediatamente.
+    } finally {
+      clearSessionState();
     }
-    setOnboarding(DEFAULT_FRESH_ONBOARDING);
-  }, [user]);
+  }, [clearSessionState]);
 
-  const logout = useCallback(
-    async (options?: { redirectTo?: string }): Promise<void> => {
-      try {
-        await authClient.logout(accessToken);
-      } catch {
-        // En caso de error de red se garantiza la limpieza del estado local
-      } finally {
-        clearSession();
-        const target = sanitizeRedirectPath(
-          options?.redirectTo,
-          "/login",
-        );
-        router.replace(target === "/" ? "/login" : target);
-      }
-    },
-    [accessToken, clearSession, router],
-  );
+  const logoutAll = useCallback(async (): Promise<void> => {
+    try {
+      await authService.logoutAll();
+    } catch {
+      // Mismo criterio de limpieza segura ante fallos de red.
+    } finally {
+      clearSessionState();
+    }
+  }, [clearSessionState]);
+
+  const isAuthenticated = status === "authenticated";
 
   const value = useMemo<AuthContextValue>(
     () => ({
       user,
-      accessToken,
+      subscription,
+      languagesSettings,
       status,
-      isAuthenticated: status === "authenticated" && Boolean(accessToken),
-      preferredLanguage,
+      isAuthenticated,
+      isLoading: status === "loading",
       onboarding,
-      setPreferredLanguage,
-      verifyEmailMock,
-      selectPlanMock,
-      selectLanguagesMock,
-      resetOnboardingMock,
       login,
       register,
-      refreshSession,
       logout,
-      clearSession,
+      logoutAll,
+      refreshSession,
+      reloadAccountState,
+      confirmEmailVerification,
+      selectPlan,
+      selectLanguages,
+      updateOnboardingState,
     }),
     [
       user,
-      accessToken,
+      subscription,
+      languagesSettings,
       status,
-      preferredLanguage,
+      isAuthenticated,
       onboarding,
-      verifyEmailMock,
-      selectPlanMock,
-      selectLanguagesMock,
-      resetOnboardingMock,
       login,
       register,
-      refreshSession,
       logout,
-      clearSession,
+      logoutAll,
+      refreshSession,
+      reloadAccountState,
+      confirmEmailVerification,
+      selectPlan,
+      selectLanguages,
+      updateOnboardingState,
     ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
-/**
- * Hook para acceder al estado de sesión, acciones de autenticación y flujo de onboarding.
- */
 export function useAuth(): AuthContextValue {
-  const context = useContext(AuthContext);
-  if (!context) {
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
     throw new Error("useAuth debe utilizarse dentro de un <AuthProvider>.");
   }
-  return context;
+  return ctx;
 }

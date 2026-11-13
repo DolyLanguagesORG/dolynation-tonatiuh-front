@@ -6,10 +6,12 @@ import { Alert, Badge, Button, Card, Input } from "@/components/ui";
 import { useAuth } from "@/context";
 import { useLocale } from "@/i18n";
 import {
+  ApiClientError,
   DEFAULT_CATEGORIES,
   DEFAULT_DIFFICULTIES,
   DEFAULT_LANGUAGES,
   DEFAULT_SIZES,
+  settingsService,
   studyClient,
   type CatalogCategory,
   type DifficultyOption,
@@ -41,7 +43,14 @@ export function StudyParametersForm({
   onGenerate,
 }: StudyParametersFormProps) {
   const { locale, t } = useLocale();
-  const { user } = useAuth();
+  const { user, languagesSettings } = useAuth();
+
+  const activePlanLanguages: readonly TargetLanguageCode[] | null =
+    languagesSettings?.active && languagesSettings.active.length > 0
+      ? languagesSettings.active
+      : languagesSettings?.selected && languagesSettings.selected.length > 0
+        ? languagesSettings.selected
+        : null;
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -114,9 +123,16 @@ export function StudyParametersForm({
     };
   }, [user?.id]);
 
+  const effectiveLanguage: TargetLanguageCode =
+    activePlanLanguages &&
+    activePlanLanguages.length > 0 &&
+    !activePlanLanguages.includes(selectedLanguage)
+      ? activePlanLanguages[0]
+      : selectedLanguage;
+
   const estimatedTime = studyClient.calculateEstimatedTime(
-    selectedDifficulty,
     selectedSize,
+    selectedDifficulty,
   );
 
   // Manejo de guardar preferencias sin generar
@@ -124,22 +140,32 @@ export function StudyParametersForm({
     setIsSaving(true);
     setValidationError(null);
     setGenerationNotice(null);
+    setSaveNotice(null);
     try {
       const currentParams: StudyParameters = {
-        language: selectedLanguage,
+        language: effectiveLanguage,
         category: selectedCategory,
         difficulty: selectedDifficulty,
         size: selectedSize,
       };
 
+      const existingCategories = await settingsService.getCategories();
+      const mergedCategories = Array.from(
+        new Set([...existingCategories.data.selected, selectedCategory]),
+      );
+      await settingsService.updateCategories({ categories: mergedCategories });
       await studyClient.saveStudyPreferences(currentParams, user?.id);
       setSaveNotice(t.study.savedSuccessNotice);
-    } catch {
-      setValidationError(
-        locale === "es"
-          ? "No se pudieron sincronizar las preferencias con el servidor. Se guardaron localmente."
-          : "Could not sync preferences with server. Saved locally.",
-      );
+    } catch (error) {
+      if (error instanceof ApiClientError) {
+        setValidationError(error.getUserMessage(locale));
+      } else {
+        setValidationError(
+          locale === "es"
+            ? "No se pudieron sincronizar las preferencias con el servidor."
+            : "Could not sync preferences with server.",
+        );
+      }
     } finally {
       setIsSaving(false);
     }
@@ -158,19 +184,37 @@ export function StudyParametersForm({
       return;
     }
 
-    const generatedId = `custom_${cleanName
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "")}`;
+    if (cleanName.length < 2 || cleanName.length > 50) {
+      setCustomCategoryError(
+        locale === "es"
+          ? "La categoría debe tener entre 2 y 50 caracteres."
+          : "Category name must be between 2 and 50 characters.",
+      );
+      return;
+    }
+
+    const duplicate = categories.find(
+      (cat) =>
+        cat.id.toLowerCase() === cleanName.toLowerCase() ||
+        cat.name.toLowerCase() === cleanName.toLowerCase(),
+    );
+
+    if (duplicate) {
+      setSelectedCategory(duplicate.id);
+      setCustomCategoryName("");
+      setIsAddingCustom(false);
+      setCustomCategoryError(null);
+      return;
+    }
 
     const newCategory: CatalogCategory = {
-      id: generatedId,
+      id: cleanName,
       name: cleanName,
       isCustom: true,
     };
 
     setCategories((prev) => [newCategory, ...prev]);
-    setSelectedCategory(generatedId);
+    setSelectedCategory(cleanName);
     setCustomCategoryName("");
     setIsAddingCustom(false);
     setCustomCategoryError(null);
@@ -200,37 +244,37 @@ export function StudyParametersForm({
     }
 
     const finalParams: StudyParameters = {
-      language: selectedLanguage,
+      language: effectiveLanguage,
       category: selectedCategory,
       difficulty: selectedDifficulty,
       size: selectedSize,
     };
 
     setIsSubmitting(true);
+    setGenerationNotice(null);
     try {
-      // Persiste la selección
       await studyClient.saveStudyPreferences(finalParams, user?.id);
 
       if (onGenerate) {
         onGenerate(finalParams);
       } else {
-        try {
-          const generated = await studyClient.generateReading(finalParams);
-          setGenerationNotice(
-            locale === "es"
-              ? `Lectura generada con éxito: "${generated.title}". Estado: ${generated.status}.`
-              : `Reading generated successfully: "${generated.title}". Status: ${generated.status}.`,
-          );
-        } catch {
-          setGenerationNotice(t.study.generationReadyNotice);
-        }
+        const generated = await studyClient.generateReading(finalParams);
+        setGenerationNotice(
+          locale === "es"
+            ? `Lectura generada con éxito: "${generated.title}". Estado: ${generated.status}.`
+            : `Reading generated successfully: "${generated.title}". Status: ${generated.status}.`,
+        );
       }
-    } catch {
-      setValidationError(
-        locale === "es"
-          ? "Ocurrió un error al preparar la generación."
-          : "An error occurred while preparing generation.",
-      );
+    } catch (error) {
+      if (error instanceof ApiClientError) {
+        setValidationError(error.getUserMessage(locale));
+      } else {
+        setValidationError(
+          locale === "es"
+            ? "Ocurrió un error al preparar la generación de la lectura."
+            : "An error occurred while generating the reading.",
+        );
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -285,7 +329,7 @@ export function StudyParametersForm({
           </div>
 
           <Badge variant="outline">
-            {selectedLanguage.toUpperCase()} • {selectedDifficulty.toUpperCase()}
+            {effectiveLanguage.toUpperCase()} • {selectedDifficulty.toUpperCase()}
           </Badge>
         </div>
 
@@ -335,7 +379,9 @@ export function StudyParametersForm({
             className="flex flex-wrap gap-2 sm:gap-2.5"
           >
             {DEFAULT_LANGUAGES.map((lang) => {
-              const isSelected = selectedLanguage === lang.id;
+              const isSelected = effectiveLanguage === lang.id;
+              const isAllowed =
+                !activePlanLanguages || activePlanLanguages.includes(lang.id);
               const label = locale === "es" ? lang.nameEs : lang.nameEn;
 
               return (
@@ -344,15 +390,26 @@ export function StudyParametersForm({
                   type="button"
                   role="radio"
                   aria-checked={isSelected}
+                  disabled={!isAllowed}
+                  title={
+                    !isAllowed
+                      ? locale === "es"
+                        ? "Idioma no activo en tu plan actual"
+                        : "Language not active in your current plan"
+                      : undefined
+                  }
                   onClick={() => {
+                    if (!isAllowed) return;
                     setSelectedLanguage(lang.id);
                     setValidationError(null);
                   }}
                   className={[
                     "min-h-9 rounded-xs border px-4 py-2 text-xs font-bold tracking-wider uppercase transition-all sm:text-xs",
-                    isSelected
-                      ? "border-brand bg-brand text-white shadow-xs ring-1 ring-brand"
-                      : "border-border-strong bg-surface text-heading hover:border-brand hover:bg-neutral-secondary-medium",
+                    !isAllowed
+                      ? "cursor-not-allowed border-border bg-neutral-secondary-soft text-subtle opacity-50"
+                      : isSelected
+                        ? "border-brand bg-brand text-white shadow-xs ring-1 ring-brand"
+                        : "border-border-strong bg-surface text-heading hover:border-brand hover:bg-neutral-secondary-medium",
                   ].join(" ")}
                 >
                   {label}
@@ -360,6 +417,16 @@ export function StudyParametersForm({
               );
             })}
           </div>
+          {activePlanLanguages && (
+            <p className="text-[11px] text-muted">
+              {locale === "es"
+                ? "Idiomas habilitados según tu suscripción actual:"
+                : "Languages enabled by your active plan:"}{" "}
+              <span className="font-mono font-semibold text-ink uppercase">
+                {activePlanLanguages.join(", ")}
+              </span>
+            </p>
+          )}
         </fieldset>
 
         {/* ======================================================== */}
@@ -439,6 +506,10 @@ export function StudyParametersForm({
             >
               {categories.map((cat) => {
                 const isSelected = selectedCategory === cat.id;
+                const displayName =
+                  locale === "es"
+                    ? (cat.nameEs ?? cat.name)
+                    : (cat.nameEn ?? cat.name);
 
                 return (
                   <button
@@ -457,7 +528,7 @@ export function StudyParametersForm({
                         : "border-border-strong bg-surface text-heading hover:border-brand hover:bg-neutral-secondary-medium",
                     ].join(" ")}
                   >
-                    <span>{cat.name}</span>
+                    <span>{displayName}</span>
                     {cat.isCustom && (
                       <span
                         className={`text-[9px] font-mono px-1 rounded-[2px] ${

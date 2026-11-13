@@ -25,11 +25,15 @@ import {
   useAuth,
 } from "@/context";
 import { useLocale } from "@/i18n";
-import { ApiClientError, ErrorCode } from "@/lib";
+import {
+  ApiClientError,
+  ErrorCode,
+  subscriptionsService,
+  type SubscriptionPlanItem,
+  type TargetLanguageCode,
+} from "@/lib";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-type TargetLanguageCode = "en" | "fr" | "es" | "it";
 
 function evaluatePasswordStrength(password: string): {
   activeSegments: 0 | 1 | 2 | 3;
@@ -67,9 +71,9 @@ function RegisterFormContent() {
     register,
     isAuthenticated,
     onboarding,
-    verifyEmailMock,
-    selectPlanMock,
-    selectLanguagesMock,
+    confirmEmailVerification,
+    selectPlan,
+    selectLanguages,
   } = useAuth();
 
   const redirectTarget = sanitizeRedirectPath(
@@ -150,9 +154,11 @@ function RegisterFormContent() {
   >(null);
 
   // Paso 3: Selección de plan
+  const [plansCatalog, setPlansCatalog] = useState<SubscriptionPlanItem[]>([]);
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlanId>(
-    onboarding.subscriptionPlan ?? "doly_plus",
+    onboarding.subscriptionPlan ?? "dolly_plus",
   );
+  const [isSubmittingPlan, setIsSubmittingPlan] = useState(false);
   const [planError, setPlanError] = useState<string | null>(null);
 
   // Paso 4: Selección de idiomas
@@ -160,10 +166,28 @@ function RegisterFormContent() {
     TargetLanguageCode[]
   >(
     onboarding.selectedLanguages.length > 0
-      ? (onboarding.selectedLanguages as TargetLanguageCode[])
+      ? onboarding.selectedLanguages
       : ["en"],
   );
+  const [isSubmittingLanguages, setIsSubmittingLanguages] = useState(false);
   const [languagesError, setLanguagesError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    subscriptionsService
+      .getPlans()
+      .then((res) => {
+        if (!cancelled && Array.isArray(res.data)) {
+          setPlansCatalog(res.data);
+        }
+      })
+      .catch(() => {
+        // Conservamos los textos localizados de respaldo si falla la precarga del catálogo público.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Si el usuario ya está autenticado y ha completado todo el onboarding, redirige a la app
   useEffect(() => {
@@ -354,11 +378,11 @@ function RegisterFormContent() {
     }
   };
 
-  // Manejo del Paso 2 (Confirmación de correo hardcodeada)
+  // Manejo del Paso 2 (Confirmación de correo)
   const handleConfirmEmail = (): void => {
     setIsVerifyingEmail(true);
     setTimeout(() => {
-      verifyEmailMock();
+      confirmEmailVerification();
       setIsVerifyingEmail(false);
       setEmailVerificationNotice(
         t.auth.stepper.step2VerifyEmail.confirmedSuccessAlert,
@@ -385,19 +409,39 @@ function RegisterFormContent() {
     setPlanError(null);
   };
 
-  const handleStep3Submit = (): void => {
+  const activePlanLimit =
+    plansCatalog.find((plan) => plan.id === selectedPlan)?.maxLanguages ??
+    (selectedPlan === "dolly" ? 1 : selectedPlan === "dolly_plus" ? 2 : 4);
+
+  const handleStep3Submit = async (): Promise<void> => {
     if (!selectedPlan) {
       setPlanError(t.auth.stepper.step3Plan.selectPlanRequired);
       return;
     }
-    selectPlanMock(selectedPlan);
-    setActiveStep(4);
+    if (isSubmittingPlan) return;
+
+    setPlanError(null);
+    setIsSubmittingPlan(true);
+    try {
+      await selectPlan(selectedPlan);
+      setSelectedLanguages((prev) => prev.slice(0, activePlanLimit));
+      setActiveStep(4);
+    } catch (error) {
+      if (error instanceof ApiClientError) {
+        setPlanError(error.getUserMessage(locale));
+      } else {
+        setPlanError(
+          locale === "es"
+            ? "No fue posible registrar tu plan de suscripción. Inténtalo de nuevo."
+            : "Could not save your subscription plan. Please try again.",
+        );
+      }
+    } finally {
+      setIsSubmittingPlan(false);
+    }
   };
 
   // Manejo del Paso 4 (Selección de idiomas según el plan)
-  const activePlanLimit =
-    selectedPlan === "doly" ? 1 : selectedPlan === "doly_plus" ? 2 : 4;
-
   const handleToggleLanguage = (code: TargetLanguageCode): void => {
     setLanguagesError(null);
     if (selectedLanguages.includes(code)) {
@@ -406,9 +450,11 @@ function RegisterFormContent() {
         return;
       }
       setSelectedLanguages(selectedLanguages.filter((item) => item !== code));
+    } else if (activePlanLimit === 1) {
+      setSelectedLanguages([code]);
     } else {
       if (
-        selectedPlan !== "doly_vip" &&
+        selectedPlan !== "dolly_pro" &&
         selectedLanguages.length >= activePlanLimit
       ) {
         setLanguagesError(
@@ -421,19 +467,37 @@ function RegisterFormContent() {
   };
 
   const handleSelectAllLanguages = (): void => {
-    if (selectedPlan === "doly_vip") {
+    if (selectedPlan === "dolly_pro") {
       setSelectedLanguages(["en", "fr", "es", "it"]);
       setLanguagesError(null);
     }
   };
 
-  const handleStep4Submit = (): void => {
+  const handleStep4Submit = async (): Promise<void> => {
     if (selectedLanguages.length === 0) {
       setLanguagesError(t.auth.stepper.step4Languages.atLeastOneAlert);
       return;
     }
-    selectLanguagesMock(selectedLanguages);
-    router.replace(redirectTarget);
+    if (isSubmittingLanguages) return;
+
+    setLanguagesError(null);
+    setIsSubmittingLanguages(true);
+    try {
+      await selectLanguages(selectedLanguages);
+      router.replace(redirectTarget);
+    } catch (error) {
+      if (error instanceof ApiClientError) {
+        setLanguagesError(error.getUserMessage(locale));
+      } else {
+        setLanguagesError(
+          locale === "es"
+            ? "No fue posible guardar tus idiomas de estudio. Inténtalo de nuevo."
+            : "Could not save your study languages. Please try again.",
+        );
+      }
+    } finally {
+      setIsSubmittingLanguages(false);
+    }
   };
 
   const targetLanguageOptions: readonly {
@@ -978,16 +1042,16 @@ function RegisterFormContent() {
                 </Alert>
               )}
 
-              {/* Grid de las 3 suscripciones (Doly, Doly Plus, Doly VIP) */}
+              {/* Grid de las 3 suscripciones (Dolly, Dolly Plus, Dolly Pro) */}
               <div className="flex flex-col gap-4">
-                {/* 1. Doly (Básica) */}
+                {/* 1. Dolly (Básico) */}
                 <button
                   type="button"
-                  onClick={() => handleSelectPlan("doly")}
-                  aria-pressed={selectedPlan === "doly"}
+                  onClick={() => handleSelectPlan("dolly")}
+                  aria-pressed={selectedPlan === "dolly"}
                   className={[
                     "flex flex-col gap-3 rounded-xs border p-4 text-left transition-all sm:p-5",
-                    selectedPlan === "doly"
+                    selectedPlan === "dolly"
                       ? "border-brand bg-neutral-secondary-medium shadow-sm ring-1 ring-brand"
                       : "border-border-strong bg-neutral-primary-soft hover:border-brand",
                   ].join(" ")}
@@ -1001,7 +1065,7 @@ function RegisterFormContent() {
                         {t.auth.stepper.step3Plan.planDolyBadge}
                       </Badge>
                     </div>
-                    {selectedPlan === "doly" && (
+                    {selectedPlan === "dolly" && (
                       <Badge variant="primary">
                         {t.auth.stepper.step3Plan.currentSelection}
                       </Badge>
@@ -1037,14 +1101,14 @@ function RegisterFormContent() {
                   </ul>
                 </button>
 
-                {/* 2. Doly Plus (Media) */}
+                {/* 2. Dolly Plus (Media) */}
                 <button
                   type="button"
-                  onClick={() => handleSelectPlan("doly_plus")}
-                  aria-pressed={selectedPlan === "doly_plus"}
+                  onClick={() => handleSelectPlan("dolly_plus")}
+                  aria-pressed={selectedPlan === "dolly_plus"}
                   className={[
                     "flex flex-col gap-3 rounded-xs border p-4 text-left transition-all sm:p-5",
-                    selectedPlan === "doly_plus"
+                    selectedPlan === "dolly_plus"
                       ? "border-brand bg-neutral-secondary-medium shadow-sm ring-1 ring-brand"
                       : "border-border-strong bg-neutral-primary-soft hover:border-brand",
                   ].join(" ")}
@@ -1058,7 +1122,7 @@ function RegisterFormContent() {
                         {t.auth.stepper.step3Plan.planDolyPlusBadge}
                       </Badge>
                     </div>
-                    {selectedPlan === "doly_plus" && (
+                    {selectedPlan === "dolly_plus" && (
                       <Badge variant="primary">
                         {t.auth.stepper.step3Plan.currentSelection}
                       </Badge>
@@ -1098,14 +1162,14 @@ function RegisterFormContent() {
                   </ul>
                 </button>
 
-                {/* 3. Doly VIP (Máxima) */}
+                {/* 3. Dolly Pro (Máxima) */}
                 <button
                   type="button"
-                  onClick={() => handleSelectPlan("doly_vip")}
-                  aria-pressed={selectedPlan === "doly_vip"}
+                  onClick={() => handleSelectPlan("dolly_pro")}
+                  aria-pressed={selectedPlan === "dolly_pro"}
                   className={[
                     "flex flex-col gap-3 rounded-xs border p-4 text-left transition-all sm:p-5",
-                    selectedPlan === "doly_vip"
+                    selectedPlan === "dolly_pro"
                       ? "border-brand bg-neutral-secondary-medium shadow-sm ring-1 ring-brand"
                       : "border-border-strong bg-neutral-primary-soft hover:border-brand",
                   ].join(" ")}
@@ -1113,13 +1177,13 @@ function RegisterFormContent() {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2">
                       <span className="font-serif text-lg font-bold text-ink sm:text-xl">
-                        {t.auth.stepper.step3Plan.planDolyVipName}
+                        {t.auth.stepper.step3Plan.planDolyProName}
                       </span>
                       <Badge variant="outline">
-                        {t.auth.stepper.step3Plan.planDolyVipBadge}
+                        {t.auth.stepper.step3Plan.planDolyProBadge}
                       </Badge>
                     </div>
-                    {selectedPlan === "doly_vip" && (
+                    {selectedPlan === "dolly_pro" && (
                       <Badge variant="primary">
                         {t.auth.stepper.step3Plan.currentSelection}
                       </Badge>
@@ -1128,33 +1192,33 @@ function RegisterFormContent() {
 
                   <div className="flex items-baseline gap-2">
                     <span className="font-serif text-2xl font-bold text-ink sm:text-3xl">
-                      {t.auth.stepper.step3Plan.planDolyVipPrice}
+                      {t.auth.stepper.step3Plan.planDolyProPrice}
                     </span>
                     <span className="text-xs text-muted">
-                      {t.auth.stepper.step3Plan.planDolyVipPeriod}
+                      {t.auth.stepper.step3Plan.planDolyProPeriod}
                     </span>
                   </div>
 
                   <p className="text-xs leading-relaxed text-muted">
-                    {t.auth.stepper.step3Plan.planDolyVipDesc}
+                    {t.auth.stepper.step3Plan.planDolyProDesc}
                   </p>
 
                   <ul className="flex flex-col gap-1.5 border-t border-border pt-3 text-xs text-ink">
                     <li className="flex items-center gap-2 font-semibold">
                       <span aria-hidden="true" className="font-bold">✓</span>
-                      <span>{t.auth.stepper.step3Plan.planDolyVipFeature1}</span>
+                      <span>{t.auth.stepper.step3Plan.planDolyProFeature1}</span>
                     </li>
                     <li className="flex items-center gap-2 text-muted">
                       <span aria-hidden="true">✓</span>
-                      <span>{t.auth.stepper.step3Plan.planDolyVipFeature2}</span>
+                      <span>{t.auth.stepper.step3Plan.planDolyProFeature2}</span>
                     </li>
                     <li className="flex items-center gap-2 text-muted">
                       <span aria-hidden="true">✓</span>
-                      <span>{t.auth.stepper.step3Plan.planDolyVipFeature3}</span>
+                      <span>{t.auth.stepper.step3Plan.planDolyProFeature3}</span>
                     </li>
                     <li className="flex items-center gap-2 text-muted">
                       <span aria-hidden="true">✓</span>
-                      <span>{t.auth.stepper.step3Plan.planDolyVipFeature4}</span>
+                      <span>{t.auth.stepper.step3Plan.planDolyProFeature4}</span>
                     </li>
                   </ul>
                 </button>
@@ -1174,6 +1238,7 @@ function RegisterFormContent() {
                   type="button"
                   variant="primary"
                   size="lg"
+                  isLoading={isSubmittingPlan}
                   onClick={handleStep3Submit}
                   rightIcon={<span aria-hidden="true">→</span>}
                   className="normal-case tracking-normal"
@@ -1194,11 +1259,11 @@ function RegisterFormContent() {
                   <Badge variant="outline">PASO 04 / 04</Badge>
                   <Badge variant="secondary">
                     Plan:{" "}
-                    {selectedPlan === "doly"
-                      ? "Doly (1 idioma)"
-                      : selectedPlan === "doly_plus"
-                        ? "Doly Plus (hasta 2)"
-                        : "Doly VIP (ilimitado)"}
+                    {selectedPlan === "dolly"
+                      ? "Dolly (1 idioma)"
+                      : selectedPlan === "dolly_plus"
+                        ? "Dolly Plus (hasta 2)"
+                        : "Dolly Pro (hasta 4)"}
                   </Badge>
                 </div>
                 <h1
@@ -1209,11 +1274,11 @@ function RegisterFormContent() {
                   {t.auth.stepper.step4Languages.title}
                 </h1>
                 <p className="text-xs leading-relaxed text-muted">
-                  {selectedPlan === "doly"
+                  {selectedPlan === "dolly"
                     ? t.auth.stepper.step4Languages.capacityDoly
-                    : selectedPlan === "doly_plus"
+                    : selectedPlan === "dolly_plus"
                       ? t.auth.stepper.step4Languages.capacityDolyPlus
-                      : t.auth.stepper.step4Languages.capacityDolyVip}
+                      : t.auth.stepper.step4Languages.capacityDolyPro}
                 </p>
               </div>
 
@@ -1232,12 +1297,12 @@ function RegisterFormContent() {
                 <div className="flex items-center gap-2 text-xs font-semibold text-ink">
                   <span>
                     {selectedLanguages.length} /{" "}
-                    {selectedPlan === "doly_vip" ? "4" : activePlanLimit}{" "}
+                    {selectedPlan === "dolly_pro" ? "4" : activePlanLimit}{" "}
                     {t.auth.stepper.step4Languages.selectedCountText}
                   </span>
                 </div>
 
-                {selectedPlan === "doly_vip" && (
+                {selectedPlan === "dolly_pro" && (
                   <button
                     type="button"
                     onClick={handleSelectAllLanguages}
@@ -1294,6 +1359,7 @@ function RegisterFormContent() {
                   type="button"
                   variant="primary"
                   size="lg"
+                  isLoading={isSubmittingLanguages}
                   onClick={handleStep4Submit}
                   rightIcon={<span aria-hidden="true">→</span>}
                   className="normal-case tracking-normal"

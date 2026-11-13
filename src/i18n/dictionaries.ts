@@ -147,15 +147,15 @@ export interface Dictionary {
         planDolyPlusFeature2: string;
         planDolyPlusFeature3: string;
         planDolyPlusFeature4: string;
-        planDolyVipName: string;
-        planDolyVipBadge: string;
-        planDolyVipPrice: string;
-        planDolyVipPeriod: string;
-        planDolyVipDesc: string;
-        planDolyVipFeature1: string;
-        planDolyVipFeature2: string;
-        planDolyVipFeature3: string;
-        planDolyVipFeature4: string;
+        planDolyProName: string;
+        planDolyProBadge: string;
+        planDolyProPrice: string;
+        planDolyProPeriod: string;
+        planDolyProDesc: string;
+        planDolyProFeature1: string;
+        planDolyProFeature2: string;
+        planDolyProFeature3: string;
+        planDolyProFeature4: string;
         submitButton: string;
         selectPlanRequired: string;
       };
@@ -164,7 +164,7 @@ export interface Dictionary {
         subtitle: string;
         capacityDoly: string;
         capacityDolyPlus: string;
-        capacityDolyVip: string;
+        capacityDolyPro: string;
         selectedCountText: string;
         limitReachedAlert: string;
         atLeastOneAlert: string;
@@ -389,41 +389,41 @@ export const dictionaries: Record<Locale, Dictionary> = {
           subtitle:
             "Elige el nivel de membresía académica para desbloquear tus lecturas contextuales.",
           currentSelection: "PLAN SELECCIONADO",
-          planDolyName: "Doly",
+          planDolyName: "Dolly",
           planDolyBadge: "PLAN BÁSICO",
           planDolyPrice: "Gratis",
           planDolyPeriod: "Acceso esencial",
           planDolyDesc: "Ideal para iniciar el hábito de lectura diaria con 1 idioma meta.",
-          planDolyFeature1: "1 idioma de estudio a la vez",
-          planDolyFeature2: "Lecturas contextuales adaptadas por nivel CEFR",
-          planDolyFeature3: "Registro de racha y evaluaciones de comprensión",
-          planDolyPlusName: "Doly Plus",
+          planDolyFeature1: "1 idioma de estudio y hasta 5 categorías",
+          planDolyFeature2: "Hasta 10 lecturas contextuales CEFR por día",
+          planDolyFeature3: "15 consultas diarias al tutor IA y registro de racha",
+          planDolyPlusName: "Dolly Plus",
           planDolyPlusBadge: "RECOMENDADO · INTERMEDIO",
           planDolyPlusPrice: "$9.99",
           planDolyPlusPeriod: "/ mes · Facturación mensual",
           planDolyPlusDesc: "Para estudiantes activos que buscan bilingüismo con análisis profundo.",
-          planDolyPlusFeature1: "Hasta 2 idiomas de estudio simultáneos",
-          planDolyPlusFeature2: "Generación ilimitada de textos y explicaciones",
-          planDolyPlusFeature3: "Análisis de retención sintáctica y feedback CEFR en tiempo real",
-          planDolyPlusFeature4: "Acceso a modo literatura y tecnología",
-          planDolyVipName: "Doly VIP",
-          planDolyVipBadge: "ACCESO TOTAL · MÁXIMO",
-          planDolyVipPrice: "$19.99",
-          planDolyVipPeriod: "/ mes · Membresía completa",
-          planDolyVipDesc: "Acceso total sin límites a todos los idiomas y tutoría IA avanzada.",
-          planDolyVipFeature1: "Todos los idiomas disponibles (acceso ilimitado)",
-          planDolyVipFeature2: "Ensayos complejos C1–C2 y vocabulario especializado",
-          planDolyVipFeature3: "Tutoría conversacional IA y métricas avanzadas de fluidez",
-          planDolyVipFeature4: "Soporte académico prioritario y exportación de fichas",
+          planDolyPlusFeature1: "Hasta 2 idiomas simultáneos y 15 categorías",
+          planDolyPlusFeature2: "Hasta 20 lecturas contextuales por día",
+          planDolyPlusFeature3: "30 consultas diarias al tutor IA y feedback CEFR",
+          planDolyPlusFeature4: "Prioridad académica y seguimiento de puntajes",
+          planDolyProName: "Dolly Pro",
+          planDolyProBadge: "ACCESO TOTAL · MÁXIMO",
+          planDolyProPrice: "$19.99",
+          planDolyProPeriod: "/ mes · Membresía completa",
+          planDolyProDesc: "Acceso total sin límites a todos los idiomas, categorías y tutoría IA.",
+          planDolyProFeature1: "Todos los idiomas disponibles (hasta 4 simultáneos)",
+          planDolyProFeature2: "Categorías temáticas ilimitadas y personalizadas",
+          planDolyProFeature3: "Lecturas y consultas ilimitadas al tutor IA",
+          planDolyProFeature4: "Ensayos complejos C1–C2 y seguimiento completo",
           submitButton: "Confirmar plan y elegir idiomas →",
           selectPlanRequired: "Por favor selecciona un plan para continuar.",
         },
         step4Languages: {
           title: "Idiomas Meta de Estudio",
           subtitle: "Selecciona los idiomas que deseas aprender según tu suscripción activa.",
-          capacityDoly: "Plan Doly: puedes seleccionar 1 idioma meta.",
-          capacityDolyPlus: "Plan Doly Plus: puedes seleccionar hasta 2 idiomas simultáneos.",
-          capacityDolyVip: "Plan Doly VIP: acceso ilimitado a todos los idiomas.",
+          capacityDoly: "Plan Dolly: puedes seleccionar 1 idioma meta.",
+          capacityDolyPlus: "Plan Dolly Plus: puedes seleccionar hasta 2 idiomas simultáneos.",
+          capacityDolyPro: "Plan Dolly Pro: acceso completo a los 4 idiomas disponibles.",
           selectedCountText: "seleccionado(s)",
           limitReachedAlert:
             "Has alcanzado el límite de idiomas de tu suscripción actual. Para aprender más idiomas simultáneamente, actualiza a un plan superior.",
@@ -655,41 +655,41 @@ export const dictionaries: Record<Locale, Dictionary> = {
           subtitle:
             "Choose your academic membership tier to unlock your contextual reading experience.",
           currentSelection: "SELECTED PLAN",
-          planDolyName: "Doly",
+          planDolyName: "Dolly",
           planDolyBadge: "BASIC PLAN",
           planDolyPrice: "Free",
           planDolyPeriod: "Essential academic access",
           planDolyDesc: "Perfect for starting daily reading habits with 1 target language.",
-          planDolyFeature1: "1 study language at a time",
-          planDolyFeature2: "CEFR-adapted AI contextual readings",
-          planDolyFeature3: "Reading streak log and comprehension checks",
-          planDolyPlusName: "Doly Plus",
+          planDolyFeature1: "1 study language and up to 5 categories",
+          planDolyFeature2: "Up to 10 CEFR-adapted readings per day",
+          planDolyFeature3: "15 daily AI tutor questions and streak log",
+          planDolyPlusName: "Dolly Plus",
           planDolyPlusBadge: "RECOMMENDED · MID TIER",
           planDolyPlusPrice: "$9.99",
           planDolyPlusPeriod: "/ month · Billed monthly",
           planDolyPlusDesc: "For active learners pursuing bilingualism with in-depth analysis.",
-          planDolyPlusFeature1: "Up to 2 simultaneous study languages",
-          planDolyPlusFeature2: "Unlimited contextual readings and explanations",
-          planDolyPlusFeature3: "Syntactic retention metrics and real-time CEFR feedback",
-          planDolyPlusFeature4: "Full access to literature and tech domains",
-          planDolyVipName: "Doly VIP",
-          planDolyVipBadge: "ALL ACCESS · MAXIMUM TIER",
-          planDolyVipPrice: "$19.99",
-          planDolyVipPeriod: "/ month · Full membership",
-          planDolyVipDesc: "Unlimited multilingual access and advanced AI tutoring.",
-          planDolyVipFeature1: "All available languages (unlimited access)",
-          planDolyVipFeature2: "Complex C1–C2 essays and specialized lexicon",
-          planDolyVipFeature3: "Conversational AI tutoring and real-time fluency tracking",
-          planDolyVipFeature4: "Priority support and study deck export",
+          planDolyPlusFeature1: "Up to 2 simultaneous languages and 15 categories",
+          planDolyPlusFeature2: "Up to 20 contextual readings per day",
+          planDolyPlusFeature3: "30 daily AI tutor questions and CEFR feedback",
+          planDolyPlusFeature4: "Priority reading queue and score tracking",
+          planDolyProName: "Dolly Pro",
+          planDolyProBadge: "ALL ACCESS · MAXIMUM TIER",
+          planDolyProPrice: "$19.99",
+          planDolyProPeriod: "/ month · Full membership",
+          planDolyProDesc: "Unlimited access to all languages, custom categories, and AI tutoring.",
+          planDolyProFeature1: "All available languages (up to 4 simultaneously)",
+          planDolyProFeature2: "Unlimited custom thematic categories",
+          planDolyProFeature3: "Unlimited AI readings and tutor explanations",
+          planDolyProFeature4: "Complex C1–C2 essays and full progress metrics",
           submitButton: "Confirm plan & choose languages →",
           selectPlanRequired: "Please select a plan to continue.",
         },
         step4Languages: {
           title: "Target Study Languages",
           subtitle: "Choose the languages you want to study based on your active plan.",
-          capacityDoly: "Doly Plan: you can select 1 target language.",
-          capacityDolyPlus: "Doly Plus: you can select up to 2 simultaneous languages.",
-          capacityDolyVip: "Doly VIP: unlimited access to all languages.",
+          capacityDoly: "Dolly Plan: you can select 1 target language.",
+          capacityDolyPlus: "Dolly Plus: you can select up to 2 simultaneous languages.",
+          capacityDolyPro: "Dolly Pro: full access to all 4 available languages.",
           selectedCountText: "selected",
           limitReachedAlert:
             "You have reached the language limit for your plan. Upgrade your plan to learn more languages simultaneously.",
