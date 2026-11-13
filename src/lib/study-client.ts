@@ -1,21 +1,42 @@
-import { httpClient } from "@/lib/http-client";
+import {
+  type CategoriesSettings,
+  type LanguagesSettings,
+  type ReadingDifficulty,
+  type ReadingDto,
+  type ReadingOptionsResponse,
+  type ReadingSize,
+  type ReadingSizeOption,
+  type ReadingSubcategory,
+  type TargetLanguageCode,
+} from "@/lib/api-contracts";
+import { readingsService } from "@/lib/services/readings-service";
+import { settingsService } from "@/lib/services/settings-service";
 
-export type TargetLanguageCode = "en" | "fr" | "es" | "it";
-export type ReadingDifficulty = "easy" | "medium" | "hard";
-export type ReadingSize = "short" | "medium" | "long";
+export type {
+  CategoriesSettings,
+  LanguagesSettings,
+  ReadingDifficulty,
+  ReadingDto,
+  ReadingOptionsResponse,
+  ReadingSize,
+  ReadingSizeOption,
+  ReadingSubcategory,
+  TargetLanguageCode,
+};
 
 export interface CatalogCategory {
   id: string;
   name: string;
-  subcategories?: string[];
+  nameEs?: string;
+  nameEn?: string;
+  subcategories?: ReadingSubcategory[];
   isCustom?: boolean;
 }
 
-export interface ReadingSizeOption {
-  id: ReadingSize;
-  label: string;
-  wordRange: string;
-  readingTime: string;
+export interface LanguageOption {
+  id: TargetLanguageCode;
+  nameEs: string;
+  nameEn: string;
 }
 
 export interface DifficultyOption {
@@ -23,6 +44,10 @@ export interface DifficultyOption {
   title: string;
   cefr: string;
   description: string;
+  titleEs?: string;
+  titleEn?: string;
+  descriptionEs?: string;
+  descriptionEn?: string;
 }
 
 export interface StudyParameters {
@@ -32,429 +57,277 @@ export interface StudyParameters {
   size: ReadingSize;
 }
 
-export interface ReadingDto {
-  id: number;
-  userId: number;
-  title: string;
-  description: string;
-  content: string;
-  category: string | null;
-  difficulty: ReadingDifficulty | null;
-  wordCount: number | null;
-  status: "pending" | "completed";
-  score: number | null;
-  feedback: string | null;
-  userResponse: string | null;
-  passed: boolean | null;
-  createdAt: string;
-  updatedAt: string | null;
-  deletedAt: string | null;
-}
-
-export interface LanguagesSettingsResponse {
-  catalog: { id: string; name: string }[];
-  selected: string;
-}
-
-export interface CategoriesSettingsResponse {
-  catalog: CatalogCategory[];
-  selected: string[];
-}
-
-export interface ReadingOptionsResponse {
-  categories: CatalogCategory[];
-  difficulties: ReadingDifficulty[];
-  sizes: ReadingSizeOption[];
-  cefrLevels: string[];
-}
-
-export const DEFAULT_LANGUAGES: readonly {
-  id: TargetLanguageCode;
-  nameEs: string;
-  nameEn: string;
-}[] = [
-  { id: "en", nameEs: "INGLÉS", nameEn: "ENGLISH" },
-  { id: "fr", nameEs: "FRANCÉS", nameEn: "FRENCH" },
-  { id: "es", nameEs: "ESPAÑOL", nameEn: "SPANISH" },
-  { id: "it", nameEs: "ITALIANO", nameEn: "ITALIAN" },
+export const DEFAULT_LANGUAGES: readonly LanguageOption[] = [
+  { id: "en", nameEs: "Inglés", nameEn: "English" },
+  { id: "fr", nameEs: "Francés", nameEn: "French" },
+  { id: "it", nameEs: "Italiano", nameEn: "Italian" },
+  { id: "es", nameEs: "Español", nameEn: "Spanish" },
 ];
 
 export const DEFAULT_CATEGORIES: readonly CatalogCategory[] = [
   {
     id: "technology",
-    name: "Tecnología & Ciencia",
-    subcategories: ["Inteligencia Artificial", "Biotecnología", "Exploración Espacial"],
+    name: "Technology",
+    nameEs: "Tecnología",
+    nameEn: "Technology",
   },
   {
     id: "history",
-    name: "Historia & Civilización",
-    subcategories: ["Historia Antigua", "Revolución Industrial", "Siglo XX"],
-  },
-  {
-    id: "programming",
-    name: "Programación & Software",
-    subcategories: ["Arquitectura Web", "Sistemas Distribuidos", "Seguridad"],
+    name: "History",
+    nameEs: "Historia",
+    nameEn: "History",
   },
   {
     id: "education",
-    name: "Educación & Pedagogía",
-    subcategories: ["Metodologías Activas", "Neurolingüística", "Políticas Educativas"],
+    name: "Education",
+    nameEs: "Educación",
+    nameEn: "Education",
+  },
+  {
+    id: "programming",
+    name: "Programming",
+    nameEs: "Programación",
+    nameEn: "Programming",
   },
   {
     id: "culture",
-    name: "Arte & Cultura",
-    subcategories: ["Historia del Arte", "Cinematografía", "Música"],
+    name: "Culture",
+    nameEs: "Cultura",
+    nameEn: "Culture",
   },
   {
     id: "pop_culture",
-    name: "Cultura Popular",
-    subcategories: ["Tendencias Digitales", "Narrativa Transmedia", "Videojuegos"],
-  },
-  {
-    id: "literature",
-    name: "Literatura Clásica",
-    subcategories: ["Novela del Siglo XIX", "Poesía Romántica", "Teatro Clásico"],
-  },
-  {
-    id: "news",
-    name: "Noticias Globales",
-    subcategories: ["Geopolítica", "Economía Mundial", "Medio Ambiente"],
-  },
-  {
-    id: "philosophy",
-    name: "Filosofía",
-    subcategories: ["Ética Contemporánea", "Epistemología", "Filosofía Política"],
-  },
-  {
-    id: "business",
-    name: "Negocios & Startups",
-    subcategories: ["Finanzas", "Emprendimiento", "Estrategia"],
+    name: "Pop Culture",
+    nameEs: "Cultura Pop",
+    nameEn: "Pop Culture",
   },
 ];
 
 export const DEFAULT_DIFFICULTIES: readonly DifficultyOption[] = [
   {
     id: "easy",
-    title: "NIVEL BAJO",
-    cefr: "[A1–A2]",
-    description: "Estructuras básicas, presentes simples, léxico directo de alta frecuencia.",
+    title: "Básico",
+    titleEs: "Básico",
+    titleEn: "Beginner",
+    cefr: "A1 – A2",
+    description: "Oraciones directas y vocabulario esencial de uso diario.",
+    descriptionEs: "Oraciones directas y vocabulario esencial de uso diario.",
+    descriptionEn: "Direct sentences and essential everyday vocabulary.",
   },
   {
     id: "medium",
-    title: "NIVEL MEDIO",
-    cefr: "[B1–B2]",
-    description: "Tiempos compuestos, conectores argumentativos y modismos técnicos.",
+    title: "Intermedio",
+    titleEs: "Intermedio",
+    titleEn: "Intermediate",
+    cefr: "B1 – B2",
+    description:
+      "Lectura editorial con matices argumentativos e idiomáticos.",
+    descriptionEs:
+      "Lectura editorial con matices argumentativos e idiomáticos.",
+    descriptionEn: "Editorial reading with idiomatic and argumentative nuance.",
   },
   {
     id: "hard",
-    title: "NIVEL ALTO",
-    cefr: "[C1–C2]",
-    description: "Subjuntivo complejo, oraciones subordinadas, vocabulario ensayístico abstracto.",
+    title: "Avanzado",
+    titleEs: "Avanzado",
+    titleEn: "Advanced",
+    cefr: "C1 – C2",
+    description:
+      "Ensayos densos, terminología especializada y sintaxis compleja.",
+    descriptionEs:
+      "Ensayos densos, terminología especializada y sintaxis compleja.",
+    descriptionEn:
+      "Dense essays, specialized terminology, and complex syntax.",
   },
 ];
 
 export const DEFAULT_SIZES: readonly ReadingSizeOption[] = [
   {
     id: "short",
-    label: "CORTO",
-    wordRange: "80–150 palabras",
-    readingTime: "~2–3 min",
+    label: "Corto",
+    wordRange: "120 – 200 palabras",
+    readingTime: "~2 min",
   },
   {
     id: "medium",
-    label: "MEDIO",
-    wordRange: "250–400 palabras",
-    readingTime: "~5–7 min",
+    label: "Medio",
+    wordRange: "250 – 400 palabras",
+    readingTime: "~4 min",
   },
   {
     id: "long",
-    label: "LARGO",
-    wordRange: "500–800 palabras",
-    readingTime: "~8–12 min",
+    label: "Largo",
+    wordRange: "450 – 700 palabras",
+    readingTime: "~7 min",
   },
 ];
 
-const PREFERENCES_STORAGE_KEY_PREFIX = "doly_study_preferences";
+export const DEFAULT_STUDY_PARAMETERS: StudyParameters = {
+  language: "en",
+  category: "technology",
+  difficulty: "medium",
+  size: "medium",
+};
+
+const STORAGE_PREFIX = "doly_study_prefs_";
+
+function getPrefsStorageKey(userId?: number | string | null): string {
+  return `${STORAGE_PREFIX}${userId ?? "guest"}`;
+}
+
+function readLocalStudyPreferences(
+  userId?: number | string | null,
+): StudyParameters | null {
+  if (typeof window === "undefined") {
+    return null;
+  }
+
+  try {
+    const raw = window.localStorage.getItem(getPrefsStorageKey(userId));
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<StudyParameters>;
+    return {
+      language: parsed.language ?? DEFAULT_STUDY_PARAMETERS.language,
+      category: parsed.category ?? DEFAULT_STUDY_PARAMETERS.category,
+      difficulty: parsed.difficulty ?? DEFAULT_STUDY_PARAMETERS.difficulty,
+      size: parsed.size ?? DEFAULT_STUDY_PARAMETERS.size,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeLocalStudyPreferences(
+  params: StudyParameters,
+  userId?: number | string | null,
+): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(
+      getPrefsStorageKey(userId),
+      JSON.stringify(params),
+    );
+  } catch {
+    // Ignoramos errores de cuota del navegador; no contienen información sensible.
+  }
+}
 
 /**
- * Cliente para opciones de generación y configuración de estudio (`back#8`, `back#10`).
- * Incluye sincronización remota con endpoints `/api/v1/settings/*` y `/api/v1/readings/options`
- * y fallback resiliente con persistencia local por usuario para desarrollo y modo sin conexión.
+ * Cliente de apoyo para la configuración de parámetros de estudio.
+ * Orquesta llamadas tipadas a `settingsService` y `readingsService` vía BFF (`/api/v1/*`)
+ * sin sobrescribir `PUT /settings/languages` al elegir el idioma de una lectura puntual.
  */
 export const studyClient = {
-  /**
-   * Obtiene la configuración de idioma preferente (`GET /api/v1/settings/languages`).
-   */
-  async getLanguagesSettings(): Promise<LanguagesSettingsResponse> {
-    try {
-      const response = await httpClient.get<LanguagesSettingsResponse>(
-        "/settings/languages",
-      );
-      if (response.data?.catalog && response.data.selected) {
-        return response.data;
-      }
-    } catch {
-      // Degrada a catálogo predeterminado si el endpoint aún no está montado en backend
-    }
-
-    return {
-      catalog: DEFAULT_LANGUAGES.map((lang) => ({
-        id: lang.id,
-        name: lang.nameEs,
-      })),
-      selected: "en",
-    };
+  async getReadingOptions(): Promise<ReadingOptionsResponse> {
+    const response = await readingsService.getOptions();
+    return response.data;
   },
 
-  /**
-   * Actualiza el idioma de estudio en backend (`PUT /api/v1/settings/languages`).
-   */
-  async updateLanguageSettings(
-    language: TargetLanguageCode,
-  ): Promise<LanguagesSettingsResponse> {
-    try {
-      const response = await httpClient.put<LanguagesSettingsResponse>(
-        "/settings/languages",
-        { language },
-      );
-      if (response.data) {
-        return response.data;
-      }
-    } catch {
-      // Manejo degradado
-    }
-
-    return {
-      catalog: DEFAULT_LANGUAGES.map((lang) => ({
-        id: lang.id,
-        name: lang.nameEs,
-      })),
-      selected: language,
-    };
+  async getCategoriesSettings(): Promise<CategoriesSettings> {
+    const response = await settingsService.getCategories();
+    return response.data;
   },
 
-  /**
-   * Obtiene las categorías de interés del estudiante (`GET /api/v1/settings/categories`).
-   */
-  async getCategoriesSettings(): Promise<CategoriesSettingsResponse> {
-    try {
-      const response = await httpClient.get<CategoriesSettingsResponse>(
-        "/settings/categories",
-      );
-      if (response.data?.catalog && response.data.selected) {
-        return response.data;
-      }
-    } catch {
-      // Degrada a catálogo predeterminado si el endpoint aún no está montado
-    }
-
-    return {
-      catalog: [...DEFAULT_CATEGORIES],
-      selected: ["technology"],
-    };
-  },
-
-  /**
-   * Actualiza las categorías seleccionadas en backend (`PUT /api/v1/settings/categories`).
-   */
   async updateCategoriesSettings(
     categories: string[],
-  ): Promise<CategoriesSettingsResponse> {
-    try {
-      const response = await httpClient.put<CategoriesSettingsResponse>(
-        "/settings/categories",
-        { categories },
-      );
-      if (response.data) {
-        return response.data;
-      }
-    } catch {
-      // Manejo degradado
-    }
+  ): Promise<CategoriesSettings> {
+    const response = await settingsService.updateCategories({ categories });
+    return response.data;
+  },
 
-    return {
-      catalog: [...DEFAULT_CATEGORIES],
-      selected: categories,
-    };
+  async getLanguageSettings(): Promise<LanguagesSettings> {
+    const response = await settingsService.getLanguages();
+    return response.data;
+  },
+
+  async updateLanguageSettings(
+    languages: TargetLanguageCode[],
+  ): Promise<LanguagesSettings> {
+    const response = await settingsService.updateLanguages({ languages });
+    return response.data;
+  },
+
+  async reorderLanguageSettings(
+    languages: TargetLanguageCode[],
+  ): Promise<LanguagesSettings> {
+    const response = await settingsService.reorderLanguages({ languages });
+    return response.data;
+  },
+
+  async unlockLanguageChange(): Promise<LanguagesSettings> {
+    const response = await settingsService.unlockLanguageChange();
+    return response.data;
   },
 
   /**
-   * Carga opciones globales de lectura (`GET /api/v1/readings/options`).
-   */
-  async getReadingOptions(): Promise<ReadingOptionsResponse> {
-    try {
-      const response = await httpClient.get<ReadingOptionsResponse>(
-        "/readings/options",
-      );
-      if (response.data?.difficulties && response.data.sizes) {
-        return response.data;
-      }
-    } catch {
-      // Degrada a opciones canónicas
-    }
-
-    return {
-      categories: [...DEFAULT_CATEGORIES],
-      difficulties: ["easy", "medium", "hard"],
-      sizes: [...DEFAULT_SIZES],
-      cefrLevels: ["A1", "A2", "B1", "B2", "C1", "C2"],
-    };
-  },
-
-  /**
-   * Carga de forma consolidada los parámetros de estudio del estudiante.
-   * Prioriza la memoria local del usuario y se sincroniza con los endpoints de settings.
+   * Obtiene las preferencias iniciales combinando selección local reciente y las
+   * preferencias persistidas en el backend (`/settings/languages`, `/settings/categories`).
    */
   async getStudyPreferences(
-    userId?: string | number,
+    userId?: number | string | null,
   ): Promise<StudyParameters> {
-    const storageKey = userId
-      ? `${PREFERENCES_STORAGE_KEY_PREFIX}_${userId}`
-      : `${PREFERENCES_STORAGE_KEY_PREFIX}_guest`;
-
-    let localPrefs: Partial<StudyParameters> | null = null;
-    if (typeof window !== "undefined") {
-      try {
-        const stored = localStorage.getItem(storageKey);
-        if (stored) {
-          localPrefs = JSON.parse(stored) as Partial<StudyParameters>;
-        }
-      } catch {
-        // Ignora fallos de lectura de localStorage
-      }
-    }
-
-    // Consulta remota en paralelo sin bloquear la UI
-    try {
-      const [langRes, catRes] = await Promise.all([
-        this.getLanguagesSettings(),
-        this.getCategoriesSettings(),
-      ]);
-
-      const resolvedLanguage = (localPrefs?.language ||
-        (langRes.selected as TargetLanguageCode) ||
-        "en") as TargetLanguageCode;
-
-      const resolvedCategory =
-        localPrefs?.category ||
-        (catRes.selected && catRes.selected[0]) ||
-        "technology";
-
-      const resolvedDifficulty = localPrefs?.difficulty || "medium";
-      const resolvedSize = localPrefs?.size || "medium";
-
-      const consolidated: StudyParameters = {
-        language: resolvedLanguage,
-        category: resolvedCategory,
-        difficulty: resolvedDifficulty,
-        size: resolvedSize,
-      };
-
-      if (typeof window !== "undefined") {
-        try {
-          localStorage.setItem(storageKey, JSON.stringify(consolidated));
-        } catch {
-          // Ignora fallos de escritura en almacenamiento
-        }
-      }
-
-      return consolidated;
-    } catch {
-      return {
-        language: (localPrefs?.language || "en") as TargetLanguageCode,
-        category: localPrefs?.category || "technology",
-        difficulty: localPrefs?.difficulty || "medium",
-        size: localPrefs?.size || "medium",
-      };
-    }
-  },
-
-  /**
-   * Persiste la configuración del estudio tanto en backend como en almacenamiento local.
-   */
-  async saveStudyPreferences(
-    parameters: StudyParameters,
-    userId?: string | number,
-  ): Promise<StudyParameters> {
-    const storageKey = userId
-      ? `${PREFERENCES_STORAGE_KEY_PREFIX}_${userId}`
-      : `${PREFERENCES_STORAGE_KEY_PREFIX}_guest`;
-
-    if (typeof window !== "undefined") {
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(parameters));
-      } catch {
-        // Ignora errores locales
-      }
-    }
-
-    // Guarda en backend si hay sesión
-    await Promise.allSettled([
-      this.updateLanguageSettings(parameters.language),
-      this.updateCategoriesSettings([parameters.category]),
-    ]);
-
-    return parameters;
-  },
-
-  /**
-   * Calcula el tiempo aproximado de análisis y lectura en minutos con base en la dificultad y longitud.
-   */
-  calculateEstimatedTime(
-    difficulty: ReadingDifficulty,
-    size: ReadingSize,
-  ): string {
-    if (size === "short") {
-      return difficulty === "easy"
-        ? "2–3"
-        : difficulty === "medium"
-          ? "3–4"
-          : "4–5";
-    }
-
-    if (size === "long") {
-      return difficulty === "easy"
-        ? "7–9"
-        : difficulty === "medium"
-          ? "9–12"
-          : "12–15";
-    }
-
-    // size === 'medium'
-    return difficulty === "easy"
-      ? "4–6"
-      : difficulty === "medium"
-        ? "6–8"
-        : "8–10";
-  },
-
-  /**
-   * Genera una nueva lectura adaptada mediante IA conectando a `POST /api/v1/readings`.
-   */
-  async generateReading(parameters: StudyParameters): Promise<ReadingDto> {
-    const validCategories = [
-      "technology",
-      "history",
-      "education",
-      "programming",
-      "culture",
-      "pop_culture",
-    ];
-
-    const categoryPayload = validCategories.includes(parameters.category)
-      ? parameters.category
-      : "technology";
-
-    const payload = {
-      category: categoryPayload,
-      difficulty: parameters.difficulty,
-      size: parameters.size,
+    const localPrefs = readLocalStudyPreferences(userId);
+    const resolved: StudyParameters = {
+      ...(localPrefs ?? DEFAULT_STUDY_PARAMETERS),
     };
 
-    const response = await httpClient.post<ReadingDto>("/readings", payload);
-    if (!response.data) {
-      throw new Error("No se recibieron datos de la lectura generada.");
+    const [languagesResult, categoriesResult] = await Promise.allSettled([
+      settingsService.getLanguages(),
+      settingsService.getCategories(),
+    ]);
+
+    if (languagesResult.status === "fulfilled") {
+      const { active, selected } = languagesResult.value.data;
+      const available = active.length > 0 ? active : selected;
+      if (available.length > 0 && !available.includes(resolved.language)) {
+        resolved.language = available[0];
+      }
     }
+
+    if (categoriesResult.status === "fulfilled") {
+      const { selected } = categoriesResult.value.data;
+      if (!localPrefs?.category && selected.length > 0) {
+        resolved.category = selected[0];
+      }
+    }
+
+    return resolved;
+  },
+
+  /**
+   * Persiste localmente la combinación actual de estudio sin mutar los idiomas bloqueados
+   * del plan en `PUT /settings/languages`.
+   */
+  async saveStudyPreferences(
+    params: StudyParameters,
+    userId?: number | string | null,
+  ): Promise<StudyParameters> {
+    writeLocalStudyPreferences(params, userId);
+    return params;
+  },
+
+  /**
+   * Invoca `POST /readings` con timeout extendido (`AI_TIMEOUT_MS = 110 s`).
+   */
+  async generateReading(params: StudyParameters): Promise<ReadingDto> {
+    const response = await readingsService.generate({
+      category: params.category,
+      language: params.language,
+      difficulty: params.difficulty,
+      size: params.size,
+    });
     return response.data;
+  },
+
+  calculateEstimatedTime(
+    size: ReadingSize,
+    difficulty: ReadingDifficulty,
+  ): number {
+    const baseMinutes = size === "short" ? 2 : size === "medium" ? 4 : 7;
+    const bonus = difficulty === "hard" ? 2 : difficulty === "medium" ? 1 : 0;
+    return baseMinutes + bonus;
   },
 };
