@@ -13,6 +13,8 @@ export const ErrorCode = {
   AUTH_EMAIL_ALREADY_EXISTS: "AUTH_EMAIL_ALREADY_EXISTS",
   AUTH_PASSWORD_TOO_WEAK: "AUTH_PASSWORD_TOO_WEAK",
   AUTH_UNAUTHORIZED: "AUTH_UNAUTHORIZED",
+  AUTH_EMAIL_NOT_VERIFIED: "AUTH_EMAIL_NOT_VERIFIED",
+  AUTH_EMAIL_TOKEN_INVALID: "AUTH_EMAIL_TOKEN_INVALID",
 
   // Recursos (4xx)
   RESOURCE_NOT_FOUND: "RESOURCE_NOT_FOUND",
@@ -86,6 +88,10 @@ const ERROR_MESSAGES_ES: Record<KnownErrorCode, string> = {
     "La contraseña no cumple con los requisitos mínimos de seguridad.",
   AUTH_UNAUTHORIZED:
     "Necesitas iniciar sesión para acceder a este recurso académico.",
+  AUTH_EMAIL_NOT_VERIFIED:
+    "Debes confirmar tu correo electrónico antes de poder continuar.",
+  AUTH_EMAIL_TOKEN_INVALID:
+    "El enlace de verificación es inválido, ya fue usado o expiró. Solicita uno nuevo.",
   RESOURCE_NOT_FOUND:
     "El recurso solicitado no fue encontrado o ya no está disponible.",
   RESOURCE_FORBIDDEN:
@@ -143,6 +149,10 @@ const ERROR_MESSAGES_EN: Record<KnownErrorCode, string> = {
     "The password does not meet the minimum security requirements.",
   AUTH_UNAUTHORIZED:
     "You must be signed in to access this academic resource.",
+  AUTH_EMAIL_NOT_VERIFIED:
+    "Please confirm your email address before continuing.",
+  AUTH_EMAIL_TOKEN_INVALID:
+    "This verification link is invalid, already used, or expired. Request a new confirmation email.",
   RESOURCE_NOT_FOUND:
     "The requested resource could not be found.",
   RESOURCE_FORBIDDEN:

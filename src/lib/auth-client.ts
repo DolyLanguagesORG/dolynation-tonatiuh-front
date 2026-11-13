@@ -1,10 +1,14 @@
 import {
   type AuthSessionPayload,
   type AuthUser,
+  type EmailSentResponse,
   type LoginInput,
   type RefreshSessionResponse,
   type RefreshTokenInput,
   type RegisterInput,
+  type ResendVerificationInput,
+  type VerifyEmailInput,
+  type VerifyEmailResponse,
 } from "@/lib/api-contracts";
 import { type ApiResponse } from "@/lib/api-errors";
 import { authService, type AuthRequestOptions } from "@/lib/services/auth-service";
@@ -58,5 +62,19 @@ export const authClient = {
 
   me(options?: AuthRequestOptions): Promise<ApiResponse<AuthUser>> {
     return authService.me(options);
+  },
+
+  verifyEmail(
+    input: VerifyEmailInput,
+    options?: AuthRequestOptions,
+  ): Promise<ApiResponse<VerifyEmailResponse>> {
+    return authService.verifyEmail(input, options);
+  },
+
+  resendVerification(
+    input: ResendVerificationInput,
+    options?: AuthRequestOptions,
+  ): Promise<ApiResponse<EmailSentResponse>> {
+    return authService.resendVerification(input, options);
   },
 };

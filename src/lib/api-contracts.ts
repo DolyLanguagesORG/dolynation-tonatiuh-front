@@ -95,6 +95,9 @@ export interface ApiTransport {
 // Autenticación (`/auth`)
 // ============================================================================
 
+/** Cantidad mínima de categorías temáticas requeridas para configurar el perfil y generar lecturas. */
+export const MIN_USER_CATEGORIES = 3;
+
 export interface AuthUser {
   id: number;
   email: string;
@@ -102,6 +105,8 @@ export interface AuthUser {
   subscriptionTier: SubscriptionTier | null;
   currentStreak: number;
   lastStreakDate: string | null;
+  emailVerifiedAt: string | null;
+  locale?: string;
   createdAt: string;
 }
 
@@ -113,6 +118,7 @@ export interface AuthSessionPayload {
   user: AuthUser;
   authenticated?: boolean;
   expiresIn?: number;
+  emailVerificationRequired?: boolean;
 }
 
 export interface RefreshSessionResponse {
@@ -124,6 +130,7 @@ export interface RegisterInput {
   email: string;
   password: string;
   fullName: string;
+  locale?: "es" | "en";
 }
 
 export interface LoginInput {
@@ -133,6 +140,34 @@ export interface LoginInput {
 
 export interface RefreshTokenInput {
   refreshToken?: string;
+}
+
+export interface VerifyEmailInput {
+  token: string;
+}
+
+export interface VerifyEmailResponse {
+  emailVerified: boolean;
+  user: AuthUser;
+  authenticated?: boolean;
+  expiresIn?: number;
+}
+
+export interface ResendVerificationInput {
+  email: string;
+}
+
+export interface ForgotPasswordInput {
+  email: string;
+}
+
+export interface ResetPasswordInput {
+  token: string;
+  password: string;
+}
+
+export interface EmailSentResponse {
+  emailSent: boolean;
 }
 
 // ============================================================================
@@ -309,13 +344,80 @@ export interface EvaluationResultDto {
   reading: ReadingDto;
 }
 
+export type ExplanationEntryType = "word" | "phrase";
+
+export interface WordBreakdownItem {
+  token: string;
+  lemma: string;
+  partOfSpeech: string;
+  literalDefinition: string;
+  roleInPhrase?: string;
+}
+
+export interface AlternativeExpressionItem {
+  expression: string;
+  register?: string;
+  note: string;
+}
+
+export interface UsageContextItem {
+  contextLabel: string;
+  explanation: string;
+  example: string;
+}
+
 export interface CreateExplanationInput {
   word: string;
   context?: string;
+  forceRefresh?: boolean;
+}
+
+export interface GlossaryEntryDto {
+  id: number;
+  readingId: number;
+  readingTitle: string;
+  word: string;
+  normalizedWord: string;
+  entryType: ExplanationEntryType;
+  language: TargetLanguageCode;
+  difficulty: ReadingDifficulty;
+  context: string | null;
+  literalMeaning: string | null;
+  explanation: string;
+  wordBreakdown: WordBreakdownItem[];
+  otherWaysToSay: AlternativeExpressionItem[];
+  otherContexts: UsageContextItem[];
+  isSaved: boolean;
+  savedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GlossaryQuery extends QueryParams {
+  entryType?: ExplanationEntryType;
+  language?: TargetLanguageCode;
+  savedOnly?: boolean;
+  readingId?: number;
+  search?: string;
+}
+
+export interface ToggleGlossarySaveInput {
+  isSaved: boolean;
 }
 
 export interface ExplanationResultDto {
+  id?: number | null;
+  word: string;
+  entryType: ExplanationEntryType;
+  language: TargetLanguageCode;
+  difficulty: ReadingDifficulty;
+  literalMeaning: string | null;
   explanation: string;
+  wordBreakdown: WordBreakdownItem[];
+  otherWaysToSay: AlternativeExpressionItem[];
+  otherContexts: UsageContextItem[];
+  isSaved: boolean;
+  cached: boolean;
   reading: ReadingDto;
 }
 
