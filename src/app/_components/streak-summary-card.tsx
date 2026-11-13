@@ -29,14 +29,18 @@ export function StreakSummaryCard({
       ? locale === "es"
         ? `PRECISIÓN PROMEDIO: ${Math.round(historySummary.readings.averageScore)}%`
         : `AVERAGE ACCURACY: ${Math.round(historySummary.readings.averageScore)}%`
-      : t.home.syntacticRetention;
+      : locale === "es"
+        ? "PRECISIÓN PROMEDIO: —"
+        : "AVERAGE ACCURACY: —";
 
   const vocabLabel =
     isAuthenticated && typeof historySummary?.wordsLookedUp === "number"
       ? locale === "es"
-        ? `TÉRMINOS CONSULTADOS: ${historySummary.wordsLookedUp} PALABRAS`
-        : `LOOKED-UP VOCABULARY: ${historySummary.wordsLookedUp} WORDS`
-      : t.home.acquiredVocabulary;
+        ? `TÉRMINOS CONSULTADOS: ${historySummary.wordsLookedUp}`
+        : `LOOKED-UP TERMS: ${historySummary.wordsLookedUp}`
+      : locale === "es"
+        ? "TÉRMINOS CONSULTADOS: 0"
+        : "LOOKED-UP TERMS: 0";
 
   return (
     <Card variant="subtle" padding="lg" as="section">
@@ -59,7 +63,11 @@ export function StreakSummaryCard({
           </div>
 
           <Text variant="small" tone="muted" className="max-w-md">
-            {t.home.streakDailyGoal}
+            {streakDaysCount > 0
+              ? t.home.streakDailyGoal
+              : locale === "es"
+                ? "Completa y evalúa una lectura hoy para iniciar tu racha diaria."
+                : "Complete and evaluate a reading today to start your daily streak."}
           </Text>
         </div>
 

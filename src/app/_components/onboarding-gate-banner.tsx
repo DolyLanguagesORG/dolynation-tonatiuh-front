@@ -10,7 +10,9 @@ import {
   Text,
 } from "@/components/ui";
 import { type OnboardingState } from "@/context";
-import { type Dictionary } from "@/i18n";
+import { type Dictionary, useLocale } from "@/i18n";
+import { useSubscriptionPlans } from "@/lib/hooks/use-subscription-plans";
+import { formatPlanFromBackend } from "@/lib/plan-presentation";
 
 export interface OnboardingGateBannerProps {
   t: Dictionary;
@@ -27,6 +29,9 @@ export function OnboardingGateBanner({
   onboarding,
   mode,
 }: OnboardingGateBannerProps) {
+  const { locale } = useLocale();
+  const { plans, isLoading } = useSubscriptionPlans(locale);
+
   if (mode === "languages") {
     const planLabel =
       onboarding.subscriptionPlan === "dolly"
@@ -55,13 +60,13 @@ export function OnboardingGateBanner({
 
             <div className="flex justify-center pt-2">
               <ActionLink
-                href="/register?step=4"
+                href="/setup-preferences"
                 variant="primary"
                 size="lg"
                 rightIcon={<Icon name="arrow-right" size="md" />}
                 className="w-full sm:w-auto"
               >
-                Seleccionar idiomas de estudio
+                {t.home.preferencesSetupCta}
               </ActionLink>
             </div>
           </div>
@@ -92,48 +97,51 @@ export function OnboardingGateBanner({
               {t.auth.stepper.gate.planSummaryTitle}
             </span>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <div className="flex flex-col gap-1 rounded-base border border-border bg-surface p-3">
-                <span className="font-serif text-sm font-bold text-ink">
-                  {t.auth.stepper.step3Plan.planDolyName}
-                </span>
-                <span className="text-[11px] font-semibold text-muted">
-                  {t.auth.stepper.step3Plan.planDolyPrice} · 1 idioma
-                </span>
-                <p className="text-[10px] text-muted">
-                  {t.auth.stepper.step3Plan.planDolyFeature1}
-                </p>
-              </div>
-              <div className="flex flex-col gap-1 rounded-base border border-brand bg-surface p-3 ring-1 ring-brand">
-                <div className="flex items-center justify-between">
-                  <span className="font-serif text-sm font-bold text-ink">
-                    {t.auth.stepper.step3Plan.planDolyPlusName}
-                  </span>
-                  <Badge variant="primary">RECOMENDADO</Badge>
+              {isLoading && plans.length === 0 ? (
+                <div className="col-span-full text-xs text-muted">
+                  {locale === "es"
+                    ? "Consultando catálogo de planes..."
+                    : "Loading subscription plans..."}
                 </div>
-                <span className="text-[11px] font-semibold text-muted">
-                  {t.auth.stepper.step3Plan.planDolyPlusPrice} · Hasta 2 idiomas
-                </span>
-                <p className="text-[10px] text-muted">
-                  {t.auth.stepper.step3Plan.planDolyPlusFeature1}
-                </p>
-              </div>
-              <div className="flex flex-col gap-1 rounded-base border border-border bg-surface p-3">
-                <span className="font-serif text-sm font-bold text-ink">
-                  {t.auth.stepper.step3Plan.planDolyProName}
-                </span>
-                <span className="text-[11px] font-semibold text-muted">
-                  {t.auth.stepper.step3Plan.planDolyProPrice} · Hasta 4 idiomas
-                </span>
-                <p className="text-[10px] text-muted">
-                  {t.auth.stepper.step3Plan.planDolyProFeature1}
-                </p>
-              </div>
+              ) : (
+                plans.map((rawPlan) => {
+                  const formatted = formatPlanFromBackend(rawPlan, locale);
+                  const isRecommended = rawPlan.id === "dolly_plus";
+                  return (
+                    <div
+                      key={rawPlan.id}
+                      className={`flex flex-col gap-1 rounded-base border bg-surface p-3 ${
+                        isRecommended
+                          ? "border-brand ring-1 ring-brand"
+                          : "border-border"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="font-serif text-sm font-bold text-ink">
+                          {formatted.name}
+                        </span>
+                        {isRecommended && (
+                          <Badge variant="primary">
+                            {locale === "es" ? "RECOMENDADO" : "RECOMMENDED"}
+                          </Badge>
+                        )}
+                      </div>
+                      <span className="text-[11px] font-semibold text-muted">
+                        {formatted.quotaHeadline}
+                      </span>
+                      <p className="text-[10px] text-muted">
+                        {formatted.features.slice(0, 2).join(" · ")}
+                      </p>
+                    </div>
+                  );
+                })
+              )}
             </div>
           </div>
 
           <div className="flex flex-col items-center justify-center gap-3 pt-2">
             <ActionLink
-              href="/register?step=3"
+              href="/select-plan"
               variant="primary"
               size="lg"
               rightIcon={<Icon name="arrow-right" size="md" />}

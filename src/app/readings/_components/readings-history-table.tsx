@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useState } from "react";
 
 import {
   ActionLink,
@@ -16,6 +17,7 @@ import {
   EmptyState,
   Heading,
   Icon,
+  IconButton,
   Pagination,
   Text,
 } from "@/components/ui";
@@ -36,13 +38,108 @@ export interface ReadingsHistoryTableProps {
   currentPage: number;
   totalPages: number;
   hasActiveFilters: boolean;
+  deletingId: number | null;
   onPageChange: (page: number) => void;
   onResetFilters: () => void;
+  onDeleteReading: (readingId: number) => Promise<boolean>;
+}
+
+interface ReadingActionControlsProps {
+  reading: ReadingDto;
+  t: Dictionary;
+  locale: Locale;
+  isEvaluated: boolean;
+  confirmingDeleteId: number | null;
+  deletingId: number | null;
+  onRequestConfirmDelete: (readingId: number | null) => void;
+  onConfirmDelete: (readingId: number) => void;
+}
+
+function ReadingActionControls({
+  reading,
+  t,
+  locale,
+  isEvaluated,
+  confirmingDeleteId,
+  deletingId,
+  onRequestConfirmDelete,
+  onConfirmDelete,
+}: ReadingActionControlsProps) {
+  const isConfirming = confirmingDeleteId === reading.id;
+  const isDeleting = deletingId === reading.id;
+
+  if (isConfirming) {
+    return (
+      <div className="inline-flex flex-wrap items-center justify-end gap-1.5">
+        <Button
+          type="button"
+          variant="danger"
+          size="xs"
+          isLoading={isDeleting}
+          disabled={deletingId !== null && !isDeleting}
+          leftIcon={<Icon name="trash" size="xs" />}
+          onClick={() => onConfirmDelete(reading.id)}
+        >
+          {locale === "es" ? "Confirmar" : "Confirm"}
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="xs"
+          disabled={isDeleting}
+          onClick={() => onRequestConfirmDelete(null)}
+        >
+          {locale === "es" ? "Cancelar" : "Cancel"}
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="inline-flex flex-wrap items-center justify-end gap-2">
+      <ActionLink
+        href={
+          isEvaluated
+            ? `/readings/${reading.id}/result`
+            : `/readings/${reading.id}/evaluate`
+        }
+        variant="secondary"
+        size="xs"
+      >
+        {isEvaluated ? t.readings.detailAction : t.readings.evaluateAction}
+      </ActionLink>
+      <ActionLink
+        href={`/readings/${reading.id}`}
+        variant="primary"
+        size="xs"
+        rightIcon={<Icon name="arrow-right" size="xs" />}
+      >
+        {reading.status === "completed"
+          ? t.readings.rereadAction
+          : t.readings.startReadingAction}
+      </ActionLink>
+      <IconButton
+        type="button"
+        icon="trash"
+        iconSize="xs"
+        variant="outline"
+        size="sm"
+        disabled={deletingId !== null}
+        aria-label={
+          locale === "es"
+            ? `Eliminar lectura: ${reading.title}`
+            : `Delete reading: ${reading.title}`
+        }
+        title={locale === "es" ? "Eliminar lectura" : "Delete reading"}
+        onClick={() => onRequestConfirmDelete(reading.id)}
+      />
+    </div>
+  );
 }
 
 /**
  * Renderiza el historial de lecturas en tabla editorial para escritorio (`DataTable`)
- * y tarjetas compactas en móvil, con acciones contextuales y paginación.
+ * y tarjetas compactas en móvil, con acciones contextuales, eliminación y paginación.
  */
 export function ReadingsHistoryTable({
   t,
@@ -52,9 +149,21 @@ export function ReadingsHistoryTable({
   currentPage,
   totalPages,
   hasActiveFilters,
+  deletingId,
   onPageChange,
   onResetFilters,
+  onDeleteReading,
 }: ReadingsHistoryTableProps) {
+  const [confirmingDeleteId, setConfirmingDeleteId] = useState<number | null>(
+    null,
+  );
+
+  const handleConfirmDelete = async (readingId: number): Promise<void> => {
+    const ok = await onDeleteReading(readingId);
+    if (ok) {
+      setConfirmingDeleteId(null);
+    }
+  };
   if (readings.length === 0) {
     return (
       <EmptyState
@@ -162,31 +271,18 @@ export function ReadingsHistoryTable({
                     </DataTableCell>
 
                     <DataTableCell className="text-right">
-                      <div className="inline-flex items-center justify-end gap-2">
-                        <ActionLink
-                          href={
-                            isEvaluated
-                              ? `/readings/${reading.id}/result`
-                              : `/readings/${reading.id}/evaluate`
-                          }
-                          variant="secondary"
-                          size="xs"
-                        >
-                          {isEvaluated
-                            ? t.readings.detailAction
-                            : t.readings.evaluateAction}
-                        </ActionLink>
-                        <ActionLink
-                          href={`/readings/${reading.id}`}
-                          variant="primary"
-                          size="xs"
-                          rightIcon={<Icon name="arrow-right" size="xs" />}
-                        >
-                          {reading.status === "completed"
-                            ? t.readings.rereadAction
-                            : t.readings.startReadingAction}
-                        </ActionLink>
-                      </div>
+                      <ReadingActionControls
+                        reading={reading}
+                        t={t}
+                        locale={locale}
+                        isEvaluated={isEvaluated}
+                        confirmingDeleteId={confirmingDeleteId}
+                        deletingId={deletingId}
+                        onRequestConfirmDelete={setConfirmingDeleteId}
+                        onConfirmDelete={(id) => {
+                          void handleConfirmDelete(id);
+                        }}
+                      />
                     </DataTableCell>
                   </DataTableRow>
                 );
@@ -235,29 +331,18 @@ export function ReadingsHistoryTable({
               </div>
 
               <div className="flex flex-wrap items-center justify-end gap-2 border-t border-default pt-3">
-                <ActionLink
-                  href={
-                    isEvaluated
-                      ? `/readings/${reading.id}/result`
-                      : `/readings/${reading.id}/evaluate`
-                  }
-                  variant="secondary"
-                  size="xs"
-                >
-                  {isEvaluated
-                    ? t.readings.detailAction
-                    : t.readings.evaluateAction}
-                </ActionLink>
-                <ActionLink
-                  href={`/readings/${reading.id}`}
-                  variant="primary"
-                  size="xs"
-                  rightIcon={<Icon name="arrow-right" size="xs" />}
-                >
-                  {reading.status === "completed"
-                    ? t.readings.rereadAction
-                    : t.readings.startReadingAction}
-                </ActionLink>
+                <ReadingActionControls
+                  reading={reading}
+                  t={t}
+                  locale={locale}
+                  isEvaluated={isEvaluated}
+                  confirmingDeleteId={confirmingDeleteId}
+                  deletingId={deletingId}
+                  onRequestConfirmDelete={setConfirmingDeleteId}
+                  onConfirmDelete={(id) => {
+                    void handleConfirmDelete(id);
+                  }}
+                />
               </div>
             </Card>
           );

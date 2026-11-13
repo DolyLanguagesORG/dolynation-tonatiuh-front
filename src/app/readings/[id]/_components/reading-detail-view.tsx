@@ -86,7 +86,7 @@ export function ReadingDetailView({ readingId }: ReadingDetailViewProps) {
             <div className="grid grid-cols-1 items-start gap-8 lg:grid-cols-12">
               <div
                 className={
-                  detail.selectedWord ? "lg:col-span-8" : "lg:col-span-12"
+                  detail.selectedWord ? "lg:col-span-7" : "lg:col-span-12"
                 }
               >
                 <ReadingArticle
@@ -94,34 +94,32 @@ export function ReadingDetailView({ readingId }: ReadingDetailViewProps) {
                   language={detail.reading.language}
                   fontScale={detail.fontScale}
                   selectedWord={detail.selectedWord}
-                  onSelectWord={detail.selectWord}
+                  selectionActionLabel={t.readings.selectionActionLabel}
+                  onSelectWord={(word, ctx) => void detail.selectWord(word, ctx)}
                 />
               </div>
 
               {detail.selectedWord && (
-                <div className="lg:sticky lg:top-6 lg:col-span-4">
+                <div className="lg:sticky lg:top-6 lg:col-span-5">
                   <ContextTranslationPopover
                     t={t}
                     locale={locale}
                     word={detail.selectedWord}
                     contextSentence={detail.selectedContext}
-                    explanation={detail.aiExplanation}
+                    explanationData={detail.activeExplanation}
                     deepExplanation={detail.deepExplanation}
                     isLoading={detail.isExplaining}
+                    isSavingGlossary={detail.isSavingGlossary}
                     isDeepLoading={detail.isDeepExplaining}
                     errorMessage={detail.explainError}
-                    isSaved={detail.savedTerms.some(
-                      (term) =>
-                        term.toLowerCase() ===
-                        detail.selectedWord?.toLowerCase(),
-                    )}
-                    onPronounce={() =>
-                      detail.pronounceText(detail.selectedWord ?? "")
+                    onPronounce={(textToSpeak) =>
+                      detail.pronounceText(textToSpeak)
                     }
-                    onRequestDeepExplanation={detail.requestDetailedExplanation}
-                    onToggleSave={() =>
-                      detail.toggleSaveTerm(detail.selectedWord ?? "")
+                    onRefresh={detail.refreshSelection}
+                    onRequestDeepExplanation={() =>
+                      void detail.requestDetailedExplanation()
                     }
+                    onToggleSave={() => void detail.toggleSaveCurrent()}
                     onClose={detail.clearSelection}
                   />
                 </div>
@@ -132,9 +130,10 @@ export function ReadingDetailView({ readingId }: ReadingDetailViewProps) {
               t={t}
               reading={detail.reading}
               vocabularyTerms={detail.vocabularyTerms}
-              savedTerms={detail.savedTerms}
+              consultedEntries={detail.consultedEntries}
               selectedWord={detail.selectedWord}
-              onSelectTerm={(term) => detail.selectWord(term)}
+              onSelectTerm={(term) => void detail.selectWord(term)}
+              onOpenCachedEntry={detail.openCachedEntry}
             />
           </>
         )}

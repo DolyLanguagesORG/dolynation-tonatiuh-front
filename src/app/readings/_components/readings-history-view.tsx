@@ -57,6 +57,30 @@ export function ReadingsHistoryView() {
           </Alert>
         )}
 
+        {history.deleteError && (
+          <Alert
+            variant="error"
+            title={
+              locale === "es"
+                ? "No se pudo eliminar la lectura"
+                : "Could not delete reading"
+            }
+            onDismiss={() => history.setDeleteError(null)}
+          >
+            {history.deleteError}
+          </Alert>
+        )}
+
+        {history.deleteNotice && (
+          <Alert
+            variant="success"
+            title={locale === "es" ? "Archivo actualizado" : "Archive updated"}
+            onDismiss={() => history.setDeleteNotice(null)}
+          >
+            {history.deleteNotice}
+          </Alert>
+        )}
+
         <ReadingsFiltersBar
           t={t}
           locale={locale}
@@ -89,8 +113,10 @@ export function ReadingsHistoryView() {
             currentPage={history.currentPage}
             totalPages={history.totalPages}
             hasActiveFilters={history.hasActiveFilters}
+            deletingId={history.deletingId}
             onPageChange={history.setCurrentPage}
             onResetFilters={history.resetFilters}
+            onDeleteReading={history.handleDeleteReading}
           />
         )}
       </Container>

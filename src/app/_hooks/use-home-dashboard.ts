@@ -10,6 +10,8 @@ import {
   type ReadingDifficulty,
   type ReadingDto,
   readingsService,
+  subscriptionsService,
+  type SubscriptionUsage,
   type TargetLanguageCode,
   usersService,
 } from "@/lib";
@@ -32,88 +34,6 @@ export interface HomeReadingItem {
   detailHref: string;
   feedbackHref: string;
 }
-
-const PREVIEW_READINGS_ES: readonly HomeReadingItem[] = [
-  {
-    id: "preview-cloud-systems",
-    numericId: null,
-    languageCode: "en",
-    languageLabel: "[EN] INGLÉS",
-    difficultyLabel: "NIVEL MEDIO",
-    difficultyVariant: "secondary",
-    timestampLabel: "Hoy, 10:30 AM",
-    statusLabel: "COMPLETADA (92/100)",
-    isCompleted: true,
-    hasScore: true,
-    title: "The Architecture of Modern Cloud Systems",
-    excerpt:
-      '"Distributed infrastructure relies on deterministic latency bounds and asynchronous consensus algorithms to guarantee continuous convergence under network partition..."',
-    durationLabel: "5 MIN LECTURA",
-    metaLabel: "8 ANOTACIONES GUARDADAS",
-    detailHref: "/login",
-    feedbackHref: "/login",
-  },
-  {
-    id: "preview-ia-societe",
-    numericId: null,
-    languageCode: "fr",
-    languageLabel: "[FR] FRANCÉS",
-    difficultyLabel: "NIVEL ALTO",
-    difficultyVariant: "primary",
-    timestampLabel: "Ayer, 18:45",
-    statusLabel: "COMPLETADA (88/100)",
-    isCompleted: true,
-    hasScore: true,
-    title: "L'intelligence Artificielle et la Société",
-    excerpt:
-      '"Bien que les mutations technologiques induisent une réorganisation globale du travail, la question fondamentale demeure celle de l\'autonomie critique des institutions..."',
-    durationLabel: "7 MIN LECTURA",
-    metaLabel: "14 ANOTACIONES GUARDADAS",
-    detailHref: "/login",
-    feedbackHref: "/login",
-  },
-];
-
-const PREVIEW_READINGS_EN: readonly HomeReadingItem[] = [
-  {
-    id: "preview-cloud-systems",
-    numericId: null,
-    languageCode: "en",
-    languageLabel: "[EN] ENGLISH",
-    difficultyLabel: "MEDIUM LEVEL",
-    difficultyVariant: "secondary",
-    timestampLabel: "Today, 10:30 AM",
-    statusLabel: "COMPLETED (92/100)",
-    isCompleted: true,
-    hasScore: true,
-    title: "The Architecture of Modern Cloud Systems",
-    excerpt:
-      '"Distributed infrastructure relies on deterministic latency bounds and asynchronous consensus algorithms to guarantee continuous convergence under network partition..."',
-    durationLabel: "5 MIN READ",
-    metaLabel: "8 SAVED ANNOTATIONS",
-    detailHref: "/login",
-    feedbackHref: "/login",
-  },
-  {
-    id: "preview-ia-societe",
-    numericId: null,
-    languageCode: "fr",
-    languageLabel: "[FR] FRENCH",
-    difficultyLabel: "HIGH LEVEL",
-    difficultyVariant: "primary",
-    timestampLabel: "Yesterday, 18:45",
-    statusLabel: "COMPLETED (88/100)",
-    isCompleted: true,
-    hasScore: true,
-    title: "L'intelligence Artificielle et la Société",
-    excerpt:
-      '"Bien que les mutations technologiques induisent une réorganisation globale du travail, la question fondamentale demeure celle de l\'autonomie critique des institutions..."',
-    durationLabel: "7 MIN READ",
-    metaLabel: "14 SAVED ANNOTATIONS",
-    detailHref: "/login",
-    feedbackHref: "/login",
-  },
-];
 
 function formatLanguageTag(code: TargetLanguageCode, locale: "es" | "en"): string {
   const names: Record<TargetLanguageCode, { es: string; en: string }> = {
@@ -205,25 +125,28 @@ function mapDtoToHomeReading(
  */
 export function useHomeDashboard() {
   const { locale, t } = useLocale();
-  const { user, isAuthenticated, onboarding } = useAuth();
+  const { user, accessPhase, isAuthenticated, onboarding } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [liveReadings, setLiveReadings] = useState<HomeReadingItem[]>([]);
   const [historySummary, setHistorySummary] = useState<HistorySummary | null>(
     null,
   );
+  const [streakCount, setStreakCount] = useState<number | null>(null);
+  const [subscriptionUsage, setSubscriptionUsage] =
+    useState<SubscriptionUsage | null>(null);
   const [weeklyActiveDays, setWeeklyActiveDays] = useState<boolean[]>([
-    true,
-    true,
-    true,
-    true,
-    true,
-    true,
-    true,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
+    false,
   ]);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
 
-  const shouldLoadLive = isAuthenticated && onboarding.isOnboardingComplete;
+  const shouldLoadLive = isAuthenticated && accessPhase === "ready";
   const fetchKey = shouldLoadLive ? `${user?.id ?? "me"}-${locale}` : null;
   const isLoadingData = Boolean(fetchKey && loadedKey !== fetchKey);
 
@@ -239,51 +162,76 @@ export function useHomeDashboard() {
       readingsService.listPending(),
       historyService.getSummary(),
       usersService.getStreak({ days: 7 }),
+      subscriptionsService.getCurrentSubscription(),
+      usersService.getProfile(),
     ])
-      .then(([completedRes, pendingRes, summaryRes, streakRes]) => {
-        if (cancelled) return;
+      .then(
+        ([
+          completedRes,
+          pendingRes,
+          summaryRes,
+          streakRes,
+          subscriptionRes,
+          profileRes,
+        ]) => {
+          if (cancelled) return;
 
-        const merged: ReadingDto[] = [];
-        if (
-          completedRes.status === "fulfilled" &&
-          Array.isArray(completedRes.value.data)
-        ) {
-          merged.push(...completedRes.value.data);
-        }
-        if (
-          pendingRes.status === "fulfilled" &&
-          Array.isArray(pendingRes.value.data)
-        ) {
-          merged.push(...pendingRes.value.data);
-        }
-
-        merged.sort(
-          (a, b) =>
-            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-        );
-
-        setLiveReadings(
-          merged.slice(0, 6).map((dto) => mapDtoToHomeReading(dto, locale)),
-        );
-
-        if (summaryRes.status === "fulfilled" && summaryRes.value.data) {
-          setHistorySummary(summaryRes.value.data);
-        }
-
-        if (
-          streakRes.status === "fulfilled" &&
-          Array.isArray(streakRes.value.data?.days)
-        ) {
-          const flags = streakRes.value.data.days.slice(-7);
-          if (flags.length > 0) {
-            const padded = Array.from({ length: 7 }, (_, i) => {
-              const offset = 7 - flags.length;
-              return i >= offset ? Boolean(flags[i - offset]) : false;
-            });
-            setWeeklyActiveDays(padded);
+          const merged: ReadingDto[] = [];
+          if (
+            completedRes.status === "fulfilled" &&
+            Array.isArray(completedRes.value.data)
+          ) {
+            merged.push(...completedRes.value.data);
           }
-        }
-      })
+          if (
+            pendingRes.status === "fulfilled" &&
+            Array.isArray(pendingRes.value.data)
+          ) {
+            merged.push(...pendingRes.value.data);
+          }
+
+          merged.sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          );
+
+          setLiveReadings(
+            merged.slice(0, 6).map((dto) => mapDtoToHomeReading(dto, locale)),
+          );
+
+          if (summaryRes.status === "fulfilled" && summaryRes.value.data) {
+            setHistorySummary(summaryRes.value.data);
+          }
+
+          if (
+            profileRes.status === "fulfilled" &&
+            profileRes.value.data &&
+            typeof profileRes.value.data.currentStreak === "number"
+          ) {
+            setStreakCount(profileRes.value.data.currentStreak);
+          }
+
+          if (streakRes.status === "fulfilled" && streakRes.value.data) {
+            if (Array.isArray(streakRes.value.data.days)) {
+              const flags = streakRes.value.data.days.slice(-7);
+              if (flags.length > 0) {
+                const padded = Array.from({ length: 7 }, (_, i) => {
+                  const offset = 7 - flags.length;
+                  return i >= offset ? Boolean(flags[i - offset]) : false;
+                });
+                setWeeklyActiveDays(padded);
+              }
+            }
+          }
+
+          if (
+            subscriptionRes.status === "fulfilled" &&
+            subscriptionRes.value.data
+          ) {
+            setSubscriptionUsage(subscriptionRes.value.data.usage);
+          }
+        },
+      )
       .finally(() => {
         if (!cancelled) {
           setLoadedKey(fetchKey);
@@ -298,14 +246,15 @@ export function useHomeDashboard() {
   const firstNameDisplay =
     user?.fullName?.trim().split(/\s+/)[0] ||
     user?.email?.split("@")[0] ||
-    "Elena";
+    "";
 
-  const welcomeHeading =
-    locale === "es"
+  const welcomeHeading = firstNameDisplay
+    ? locale === "es"
       ? `Bienvenido de vuelta, ${firstNameDisplay}.`
-      : `Welcome back, ${firstNameDisplay}.`;
+      : `Welcome back, ${firstNameDisplay}.`
+    : t.home.welcomeHeading;
 
-  const streakDaysCount = user?.currentStreak ?? (isAuthenticated ? 0 : 14);
+  const streakDaysCount = streakCount ?? user?.currentStreak ?? 0;
 
   const searchError =
     searchQuery.trim().length > 40
@@ -314,11 +263,7 @@ export function useHomeDashboard() {
         : "Filter query must not exceed 40 characters."
       : undefined;
 
-  const sourceReadings = isAuthenticated
-    ? liveReadings
-    : locale === "es"
-      ? PREVIEW_READINGS_ES
-      : PREVIEW_READINGS_EN;
+  const sourceReadings = liveReadings;
 
   const filteredReadings = sourceReadings.filter((item) => {
     const q = searchQuery.trim().toLowerCase();
@@ -340,6 +285,7 @@ export function useHomeDashboard() {
     streakDaysCount,
     weeklyActiveDays,
     historySummary,
+    subscriptionUsage,
     isLoadingData,
     searchQuery,
     setSearchQuery,

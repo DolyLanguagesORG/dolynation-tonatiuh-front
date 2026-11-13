@@ -28,6 +28,9 @@ export function useReadingsHistory() {
   const [allReadings, setAllReadings] = useState<ReadingDto[]>([]);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<number | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [deleteNotice, setDeleteNotice] = useState<string | null>(null);
 
   const [statusFilter, setStatusFilterState] =
     useState<ReadingStatusFilter>("all");
@@ -188,6 +191,35 @@ export function useReadingsHistory() {
     setCurrentPage(1);
   };
 
+  const handleDeleteReading = async (readingId: number): Promise<boolean> => {
+    if (deletingId !== null) return false;
+
+    setDeletingId(readingId);
+    setDeleteError(null);
+    setDeleteNotice(null);
+    try {
+      await readingsService.remove(readingId);
+      setAllReadings((prev) => prev.filter((item) => item.id !== readingId));
+      setDeleteNotice(
+        locale === "es"
+          ? "Lectura eliminada correctamente."
+          : "Reading deleted successfully.",
+      );
+      return true;
+    } catch (error) {
+      setDeleteError(
+        error instanceof ApiClientError
+          ? error.getUserMessage(locale)
+          : locale === "es"
+            ? "No fue posible eliminar la lectura."
+            : "Could not delete the reading.",
+      );
+      return false;
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
   const hasActiveFilters =
     statusFilter !== "all" ||
     languageFilter !== "all" ||
@@ -197,6 +229,11 @@ export function useReadingsHistory() {
   return {
     isLoading,
     errorMessage,
+    deletingId,
+    deleteError,
+    setDeleteError,
+    deleteNotice,
+    setDeleteNotice,
     counts,
     filteredCount: filteredReadings.length,
     paginatedReadings,
@@ -213,5 +250,6 @@ export function useReadingsHistory() {
     setSearchQuery,
     setCurrentPage,
     resetFilters,
+    handleDeleteReading,
   };
 }

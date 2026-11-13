@@ -10,35 +10,43 @@ import {
   Text,
 } from "@/components/ui";
 import { type Dictionary } from "@/i18n";
-import { type ReadingDto } from "@/lib";
+import { type GlossaryEntryDto, type ReadingDto } from "@/lib";
 
 export interface ReadingCompletionFooterProps {
   t: Dictionary;
   reading: ReadingDto;
   vocabularyTerms: readonly string[];
-  savedTerms: readonly string[];
+  consultedEntries: readonly GlossaryEntryDto[];
   selectedWord: string | null;
   onSelectTerm: (term: string) => void;
+  onOpenCachedEntry: (entry: GlossaryEntryDto) => void;
 }
 
 /**
- * Pie interactivo de la lectura con llamado a evaluación contextual IA
- * y rejilla de vocabulario detectado (`06-detalle-de-lectura.png`).
+ * Pie interactivo de la lectura con llamado a evaluación contextual IA,
+ * consultas persistidas y rejilla de vocabulario detectado (`06-detalle-de-lectura.png`).
  */
 export function ReadingCompletionFooter({
   t,
   reading,
   vocabularyTerms,
-  savedTerms,
+  consultedEntries,
   selectedWord,
   onSelectTerm,
+  onOpenCachedEntry,
 }: ReadingCompletionFooterProps) {
   const isCompleted =
     reading.status === "completed" && typeof reading.score === "number";
 
-  const combinedTerms = Array.from(
-    new Set([...vocabularyTerms, ...savedTerms]),
+  const consultedByNormalized = new Map(
+    consultedEntries.map((entry) => [entry.normalizedWord, entry]),
   );
+
+  const extraSuggestedTerms = vocabularyTerms.filter(
+    (term) => !consultedByNormalized.has(term.trim().toLowerCase()),
+  );
+
+  const totalCount = consultedEntries.length + extraSuggestedTerms.length;
 
   return (
     <div className="flex flex-col gap-6 pt-2">
@@ -97,29 +105,46 @@ export function ReadingCompletionFooter({
         </div>
       </Card>
 
-      {combinedTerms.length > 0 && (
+      {totalCount > 0 && (
         <section className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <Eyebrow tone="muted">{t.readings.detectedVocabularyTitle}</Eyebrow>
+            <Eyebrow tone="muted">
+              {consultedEntries.length > 0
+                ? t.readings.consultedTermsTitle
+                : t.readings.detectedVocabularyTitle}
+            </Eyebrow>
             <Text variant="caption" tone="muted" className="font-mono">
-              {combinedTerms.length} {t.readings.termsSuffix}
+              {totalCount} {t.readings.termsSuffix}
             </Text>
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {combinedTerms.map((term) => {
+            {consultedEntries.map((entry) => {
               const isSelected =
-                selectedWord?.toLowerCase() === term.toLowerCase();
-              const isSaved = savedTerms.some(
-                (item) => item.toLowerCase() === term.toLowerCase(),
+                selectedWord?.trim().toLowerCase() === entry.normalizedWord;
+              return (
+                <ChoiceChip
+                  key={`entry-${entry.id}`}
+                  size="sm"
+                  selected={isSelected}
+                  indicator={entry.isSaved ? "check" : "none"}
+                  onClick={() => onOpenCachedEntry(entry)}
+                >
+                  {entry.word}
+                </ChoiceChip>
               );
+            })}
+
+            {extraSuggestedTerms.map((term) => {
+              const isSelected =
+                selectedWord?.trim().toLowerCase() === term.toLowerCase();
 
               return (
                 <ChoiceChip
-                  key={term}
+                  key={`term-${term}`}
                   size="sm"
                   selected={isSelected}
-                  indicator={isSaved ? "check" : "none"}
+                  indicator="none"
                   onClick={() => onSelectTerm(term)}
                 >
                   {term}
