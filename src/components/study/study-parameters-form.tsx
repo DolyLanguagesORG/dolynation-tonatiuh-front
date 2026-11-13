@@ -6,6 +6,7 @@ import { LanguageSelectorSection } from "@/components/study/language-selector-se
 import { SizeSelectorSection } from "@/components/study/size-selector-section";
 import { useStudyParameters } from "@/components/study/use-study-parameters";
 import {
+  ActionLink,
   Alert,
   Badge,
   Button,
@@ -14,7 +15,7 @@ import {
   SkeletonCard,
   Text,
 } from "@/components/ui";
-import { type StudyParameters } from "@/lib";
+import { ErrorCode, type StudyParameters } from "@/lib";
 
 export interface StudyParametersFormProps {
   /**
@@ -83,19 +84,107 @@ export function StudyParametersForm({
             </h2>
           </div>
 
-          <Badge variant="outline">
-            {study.effectiveLanguage.toUpperCase()} •{" "}
-            {study.selectedDifficulty.toUpperCase()}
-          </Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            {study.subscriptionUsage && (
+              <Badge
+                variant={
+                  study.subscriptionUsage.readingsRemainingToday === 0
+                    ? "warning"
+                    : "secondary"
+                }
+              >
+                {study.subscriptionUsage.readingsLimit != null
+                  ? locale === "es"
+                    ? `HOY: ${study.subscriptionUsage.readingsCreatedToday}/${study.subscriptionUsage.readingsLimit} LECTURAS`
+                    : `TODAY: ${study.subscriptionUsage.readingsCreatedToday}/${study.subscriptionUsage.readingsLimit} READINGS`
+                  : locale === "es"
+                    ? "LECTURAS ILIMITADAS"
+                    : "UNLIMITED READINGS"}
+              </Badge>
+            )}
+            <Badge variant="outline">
+              {study.effectiveLanguage.toUpperCase()} •{" "}
+              {study.selectedDifficulty.toUpperCase()}
+            </Badge>
+          </div>
         </div>
+
+        {study.isPreferencesBlocked && (
+          <Alert variant="warning" title={t.study.generationBlockedTitle}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <span>
+                {study.missingLanguagesForGeneration &&
+                study.missingCategoriesForGeneration
+                  ? locale === "es"
+                    ? "Debes seleccionar al menos un idioma meta de estudio y registrar 3 categorías favoritas en tu cuenta antes de generar nuevas lecturas."
+                    : "Select at least one target study language and 3 favorite categories before generating new readings."
+                  : study.missingLanguagesForGeneration
+                    ? t.study.generationBlockedLanguages
+                    : t.study.generationBlockedCategories}
+              </span>
+              <ActionLink
+                href="/setup-preferences"
+                variant="primary"
+                size="sm"
+                rightIcon={<Icon name="arrow-right" size="xs" />}
+                className="shrink-0 normal-case tracking-normal"
+              >
+                {t.study.goToPreferencesButton}
+              </ActionLink>
+            </div>
+          </Alert>
+        )}
 
         {study.validationError && (
           <Alert
             variant="error"
-            title={locale === "es" ? "Parámetro incompleto" : "Missing parameter"}
+            code={study.validationErrorCode ?? undefined}
+            title={
+              study.validationErrorCode
+                ? locale === "es"
+                  ? "No se pudo completar la acción"
+                  : "Action could not be completed"
+                : locale === "es"
+                  ? "Parámetro incompleto"
+                  : "Missing parameter"
+            }
             onDismiss={() => study.setValidationError(null)}
           >
-            {study.validationError}
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <span>{study.validationError}</span>
+              {study.validationErrorCode ===
+                ErrorCode.READING_PENDING_LIMIT_REACHED && (
+                <ActionLink
+                  href="/readings"
+                  variant="secondary"
+                  size="sm"
+                  rightIcon={<Icon name="arrow-right" size="xs" />}
+                  className="shrink-0 normal-case tracking-normal"
+                >
+                  {locale === "es"
+                    ? "Ver lecturas pendientes"
+                    : "View pending readings"}
+                </ActionLink>
+              )}
+              {(study.validationErrorCode ===
+                ErrorCode.READING_DAILY_LIMIT_REACHED ||
+                study.validationErrorCode ===
+                  ErrorCode.SUBSCRIPTION_CATEGORY_LIMIT_EXCEEDED ||
+                study.validationErrorCode ===
+                  ErrorCode.SUBSCRIPTION_LANGUAGE_LIMIT_EXCEEDED) && (
+                <ActionLink
+                  href="/profile#subscription"
+                  variant="secondary"
+                  size="sm"
+                  rightIcon={<Icon name="arrow-right" size="xs" />}
+                  className="shrink-0 normal-case tracking-normal"
+                >
+                  {locale === "es"
+                    ? "Ver plan y consumo"
+                    : "View plan & usage"}
+                </ActionLink>
+              )}
+            </div>
           </Alert>
         )}
 
@@ -159,6 +248,7 @@ export function StudyParametersForm({
 
         <DifficultySelectorSection
           title={t.study.step3Difficulty}
+          locale={locale}
           difficulties={study.difficulties}
           selectedDifficulty={study.selectedDifficulty}
           onSelect={(difficulty) => {
@@ -169,6 +259,7 @@ export function StudyParametersForm({
 
         <SizeSelectorSection
           title={t.study.step4Length}
+          locale={locale}
           sizes={study.sizes}
           selectedSize={study.selectedSize}
           onSelect={(size) => {
@@ -204,6 +295,7 @@ export function StudyParametersForm({
               type="submit"
               variant="primary"
               size="md"
+              disabled={study.isPreferencesBlocked}
               isLoading={study.isSubmitting}
               leftIcon={<Icon name="sparkles" size="sm" />}
               className="normal-case tracking-normal"

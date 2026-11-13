@@ -1,10 +1,12 @@
 "use client";
 
 import { ChoiceCard, Eyebrow } from "@/components/ui";
+import { type Locale } from "@/i18n";
 import { type DifficultyOption, type ReadingDifficulty } from "@/lib";
 
 export interface DifficultySelectorSectionProps {
   title: string;
+  locale?: Locale;
   difficulties: readonly DifficultyOption[];
   selectedDifficulty: ReadingDifficulty;
   onSelect: (difficulty: ReadingDifficulty) => void;
@@ -15,6 +17,7 @@ export interface DifficultySelectorSectionProps {
  */
 export function DifficultySelectorSection({
   title,
+  locale = "es",
   difficulties,
   selectedDifficulty,
   onSelect,
@@ -32,19 +35,30 @@ export function DifficultySelectorSection({
         aria-label={title}
         className="grid grid-cols-1 gap-3.5 md:grid-cols-3"
       >
-        {difficulties.map((level) => (
-          <ChoiceCard
-            key={level.id}
-            selected={selectedDifficulty === level.id}
-            emphasis="filled"
-            showSelectionIndicator={false}
-            title={level.title}
-            meta={level.cefr}
-            description={level.description}
-            onClick={() => onSelect(level.id)}
-            className="sm:p-5"
-          />
-        ))}
+        {difficulties.map((level) => {
+          const localizedTitle =
+            locale === "en"
+              ? (level.titleEn ?? level.title)
+              : (level.titleEs ?? level.title);
+          const localizedDescription =
+            locale === "en"
+              ? (level.descriptionEn ?? level.description)
+              : (level.descriptionEs ?? level.description);
+
+          return (
+            <ChoiceCard
+              key={level.id}
+              selected={selectedDifficulty === level.id}
+              emphasis="filled"
+              showSelectionIndicator={false}
+              title={localizedTitle}
+              meta={level.cefr}
+              description={localizedDescription}
+              onClick={() => onSelect(level.id)}
+              className="sm:p-5"
+            />
+          );
+        })}
       </div>
     </fieldset>
   );

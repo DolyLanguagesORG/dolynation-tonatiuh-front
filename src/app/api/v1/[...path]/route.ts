@@ -55,6 +55,10 @@ const PUBLIC_NO_BEARER_ROUTES = new Set([
   "auth/login",
   "auth/register",
   "auth/refresh",
+  "auth/verify-email",
+  "auth/resend-verification",
+  "auth/forgot-password",
+  "auth/reset-password",
 ]);
 
 function apiError(
@@ -166,11 +170,17 @@ function sanitizeAuthEnvelopeForBrowser(
       });
     }
 
+    const emailVerified =
+      typeof parsed.data.emailVerified === "boolean"
+        ? parsed.data.emailVerified
+        : undefined;
+
     return JSON.stringify({
       message: parsed.message ?? "OK",
       data: {
         user: parsed.data.user ?? null,
         authenticated: true,
+        ...(emailVerified !== undefined ? { emailVerified } : {}),
         ...(expiresIn !== undefined ? { expiresIn } : {}),
       },
       error: parsed.error ?? null,
@@ -440,7 +450,9 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
 
   const isAuthTokenIssuedRoute =
     method === "POST" &&
-    (routeKey === "auth/login" || routeKey === "auth/register");
+    (routeKey === "auth/login" ||
+      routeKey === "auth/register" ||
+      routeKey === "auth/verify-email");
 
   const contentType = upstream.headers.get("content-type") ?? "";
   if (
@@ -457,6 +469,10 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
       if (issuedTokens) {
         appendSessionCookies(responseHeaders, issuedTokens);
         responseBody = sanitizeAuthEnvelopeForBrowser(routeKey, rawJson);
+      } else if (routeKey === "auth/register") {
+        // Cuando la verificación por correo es obligatoria, el registro no emite tokens:
+        // limpiamos cookies previas para que no quede una sesión anterior activa.
+        clearSessionCookies(responseHeaders);
       }
     } catch {
       // Si el cuerpo no es JSON válido, se reenvía tal cual sin anexar cookies.

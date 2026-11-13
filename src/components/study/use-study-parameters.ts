@@ -12,14 +12,76 @@ import {
   DEFAULT_DIFFICULTIES,
   DEFAULT_SIZES,
   type DifficultyOption,
+  MIN_USER_CATEGORIES,
   type ReadingDifficulty,
   type ReadingSize,
   type ReadingSizeOption,
   settingsService,
   studyClient,
   type StudyParameters,
+  subscriptionsService,
+  type SubscriptionUsage,
   type TargetLanguageCode,
 } from "@/lib";
+
+function buildCategoryCatalogLookup(
+  catCatalog: readonly CatalogCategory[] | undefined,
+  optionsCategories: readonly CatalogCategory[] | undefined,
+): CatalogCategory[] {
+  const catalogList =
+    catCatalog && catCatalog.length > 0
+      ? catCatalog
+      : optionsCategories && optionsCategories.length > 0
+        ? optionsCategories
+        : [...DEFAULT_CATEGORIES];
+
+  const lookupMap = new Map<string, CatalogCategory>();
+  for (const item of catalogList) {
+    const def = DEFAULT_CATEGORIES.find((d) => d.id === item.id);
+    lookupMap.set(item.id.toLowerCase(), {
+      ...item,
+      ...(def ? { nameEs: def.nameEs, nameEn: def.nameEn } : {}),
+    });
+  }
+  for (const optCat of optionsCategories ?? []) {
+    if (!lookupMap.has(optCat.id.toLowerCase())) {
+      const def = DEFAULT_CATEGORIES.find((d) => d.id === optCat.id);
+      lookupMap.set(optCat.id.toLowerCase(), {
+        id: optCat.id,
+        name: optCat.name,
+        isCustom: optCat.isCustom,
+        ...(def ? { nameEs: def.nameEs, nameEn: def.nameEn } : {}),
+      });
+    }
+  }
+  return Array.from(lookupMap.values());
+}
+
+function resolveConfiguredCategories(
+  selectedIds: readonly string[],
+  catalogLookup: readonly CatalogCategory[],
+): CatalogCategory[] {
+  const lookupMap = new Map<string, CatalogCategory>();
+  for (const item of catalogLookup) {
+    lookupMap.set(item.id.toLowerCase(), item);
+  }
+  const seen = new Set<string>();
+  const resolved: CatalogCategory[] = [];
+  for (const rawId of selectedIds) {
+    const normalized = rawId.trim().toLowerCase();
+    if (!normalized || seen.has(normalized)) continue;
+    seen.add(normalized);
+    const matched = lookupMap.get(normalized);
+    resolved.push(
+      matched ?? {
+        id: rawId.trim(),
+        name: rawId.trim(),
+        isCustom: true,
+      },
+    );
+  }
+  return resolved;
+}
 
 /**
  * Hook que gestiona la carga, validación, guardado y generación de lecturas
@@ -30,14 +92,34 @@ export function useStudyParameters(
 ) {
   const router = useRouter();
   const { locale, t } = useLocale();
-  const { user, languagesSettings } = useAuth();
+  const {
+    user,
+    languagesSettings,
+    categoriesSettings,
+    onboarding,
+    refreshPreferences,
+  } = useAuth();
 
-  const activePlanLanguages: readonly TargetLanguageCode[] | null =
-    languagesSettings?.active && languagesSettings.active.length > 0
-      ? languagesSettings.active
-      : languagesSettings?.selected && languagesSettings.selected.length > 0
-        ? languagesSettings.selected
-        : null;
+  const activePlanLanguages: readonly TargetLanguageCode[] | null = (() => {
+    if (!languagesSettings) {
+      return null;
+    }
+    if (languagesSettings.active.length > 0) {
+      return languagesSettings.active;
+    }
+    if (languagesSettings.selected.length > 0) {
+      return languagesSettings.selected;
+    }
+    return user?.subscriptionTier === "dolly_pro" ? null : [];
+  })();
+
+  const isPreferencesBlocked = Boolean(user && !onboarding.canGenerateReadings);
+  const missingLanguagesForGeneration = Boolean(
+    user && !onboarding.hasConfiguredLanguages,
+  );
+  const missingCategoriesForGeneration = Boolean(
+    user && !onboarding.hasConfiguredCategories,
+  );
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
@@ -50,13 +132,24 @@ export function useStudyParameters(
     useState<ReadingDifficulty>("medium");
   const [selectedSize, setSelectedSize] = useState<ReadingSize>("medium");
 
-  const [categories, setCategories] = useState<CatalogCategory[]>([
+  const [categories, setCategories] = useState<CatalogCategory[]>(() =>
+    user
+      ? resolveConfiguredCategories(
+          categoriesSettings?.selected ?? [],
+          DEFAULT_CATEGORIES,
+        )
+      : [...DEFAULT_CATEGORIES],
+  );
+  const [catalogLookup, setCatalogLookup] = useState<CatalogCategory[]>([
     ...DEFAULT_CATEGORIES,
   ]);
-  const [difficulties] = useState<DifficultyOption[]>([
+  const [difficulties, setDifficulties] = useState<DifficultyOption[]>([
     ...DEFAULT_DIFFICULTIES,
   ]);
-  const [sizes] = useState<ReadingSizeOption[]>([...DEFAULT_SIZES]);
+  const [sizes, setSizes] = useState<ReadingSizeOption[]>([...DEFAULT_SIZES]);
+  const [subscriptionUsage, setSubscriptionUsage] =
+    useState<SubscriptionUsage | null>(null);
+  const [planName, setPlanName] = useState<string | null>(null);
 
   const [isAddingCustom, setIsAddingCustom] = useState(false);
   const [customCategoryName, setCustomCategoryName] = useState("");
@@ -64,32 +157,112 @@ export function useStudyParameters(
     null,
   );
 
-  const [validationError, setValidationError] = useState<string | null>(null);
+  const [validationError, setRawValidationError] = useState<string | null>(
+    null,
+  );
+  const [validationErrorCode, setValidationErrorCode] = useState<string | null>(
+    null,
+  );
   const [saveNotice, setSaveNotice] = useState<string | null>(null);
   const [generationNotice, setGenerationNotice] = useState<string | null>(null);
+
+  const setValidationError = (message: string | null): void => {
+    setRawValidationError(message);
+    if (message === null) {
+      setValidationErrorCode(null);
+    }
+  };
 
   useEffect(() => {
     let isMounted = true;
 
     async function loadParameters(): Promise<void> {
       try {
-        const [prefs, catSettings] = await Promise.all([
-          studyClient.getStudyPreferences(user?.id),
-          studyClient.getCategoriesSettings(),
-        ]);
+        const [prefsRes, catSettingsRes, readingOptionsRes, subRes] =
+          await Promise.allSettled([
+            studyClient.getStudyPreferences(user?.id),
+            studyClient.getCategoriesSettings(),
+            studyClient.getReadingOptions(),
+            user
+              ? subscriptionsService.getCurrentSubscription()
+              : Promise.resolve(null),
+          ]);
 
         if (!isMounted) return;
 
-        setSelectedLanguage(prefs.language);
-        setSelectedDifficulty(prefs.difficulty);
-        setSelectedSize(prefs.size);
+        const prefs =
+          prefsRes.status === "fulfilled" ? prefsRes.value : null;
+        const catSettings =
+          catSettingsRes.status === "fulfilled" ? catSettingsRes.value : null;
+        const readingOptions =
+          readingOptionsRes.status === "fulfilled"
+            ? readingOptionsRes.value
+            : null;
+        const subData =
+          subRes.status === "fulfilled" && subRes.value
+            ? subRes.value.data
+            : null;
 
-        if (catSettings.catalog && catSettings.catalog.length > 0) {
-          setCategories(catSettings.catalog);
+        if (prefs) {
+          setSelectedLanguage(prefs.language);
+          setSelectedDifficulty(prefs.difficulty);
+          setSelectedSize(prefs.size);
         }
 
-        if (prefs.category) {
-          setSelectedCategory(prefs.category);
+        if (subData) {
+          setSubscriptionUsage(subData.usage);
+          setPlanName(subData.plan?.name ?? null);
+        }
+
+        if (readingOptions?.difficulties?.length) {
+          const mappedDiffs: DifficultyOption[] =
+            readingOptions.difficulties.map((id) => {
+              const existing = DEFAULT_DIFFICULTIES.find((d) => d.id === id);
+              if (existing) return existing;
+              return {
+                id,
+                title: id,
+                titleEs: id,
+                titleEn: id,
+                cefr: "",
+                description: id,
+              };
+            });
+          setDifficulties(mappedDiffs);
+        }
+
+        if (readingOptions?.sizes?.length) {
+          setSizes(readingOptions.sizes);
+        }
+
+        const lookupList = buildCategoryCatalogLookup(
+          catSettings?.catalog,
+          readingOptions?.categories,
+        );
+        setCatalogLookup(lookupList);
+
+        const configuredList = user
+          ? resolveConfiguredCategories(
+              catSettings?.selected ?? [],
+              lookupList,
+            )
+          : lookupList;
+        setCategories(configuredList);
+
+        if (configuredList.length === 0) {
+          setSelectedCategory("");
+        } else if (
+          prefs?.category &&
+          configuredList.some(
+            (cat) => cat.id.toLowerCase() === prefs.category.toLowerCase(),
+          )
+        ) {
+          const matched = configuredList.find(
+            (cat) => cat.id.toLowerCase() === prefs.category.toLowerCase(),
+          );
+          setSelectedCategory(matched ? matched.id : configuredList[0].id);
+        } else {
+          setSelectedCategory(configuredList[0].id);
         }
       } catch {
         // Conservamos los valores predeterminados si falla la red
@@ -105,7 +278,7 @@ export function useStudyParameters(
     return () => {
       isMounted = false;
     };
-  }, [user?.id]);
+  }, [user]);
 
   const effectiveLanguage: TargetLanguageCode =
     activePlanLanguages &&
@@ -133,16 +306,31 @@ export function useStudyParameters(
       };
 
       const existingCategories = await settingsService.getCategories();
-      const mergedCategories = Array.from(
-        new Set([...existingCategories.data.selected, selectedCategory]),
+      const alreadySelected = existingCategories.data.selected.some(
+        (cat) => cat.toLowerCase() === selectedCategory.trim().toLowerCase(),
       );
-      await settingsService.updateCategories({ categories: mergedCategories });
+      const mergedCategories = alreadySelected
+        ? existingCategories.data.selected
+        : [...existingCategories.data.selected, selectedCategory];
+
+      if (mergedCategories.length < MIN_USER_CATEGORIES) {
+        await studyClient.saveStudyPreferences(currentParams, user?.id);
+        setValidationError(t.study.generationBlockedCategories);
+        return;
+      }
+
+      if (!alreadySelected) {
+        await settingsService.updateCategories({ categories: mergedCategories });
+      }
       await studyClient.saveStudyPreferences(currentParams, user?.id);
+      await refreshPreferences();
       setSaveNotice(t.study.savedSuccessNotice);
     } catch (error) {
       if (error instanceof ApiClientError) {
+        setValidationErrorCode(error.code);
         setValidationError(error.getUserMessage(locale));
       } else {
+        setValidationErrorCode(null);
         setValidationError(
           locale === "es"
             ? "No se pudieron sincronizar las preferencias con el servidor."
@@ -188,14 +376,22 @@ export function useStudyParameters(
       return;
     }
 
-    const newCategory: CatalogCategory = {
+    // Si coincide con una categoría del catálogo aún no configurada, se agrega a la biblioteca
+    // de la cuenta (se persiste al generar, respetando el límite del plan en el backend).
+    const catalogMatch = catalogLookup.find(
+      (cat) =>
+        cat.id.toLowerCase() === cleanName.toLowerCase() ||
+        cat.name.toLowerCase() === cleanName.toLowerCase(),
+    );
+
+    const newCategory: CatalogCategory = catalogMatch ?? {
       id: cleanName,
       name: cleanName,
       isCustom: true,
     };
 
     setCategories((prev) => [newCategory, ...prev]);
-    setSelectedCategory(cleanName);
+    setSelectedCategory(newCategory.id);
     setCustomCategoryName("");
     setIsAddingCustom(false);
     setCustomCategoryError(null);
@@ -213,6 +409,15 @@ export function useStudyParameters(
     event.preventDefault();
     setValidationError(null);
     setSaveNotice(null);
+
+    if (isPreferencesBlocked) {
+      setValidationError(
+        missingCategoriesForGeneration
+          ? t.study.generationBlockedCategories
+          : t.study.generationBlockedLanguages,
+      );
+      return;
+    }
 
     if (!selectedLanguage) {
       setValidationError(t.study.errorRequiredLanguage);
@@ -241,6 +446,17 @@ export function useStudyParameters(
     setIsSubmitting(true);
     setGenerationNotice(null);
     try {
+      const savedList = categoriesSettings?.selected ?? [];
+      const alreadySaved = savedList.some(
+        (c) => c.toLowerCase() === selectedCategory.trim().toLowerCase(),
+      );
+      if (user && !alreadySaved && savedList.length >= MIN_USER_CATEGORIES) {
+        await settingsService.updateCategories({
+          categories: [...savedList, selectedCategory],
+        });
+        await refreshPreferences();
+      }
+
       await studyClient.saveStudyPreferences(finalParams, user?.id);
 
       if (onGenerate) {
@@ -256,8 +472,10 @@ export function useStudyParameters(
       }
     } catch (error) {
       if (error instanceof ApiClientError) {
+        setValidationErrorCode(error.code);
         setValidationError(error.getUserMessage(locale));
       } else {
+        setValidationErrorCode(null);
         setValidationError(
           locale === "es"
             ? "Ocurrió un error al preparar la generación de la lectura."
@@ -273,9 +491,14 @@ export function useStudyParameters(
     locale,
     t,
     activePlanLanguages,
+    isPreferencesBlocked,
+    missingLanguagesForGeneration,
+    missingCategoriesForGeneration,
     isLoading,
     isSaving,
     isSubmitting,
+    subscriptionUsage,
+    planName,
     effectiveLanguage,
     setSelectedLanguage,
     selectedCategory,
@@ -297,6 +520,7 @@ export function useStudyParameters(
     cancelCustomCategory,
     estimatedTime,
     validationError,
+    validationErrorCode,
     setValidationError,
     saveNotice,
     setSaveNotice,
