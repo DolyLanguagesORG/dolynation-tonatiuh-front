@@ -81,9 +81,14 @@ Detalle y ejemplos en `references/consuming-api.md`.
 
 ## Tests
 
-Hoy **no** hay runner de tests en el frontend. El `verify` cubre `lint` +
-`typecheck`, y el CI añade el `build`. Cuando se defina estrategia de tests
-(unit con Vitest/Jest, e2e con Playwright, etc.), **actualiza esta skill**.
+El frontend cuenta con **Jest + React Testing Library** para pruebas unitarias e integración rápida (`src/**/*.test.{ts,tsx}`) y **Playwright** para flujos end-to-end reales en navegador (`e2e/*.spec.ts`):
+
+- Unitarias/integración: `npm test` (configuración en `jest.config.mjs` y `jest.setup.ts`).
+- End-to-End (con simulador `/api/v1/*` determinista): `npm run test:e2e`.
+- Smoke E2E contra backend real: `npm run test:e2e:live` (`E2E_TARGET=backend`).
+- Matriz completa de flujos críticos: [`docs/qa/FRONTEND-FLOWS-TEST-PLAN.md`](../../../docs/qa/FRONTEND-FLOWS-TEST-PLAN.md).
+
+Verificación estática: `npm run verify` cubre `lint` + `typecheck`, y el CI añade el `build`. Actualiza este documento y el plan QA si agregas nuevos flujos críticos o cambias comandos de prueba.
 
 ## Flujo de trabajo en este repo
 
