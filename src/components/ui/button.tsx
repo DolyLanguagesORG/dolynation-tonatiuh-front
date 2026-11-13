@@ -3,18 +3,13 @@
 import { Button as FlowbiteButton, Spinner } from "flowbite-react";
 import { type ButtonHTMLAttributes, forwardRef, type ReactNode } from "react";
 
+import {
+  type ButtonSize,
+  type ButtonVariant,
+} from "@/components/ui/button-styles";
 import { dolyFlowbiteTheme } from "@/components/ui/flowbite-theme";
 
-export type ButtonVariant =
-  | "primary"
-  | "secondary"
-  | "outline"
-  | "ghost"
-  | "success"
-  | "warning"
-  | "danger";
-
-export type ButtonSize = "sm" | "md" | "lg";
+export type { ButtonSize, ButtonVariant };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;

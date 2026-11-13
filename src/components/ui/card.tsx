@@ -6,7 +6,7 @@ export type CardPadding = "none" | "sm" | "md" | "lg";
 export interface CardProps extends HTMLAttributes<HTMLDivElement> {
   variant?: CardVariant;
   padding?: CardPadding;
-  as?: "div" | "article" | "section";
+  as?: "div" | "article" | "section" | "aside";
 }
 
 const VARIANT_CLASSES: Record<CardVariant, string> = {

@@ -238,6 +238,130 @@ export interface Dictionary {
     emptyCategoriesNotice: string;
     loadingParametersNotice: string;
   };
+  profile: {
+    eyebrow: string;
+    editProfileButton: string;
+    saveProfileButton: string;
+    cancelEditButton: string;
+    fullNameLabel: string;
+    memberSincePrefix: string;
+    verifiedLevelPrefix: string;
+    stats: {
+      totalReadings: string;
+      totalReadingsUnit: string;
+      focusHours: string;
+      focusHoursUnit: string;
+      activeVocabulary: string;
+      activeVocabularyUnit: string;
+      globalAccuracy: string;
+      globalAccuracyUnit: string;
+    };
+    streakSectionTitle: string;
+    streakSubtitle: string;
+    dailyGoalLabel: string;
+    activityGridTitle: string;
+    legendCompleted: string;
+    legendRest: string;
+    preferencesTitle: string;
+    activeLanguagesTitle: string;
+    favoriteCategoriesTitle: string;
+    selectedCountSuffix: string;
+    reorderHint: string;
+    movePriorityButton: string;
+    savingPreferences: string;
+    savedProfileNotice: string;
+    savedPreferencesNotice: string;
+  };
+  readings: {
+    historyTitle: string;
+    historySubtitle: string;
+    statusAll: string;
+    statusPending: string;
+    statusCompleted: string;
+    allLanguagesFilter: string;
+    allDifficultiesFilter: string;
+    searchPlaceholder: string;
+    columns: {
+      title: string;
+      language: string;
+      difficulty: string;
+      score: string;
+      date: string;
+      action: string;
+    };
+    detailAction: string;
+    rereadAction: string;
+    startReadingAction: string;
+    evaluateAction: string;
+    emptyTitle: string;
+    emptyDescription: string;
+    emptyAction: string;
+    backToReadings: string;
+    estimatedReadUnit: string;
+    readingStatusDone: string;
+    readingStatusPending: string;
+    backToConfigButton: string;
+    continueEvaluationButton: string;
+    detectedVocabularyTitle: string;
+    termsSuffix: string;
+    aiContextTitle: string;
+    suggestedTranslationLabel: string;
+    meaningInTextLabel: string;
+    pronounceButton: string;
+    detailedExplanationButton: string;
+    saveTermButton: string;
+    savedTermButton: string;
+    clickWordHint: string;
+    loadingContextNotice: string;
+    eval: {
+      backToReading: string;
+      activeSessionBadge: string;
+      eyebrow: string;
+      title: string;
+      readingPrefix: string;
+      criteriaTitle: string;
+      goalMinWords: string;
+      criteriaDescription: string;
+      openResponseTitle: string;
+      localSavedBadge: string;
+      saveDraftButton: string;
+      draftSavedNotice: string;
+      textareaLabel: string;
+      textareaPlaceholder: string;
+      minWordsSuffix: string;
+      charactersSuffix: string;
+      submitButton: string;
+      submittingButton: string;
+      aiDisclaimer: string;
+      minWordsError: string;
+      dimensionsTitle: string;
+      dimensions: readonly { title: string; description: string }[];
+    };
+    result: {
+      completedBadge: string;
+      subtitle: string;
+      globalIndexLabel: string;
+      passedBadge: string;
+      reviewBadge: string;
+      breakdownTitle: string;
+      dimensionsCount: string;
+      strengthsTitle: string;
+      improvementsTitle: string;
+      integrationSuggestionLabel: string;
+      submittedSummaryTitle: string;
+      assimilatedTermsTitle: string;
+      generateNewButton: string;
+      viewCompletedButton: string;
+      homeButton: string;
+      sessionFooterStandard: string;
+    };
+  };
+  designSystem: {
+    eyebrow: string;
+    title: string;
+    subtitle: string;
+    navLabel: string;
+  };
 }
 
 export const dictionaries: Record<Locale, Dictionary> = {
@@ -509,6 +633,155 @@ export const dictionaries: Record<Locale, Dictionary> = {
       emptyCategoriesNotice: "No hay categorías disponibles en este momento.",
       loadingParametersNotice: "Cargando opciones y preferencias de estudio...",
     },
+    profile: {
+      eyebrow: "[EXPEDIENTE ACADÉMICO] / PERFIL & RENDIMIENTO",
+      editProfileButton: "EDITAR PERFIL",
+      saveProfileButton: "Guardar cambios",
+      cancelEditButton: "Cancelar",
+      fullNameLabel: "Nombre completo del estudiante",
+      memberSincePrefix: "MIEMBRO DESDE:",
+      verifiedLevelPrefix: "PLAN ACTIVO:",
+      stats: {
+        totalReadings: "LECTURAS TOTALES",
+        totalReadingsUnit: "textos",
+        focusHours: "TIEMPO DE FOCO",
+        focusHoursUnit: "horas est.",
+        activeVocabulary: "VOCABULARIO ACTIVO",
+        activeVocabularyUnit: "términos",
+        globalAccuracy: "PRECISIÓN GLOBAL",
+        globalAccuracyUnit: "promedio",
+      },
+      streakSectionTitle: "Racha de Aprendizaje y Constancia",
+      streakSubtitle:
+        "Actividad sostenida de sesiones de lectura y evaluación contextual en el ciclo actual.",
+      dailyGoalLabel: "Objetivo de lectura diaria",
+      activityGridTitle: "REGISTRO DE ACTIVIDAD (ÚLTIMAS 4 SEMANAS)",
+      legendCompleted: "Completada",
+      legendRest: "Descanso",
+      preferencesTitle: "Preferencias de Aprendizaje e Intereses",
+      activeLanguagesTitle: "IDIOMAS DE PRÁCTICA ACTIVA",
+      favoriteCategoriesTitle: "CATEGORÍAS DE INTERÉS FAVORITAS",
+      selectedCountSuffix: "seleccionadas",
+      reorderHint: "Los textos generados por IA priorizarán estas áreas.",
+      movePriorityButton: "Priorizar",
+      savingPreferences: "Sincronizando preferencias...",
+      savedProfileNotice: "Perfil actualizado correctamente.",
+      savedPreferencesNotice: "Preferencias de estudio sincronizadas.",
+    },
+    readings: {
+      historyTitle: "Historial de Lecturas",
+      historySubtitle:
+        "Consulta tus lecturas en curso, textos evaluados, puntuaciones CEFR y retroalimentación.",
+      statusAll: "TODAS",
+      statusPending: "PENDIENTES",
+      statusCompleted: "COMPLETADAS",
+      allLanguagesFilter: "TODOS LOS IDIOMAS",
+      allDifficultiesFilter: "TODAS LAS DIFICULTADES",
+      searchPlaceholder: "Buscar por título o temática...",
+      columns: {
+        title: "TÍTULO DE LA LECTURA",
+        language: "IDIOMA",
+        difficulty: "DIFICULTAD",
+        score: "COMPRENSIÓN",
+        date: "FECHA",
+        action: "ACCIÓN",
+      },
+      detailAction: "DETALLE",
+      rereadAction: "RELEER",
+      startReadingAction: "LEER",
+      evaluateAction: "EVALUAR",
+      emptyTitle: "Aún no tienes lecturas registradas con estos filtros",
+      emptyDescription:
+        "Genera una nueva lectura adaptada por IA o ajusta los filtros de idioma y dificultad.",
+      emptyAction: "Crear nueva lectura IA",
+      backToReadings: "VOLVER A LECTURAS",
+      estimatedReadUnit: "MIN DE LECTURA",
+      readingStatusDone: "Lectura evaluada y completada",
+      readingStatusPending: "Texto listo para evaluación de comprensión",
+      backToConfigButton: "Volver a la configuración",
+      continueEvaluationButton: "CONTINUAR CON LA EVALUACIÓN",
+      detectedVocabularyTitle: "VOCABULARIO DETECTADO EN ESTA LECTURA",
+      termsSuffix: "Términos clave",
+      aiContextTitle: "CONTEXTO & TRADUCCIÓN • IA",
+      suggestedTranslationLabel: "Análisis contextual:",
+      meaningInTextLabel: "Sentido en el texto:",
+      pronounceButton: "Pronunciar",
+      detailedExplanationButton: "Explicación detallada",
+      saveTermButton: "Guardar",
+      savedTermButton: "Guardado",
+      clickWordHint:
+        "Haz clic en cualquier palabra del texto para consultar su análisis contextual con IA.",
+      loadingContextNotice: "Analizando término en el contexto del texto...",
+      eval: {
+        backToReading: "Volver o consultar texto original",
+        activeSessionBadge: "• SESIÓN ACTIVA",
+        eyebrow: "MÓDULO DE RETENCIÓN",
+        title: "Evaluación de Comprensión Contextual",
+        readingPrefix: "Lectura:",
+        criteriaTitle: "CRITERIOS DE RESPUESTA",
+        goalMinWords: "Objetivo: Mínimo 100 palabras",
+        criteriaDescription:
+          "Redacta un resumen o explicación con tus propias palabras sobre las ideas centrales del texto que acabas de leer. Se evaluará tu comprensión global, uso del léxico contextual y coherencia sintáctica.",
+        openResponseTitle: "RESPUESTA ABIERTA",
+        localSavedBadge: "Guardado local activo",
+        saveDraftButton: "Guardar borrador",
+        draftSavedNotice: "Borrador guardado localmente",
+        textareaLabel: "Resumen de comprensión",
+        textareaPlaceholder:
+          "Redacta con tus propias palabras las ideas principales y el argumento central del texto...",
+        minWordsSuffix: "/ 100 palabras mín.",
+        charactersSuffix: "caracteres",
+        submitButton: "Enviar resumen para evaluación por IA",
+        submittingButton: "Evaluando comprensión con IA...",
+        aiDisclaimer:
+          "Tu respuesta será analizada de forma contextual por el modelo de IA de DolyNation.",
+        minWordsError:
+          "Escribe un resumen más desarrollado (al menos 15 palabras) para obtener una evaluación precisa.",
+        dimensionsTitle: "DIMENSIONES DE CALIFICACIÓN CONTEXTUAL",
+        dimensions: [
+          {
+            title: "1. Retención Temática",
+            description:
+              "Identificación de premisas primarias del autor y síntesis de argumentos centrales.",
+          },
+          {
+            title: "2. Léxico Contextual",
+            description:
+              "Uso preciso de terminología técnica sin pérdida de coherencia semántica.",
+          },
+          {
+            title: "3. Claridad Sintáctica",
+            description:
+              "Estructuras oracionales bien ensambladas con transiciones discursivas naturales.",
+          },
+        ],
+      },
+      result: {
+        completedBadge: "• EVALUACIÓN COMPLETADA",
+        subtitle: "Retroalimentación sintética generada a partir de tu resumen presentado.",
+        globalIndexLabel: "ÍNDICE GLOBAL DE ASIMILACIÓN",
+        passedBadge: "NIVEL DE COMPRENSIÓN: APROBADO",
+        reviewBadge: "NIVEL DE COMPRENSIÓN: EN REFUERZO",
+        breakdownTitle: "Análisis Desglosado del Desempeño",
+        dimensionsCount: "EVALUACIÓN CONTEXTUAL",
+        strengthsTitle: "OBSERVACIÓN GENERAL DE LA IA",
+        improvementsTitle: "TU RESPUESTA PRESENTADA & REFINAMIENTO",
+        integrationSuggestionLabel: "SÍNTESIS EVALUADA:",
+        submittedSummaryTitle: "Resumen enviado en la evaluación",
+        assimilatedTermsTitle: "TÉRMINOS CLAVE ASIMILADOS",
+        generateNewButton: "Generar nueva lectura",
+        viewCompletedButton: "Ver mis lecturas completadas",
+        homeButton: "Inicio",
+        sessionFooterStandard: "SISTEMA DE CALIFICACIÓN NORMALIZADO (CEFR / ACTFL)",
+      },
+    },
+    designSystem: {
+      eyebrow: "[ARQUITECTURA UI] / BIBLIOTECA ESTANDARIZADA",
+      title: "Sistema de Diseño y Componentes Base",
+      subtitle:
+        "Catálogo oficial de primitivos en Blanco y Negro basados en Flowbite React, Lucide Icons y los tokens editoriales de DolyNation.",
+      navLabel: "SISTEMA UI",
+    },
   },
   en: {
     meta: {
@@ -774,6 +1047,155 @@ export const dictionaries: Record<Locale, Dictionary> = {
       errorRequiredLength: "Please select a text length option.",
       emptyCategoriesNotice: "No categories currently available.",
       loadingParametersNotice: "Loading options and study preferences...",
+    },
+    profile: {
+      eyebrow: "[ACADEMIC RECORD] / PROFILE & PERFORMANCE",
+      editProfileButton: "EDIT PROFILE",
+      saveProfileButton: "Save changes",
+      cancelEditButton: "Cancel",
+      fullNameLabel: "Student full name",
+      memberSincePrefix: "MEMBER SINCE:",
+      verifiedLevelPrefix: "ACTIVE PLAN:",
+      stats: {
+        totalReadings: "TOTAL READINGS",
+        totalReadingsUnit: "texts",
+        focusHours: "FOCUS TIME",
+        focusHoursUnit: "est. hours",
+        activeVocabulary: "ACTIVE VOCABULARY",
+        activeVocabularyUnit: "terms",
+        globalAccuracy: "GLOBAL ACCURACY",
+        globalAccuracyUnit: "average",
+      },
+      streakSectionTitle: "Learning Streak & Consistency",
+      streakSubtitle:
+        "Sustained reading and contextual comprehension sessions across the current cycle.",
+      dailyGoalLabel: "Daily reading goal",
+      activityGridTitle: "ACTIVITY LOG (LAST 4 WEEKS)",
+      legendCompleted: "Completed",
+      legendRest: "Rest",
+      preferencesTitle: "Learning Preferences & Interests",
+      activeLanguagesTitle: "ACTIVE PRACTICE LANGUAGES",
+      favoriteCategoriesTitle: "FAVORITE INTEREST CATEGORIES",
+      selectedCountSuffix: "selected",
+      reorderHint: "AI-generated texts will prioritize these topics.",
+      movePriorityButton: "Prioritize",
+      savingPreferences: "Syncing preferences...",
+      savedProfileNotice: "Profile updated successfully.",
+      savedPreferencesNotice: "Study preferences synced.",
+    },
+    readings: {
+      historyTitle: "Reading History",
+      historySubtitle:
+        "Review your ongoing readings, evaluated texts, CEFR scores, and AI feedback.",
+      statusAll: "ALL",
+      statusPending: "PENDING",
+      statusCompleted: "COMPLETED",
+      allLanguagesFilter: "ALL LANGUAGES",
+      allDifficultiesFilter: "ALL DIFFICULTIES",
+      searchPlaceholder: "Search by title or topic...",
+      columns: {
+        title: "READING TITLE",
+        language: "LANGUAGE",
+        difficulty: "DIFFICULTY",
+        score: "COMPREHENSION",
+        date: "DATE",
+        action: "ACTION",
+      },
+      detailAction: "DETAIL",
+      rereadAction: "REREAD",
+      startReadingAction: "READ",
+      evaluateAction: "EVALUATE",
+      emptyTitle: "No readings match these filters yet",
+      emptyDescription:
+        "Generate a new AI-tailored reading or clear your language and difficulty filters.",
+      emptyAction: "Create new AI reading",
+      backToReadings: "BACK TO READINGS",
+      estimatedReadUnit: "MIN READ",
+      readingStatusDone: "Reading evaluated and completed",
+      readingStatusPending: "Text ready for comprehension evaluation",
+      backToConfigButton: "Back to configuration",
+      continueEvaluationButton: "CONTINUE TO EVALUATION",
+      detectedVocabularyTitle: "DETECTED VOCABULARY IN THIS READING",
+      termsSuffix: "Key Terms",
+      aiContextTitle: "CONTEXT & TRANSLATION • AI",
+      suggestedTranslationLabel: "Contextual analysis:",
+      meaningInTextLabel: "Meaning in text:",
+      pronounceButton: "Pronounce",
+      detailedExplanationButton: "Detailed explanation",
+      saveTermButton: "Save",
+      savedTermButton: "Saved",
+      clickWordHint:
+        "Click any word in the text to inspect its AI contextual analysis.",
+      loadingContextNotice: "Analyzing term within reading context...",
+      eval: {
+        backToReading: "Back to original reading text",
+        activeSessionBadge: "• ACTIVE SESSION",
+        eyebrow: "RETENTION MODULE",
+        title: "Contextual Comprehension Evaluation",
+        readingPrefix: "Reading:",
+        criteriaTitle: "RESPONSE CRITERIA",
+        goalMinWords: "Target: Minimum 100 words",
+        criteriaDescription:
+          "Write a summary or explanation in your own words covering the central ideas of the reading. Global comprehension, contextual vocabulary usage, and syntactic coherence will be evaluated.",
+        openResponseTitle: "OPEN RESPONSE",
+        localSavedBadge: "Local autosave active",
+        saveDraftButton: "Save draft",
+        draftSavedNotice: "Draft saved locally",
+        textareaLabel: "Comprehension summary",
+        textareaPlaceholder:
+          "Write in your own words the main ideas and central argument of the text...",
+        minWordsSuffix: "/ 100 words min.",
+        charactersSuffix: "characters",
+        submitButton: "Submit summary for AI evaluation",
+        submittingButton: "Evaluating comprehension with AI...",
+        aiDisclaimer:
+          "Your response will be analyzed contextually by the DolyNation AI model.",
+        minWordsError:
+          "Write a slightly longer summary (at least 15 words) to receive an accurate evaluation.",
+        dimensionsTitle: "CONTEXTUAL GRADING DIMENSIONS",
+        dimensions: [
+          {
+            title: "1. Thematic Retention",
+            description:
+              "Identification of the author's primary premises and synthesis of central arguments.",
+          },
+          {
+            title: "2. Contextual Lexicon",
+            description:
+              "Accurate use of domain terminology without losing semantic coherence.",
+          },
+          {
+            title: "3. Syntactic Clarity",
+            description:
+              "Well-structured sentences connected with natural discourse transitions.",
+          },
+        ],
+      },
+      result: {
+        completedBadge: "• EVALUATION COMPLETED",
+        subtitle: "Synthetic feedback generated from your submitted summary.",
+        globalIndexLabel: "GLOBAL ASSIMILATION INDEX",
+        passedBadge: "COMPREHENSION LEVEL: PASSED",
+        reviewBadge: "COMPREHENSION LEVEL: NEEDS REVIEW",
+        breakdownTitle: "Performance Breakdown Analysis",
+        dimensionsCount: "CONTEXTUAL EVALUATION",
+        strengthsTitle: "GENERAL AI FEEDBACK",
+        improvementsTitle: "YOUR SUBMITTED SUMMARY & REFINEMENT",
+        integrationSuggestionLabel: "EVALUATED SUMMARY:",
+        submittedSummaryTitle: "Summary submitted for evaluation",
+        assimilatedTermsTitle: "ASSIMILATED KEY TERMS",
+        generateNewButton: "Generate new reading",
+        viewCompletedButton: "View completed readings",
+        homeButton: "Home",
+        sessionFooterStandard: "STANDARDIZED GRADING SYSTEM (CEFR / ACTFL)",
+      },
+    },
+    designSystem: {
+      eyebrow: "[UI ARCHITECTURE] / STANDARDIZED LIBRARY",
+      title: "Design System & Base Components",
+      subtitle:
+        "Official Black & White component catalog built on Flowbite React, Lucide Icons, and DolyNation editorial tokens.",
+      navLabel: "UI SYSTEM",
     },
   },
 };

@@ -13,7 +13,7 @@ export const dolyFlowbiteTheme = createTheme({
     disabled: "cursor-not-allowed opacity-50 pointer-events-none",
     fullSized: "w-full",
     size: {
-      xs: "min-h-8 px-3 py-1.5 text-xs tracking-wider uppercase",
+      xs: "min-h-7 px-2.5 py-1 text-[11px] tracking-wider uppercase",
       sm: "min-h-8 px-3 py-1.5 text-xs tracking-wider uppercase",
       md: "min-h-11 px-4 py-2.5 text-xs tracking-wider uppercase",
       lg: "min-h-12 px-6 py-3 text-sm tracking-wide",
@@ -198,6 +198,108 @@ export const dolyFlowbiteTheme = createTheme({
     },
     groupLink: {
       base: "flex flex-wrap text-body dark:text-body",
+    },
+  },
+  textarea: {
+    base: "block w-full rounded-base border p-3.5 text-sm leading-relaxed transition-colors duration-150 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:cursor-not-allowed disabled:bg-neutral-tertiary/60 disabled:text-fg-disabled disabled:opacity-70",
+    colors: {
+      gray: "border-default-medium bg-neutral-primary-soft text-heading placeholder:text-body-subtle hover:border-brand focus:border-brand focus:ring-0 dark:border-default-medium dark:bg-neutral-primary-soft dark:text-heading dark:placeholder:text-body-subtle dark:focus:border-brand",
+      info: "border-brand bg-neutral-primary-soft text-heading placeholder:text-body-subtle focus:border-brand focus:ring-0 dark:border-brand dark:bg-neutral-primary-soft dark:text-heading",
+      failure:
+        "border-danger bg-danger-soft/60 text-heading placeholder:text-body-subtle focus:border-danger focus:ring-0 dark:border-danger dark:bg-danger-soft/60 dark:text-heading",
+      warning:
+        "border-warning bg-warning-soft/60 text-heading placeholder:text-body-subtle focus:border-warning focus:ring-0 dark:border-warning dark:bg-warning-soft/60 dark:text-heading",
+      success:
+        "border-success bg-success-soft/60 text-heading placeholder:text-body-subtle focus:border-success focus:ring-0 dark:border-success dark:bg-success-soft/60 dark:text-heading",
+    },
+    withShadow: {
+      on: "shadow-none",
+      off: "shadow-none",
+    },
+  },
+  select: {
+    base: "flex",
+    addon:
+      "inline-flex items-center rounded-l-base border border-r-0 border-default-medium bg-neutral-secondary-medium px-3 text-xs font-semibold text-body",
+    field: {
+      base: "relative w-full",
+      icon: {
+        base: "pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3 text-body",
+        svg: "h-4 w-4 text-body",
+      },
+      select: {
+        base: "block w-full cursor-pointer appearance-none rounded-base border pr-9 font-sans font-medium transition-colors duration-150 focus:outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:cursor-not-allowed disabled:bg-neutral-tertiary/60 disabled:text-fg-disabled disabled:opacity-70",
+        withIcon: {
+          on: "pl-10",
+          off: "",
+        },
+        withAddon: {
+          on: "rounded-r-base",
+          off: "rounded-base",
+        },
+        withShadow: {
+          on: "shadow-none",
+          off: "shadow-none",
+        },
+        sizes: {
+          sm: "min-h-8 px-3 py-1.5 pr-8 text-[11px] font-bold tracking-wider uppercase",
+          md: "min-h-11 px-3.5 py-2.5 pr-9 text-sm",
+          lg: "min-h-12 px-4 py-3 pr-10 text-base",
+        },
+        colors: {
+          gray: "border-default-medium bg-neutral-primary-soft text-heading hover:border-brand focus:border-brand focus:ring-0 dark:border-default-medium dark:bg-neutral-primary-soft dark:text-heading dark:focus:border-brand",
+          info: "border-brand bg-neutral-primary-soft text-heading focus:border-brand focus:ring-0 dark:border-brand dark:bg-neutral-primary-soft dark:text-heading",
+          failure:
+            "border-danger bg-danger-soft/60 text-heading focus:border-danger focus:ring-0 dark:border-danger dark:bg-danger-soft/60 dark:text-heading",
+          warning:
+            "border-warning bg-warning-soft/60 text-heading focus:border-warning focus:ring-0 dark:border-warning dark:bg-warning-soft/60 dark:text-heading",
+          success:
+            "border-success bg-success-soft/60 text-heading focus:border-success focus:ring-0 dark:border-success dark:bg-success-soft/60 dark:text-heading",
+        },
+      },
+    },
+  },
+  progress: {
+    base: "w-full overflow-hidden rounded-none bg-neutral-secondary-medium dark:bg-neutral-secondary-medium",
+    label: "mb-1 flex justify-between text-xs font-semibold text-heading",
+    bar: "rounded-none transition-all duration-300",
+    color: {
+      default: "bg-brand dark:bg-brand",
+      dark: "bg-brand dark:bg-brand",
+      gray: "bg-body-subtle dark:bg-body-subtle",
+      green: "bg-success dark:bg-success",
+      yellow: "bg-warning dark:bg-warning",
+      red: "bg-danger dark:bg-danger",
+    },
+    size: {
+      sm: "h-1",
+      md: "h-1.5",
+      lg: "h-2.5",
+      xl: "h-3.5",
+    },
+  },
+  table: {
+    root: {
+      base: "w-full text-left text-sm text-body",
+      shadow: "",
+      wrapper: "relative w-full overflow-x-auto",
+    },
+    head: {
+      base: "border-y border-default bg-neutral-secondary-medium text-[10px] font-bold tracking-widest text-muted uppercase dark:bg-neutral-secondary-medium dark:text-muted",
+      cell: {
+        base: "px-4 py-3 font-bold",
+      },
+    },
+    row: {
+      base: "border-b border-default last:border-b-0 transition-colors",
+      hovered: "hover:bg-neutral-secondary-soft dark:hover:bg-neutral-secondary-soft",
+      striped: "even:bg-neutral-secondary-soft/40",
+    },
+    body: {
+      base: "divide-y divide-default",
+      cell: {
+        base: "px-4 py-4 align-middle",
+      },
     },
   },
 });
