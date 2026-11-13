@@ -1,61 +1,25 @@
 /**
- * Almacén en memoria para tokens de sesión.
+ * Coordinación de ciclo de vida de sesión en el cliente.
  *
- * Regla de seguridad (front#3 / RNF-02):
- * El `accessToken` vive exclusivamente en memoria del proceso JS (y en el
- * estado de React de `AuthProvider`). Jamás se persiste en `localStorage`
- * ni `sessionStorage`.
+ * Seguridad BFF (HttpOnly cookies):
+ * Ni el `accessToken` ni el `refreshToken` se guardan en `localStorage`,
+ * `sessionStorage` ni memoria JavaScript del navegador. El proxy `/api/v1/*`
+ * gestiona ambos tokens en cookies `HttpOnly` inaccesibles a JS/XSS.
+ *
+ * Este módulo conserva únicamente la coordinación single-flight de recuperación
+ * ante 401 y la notificación al proveedor React si la sesión expiró definitivamente.
  */
 
-export interface TokenPair {
-  accessToken: string | null;
-  refreshToken?: string | null;
-}
-
-type RefreshHandler = () => Promise<string | null>;
+type RefreshHandler = () => Promise<boolean>;
 type UnauthorizedHandler = () => void;
 
-let inMemoryAccessToken: string | null = null;
-let inMemoryRefreshToken: string | null = null;
 let refreshHandler: RefreshHandler | null = null;
 let unauthorizedHandler: UnauthorizedHandler | null = null;
-let activeRefreshPromise: Promise<string | null> | null = null;
+let activeRefreshPromise: Promise<boolean> | null = null;
 
 /**
- * Obtiene el `accessToken` actual desde la memoria.
- */
-export function getAccessToken(): string | null {
-  return inMemoryAccessToken;
-}
-
-/**
- * Obtiene el `refreshToken` actual desde la memoria (respaldo del cookie HttpOnly del BFF).
- */
-export function getRefreshToken(): string | null {
-  return inMemoryRefreshToken;
-}
-
-/**
- * Actualiza los tokens activos en memoria.
- */
-export function setAuthTokens(tokens: TokenPair): void {
-  inMemoryAccessToken = tokens.accessToken;
-  if (tokens.refreshToken !== undefined) {
-    inMemoryRefreshToken = tokens.refreshToken;
-  }
-}
-
-/**
- * Limpia por completo los tokens en memoria.
- */
-export function clearAuthTokens(): void {
-  inMemoryAccessToken = null;
-  inMemoryRefreshToken = null;
-}
-
-/**
- * Registra callbacks del contexto de sesión para renovar el token ante un 401
- * o limpiar la sesión y redirigir a `/login` si el refresh falla.
+ * Registra callbacks del contexto de sesión para renovar vía BFF ante un 401
+ * o limpiar la sesión y redirigir a `/login` si la renovación falla.
  */
 export function registerAuthLifecycleHandlers(handlers: {
   onRefresh: RefreshHandler | null;
@@ -69,9 +33,9 @@ export function registerAuthLifecycleHandlers(handlers: {
  * Ejecuta el refresh una sola vez aunque concurran múltiples peticiones con 401
  * (patrón single-flight).
  */
-export async function executeSingleFlightRefresh(): Promise<string | null> {
+export async function executeSingleFlightRefresh(): Promise<boolean> {
   if (!refreshHandler) {
-    return null;
+    return false;
   }
 
   if (!activeRefreshPromise) {
@@ -84,10 +48,9 @@ export async function executeSingleFlightRefresh(): Promise<string | null> {
 }
 
 /**
- * Notifica al proveedor de sesión que la renovación tras un 401 falló
- * y debe limpiarse el estado y redirigir a `/login`.
+ * Notifica al proveedor de sesión que la sesión expiró definitivamente
+ * y debe limpiarse el estado local y redirigir a `/login`.
  */
 export function notifySessionUnauthorized(): void {
-  clearAuthTokens();
   unauthorizedHandler?.();
 }

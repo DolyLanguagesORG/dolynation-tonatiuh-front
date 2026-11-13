@@ -1,24 +1,49 @@
 /**
- * Contrato de respuestas y catálogo de errores del backend (`dolynation-atl-back`).
+ * Contrato de respuestas y catálogo completo de errores del backend (`dolynation-atl-back`).
  *
- * Regla de arquitectura: el frontend toma decisiones usando `error.code` (string estable),
- * nunca inspeccionando ni parseando `error.message`.
+ * Regla de arquitectura: el frontend toma decisiones exclusivamente usando `error.code`
+ * (string estable), nunca inspeccionando ni parseando `error.message`.
  */
 
 export const ErrorCode = {
+  // Autenticación (4xx)
   AUTH_INVALID_CREDENTIALS: "AUTH_INVALID_CREDENTIALS",
   AUTH_TOKEN_EXPIRED: "AUTH_TOKEN_EXPIRED",
   AUTH_TOKEN_INVALID: "AUTH_TOKEN_INVALID",
   AUTH_EMAIL_ALREADY_EXISTS: "AUTH_EMAIL_ALREADY_EXISTS",
   AUTH_PASSWORD_TOO_WEAK: "AUTH_PASSWORD_TOO_WEAK",
   AUTH_UNAUTHORIZED: "AUTH_UNAUTHORIZED",
+
+  // Recursos (4xx)
   RESOURCE_NOT_FOUND: "RESOURCE_NOT_FOUND",
   RESOURCE_FORBIDDEN: "RESOURCE_FORBIDDEN",
+
+  // Dominio de lecturas (4xx / 429)
   READING_PENDING_LIMIT_REACHED: "READING_PENDING_LIMIT_REACHED",
   READING_ALREADY_EVALUATED: "READING_ALREADY_EVALUATED",
+  READING_DAILY_LIMIT_REACHED: "READING_DAILY_LIMIT_REACHED",
+  EXPLANATION_DAILY_LIMIT_REACHED: "EXPLANATION_DAILY_LIMIT_REACHED",
+
+  // Suscripciones e idiomas (4xx)
+  SUBSCRIPTION_REQUIRED: "SUBSCRIPTION_REQUIRED",
+  SUBSCRIPTION_INVALID_TIER: "SUBSCRIPTION_INVALID_TIER",
+  SUBSCRIPTION_CATEGORY_LIMIT_EXCEEDED: "SUBSCRIPTION_CATEGORY_LIMIT_EXCEEDED",
+  SUBSCRIPTION_LANGUAGE_LIMIT_EXCEEDED: "SUBSCRIPTION_LANGUAGE_LIMIT_EXCEEDED",
+  SUBSCRIPTION_LANGUAGE_NOT_ALLOWED: "SUBSCRIPTION_LANGUAGE_NOT_ALLOWED",
+  LANGUAGE_NOT_SELECTED: "LANGUAGE_NOT_SELECTED",
+  LANGUAGE_CHANGE_LOCKED: "LANGUAGE_CHANGE_LOCKED",
+
+  // Categorías y moderación (4xx / 429)
+  CATEGORY_MODERATION_REJECTED: "CATEGORY_MODERATION_REJECTED",
+  CATEGORY_DAILY_LIMIT_REACHED: "CATEGORY_DAILY_LIMIT_REACHED",
+
+  // Validación (4xx)
   VALIDATION_ERROR: "VALIDATION_ERROR",
+
+  // Servidor (5xx)
   INTERNAL_ERROR: "INTERNAL_ERROR",
   SERVICE_UNAVAILABLE: "SERVICE_UNAVAILABLE",
+
   // Códigos de transporte del cliente HTTP
   NETWORK_ERROR: "NETWORK_ERROR",
   CONFIG_ERROR: "CONFIG_ERROR",
@@ -45,7 +70,7 @@ export interface ApiError {
 export interface ApiResponse<T = unknown> {
   message: string;
   data: T;
-  error?: ApiError;
+  error?: ApiError | null;
 }
 
 const ERROR_MESSAGES_ES: Record<KnownErrorCode, string> = {
@@ -69,6 +94,28 @@ const ERROR_MESSAGES_ES: Record<KnownErrorCode, string> = {
     "Alcanzaste el límite de lecturas pendientes. Completa tus evaluaciones activas antes de generar un nuevo texto.",
   READING_ALREADY_EVALUATED:
     "Esta lectura ya fue evaluada previamente y su calificación está cerrada.",
+  READING_DAILY_LIMIT_REACHED:
+    "Alcanzaste el límite diario de generación de lecturas permitido por tu plan actual.",
+  EXPLANATION_DAILY_LIMIT_REACHED:
+    "Alcanzaste el límite diario de preguntas y explicaciones permitido por tu plan actual.",
+  SUBSCRIPTION_REQUIRED:
+    "Necesitas seleccionar un plan de suscripción activo antes de usar las herramientas de estudio.",
+  SUBSCRIPTION_INVALID_TIER:
+    "El plan de suscripción especificado no es válido. Elige Dolly, Dolly Plus o Dolly Pro.",
+  SUBSCRIPTION_CATEGORY_LIMIT_EXCEEDED:
+    "Superaste el máximo de categorías de estudio permitido por tu plan de suscripción.",
+  SUBSCRIPTION_LANGUAGE_LIMIT_EXCEEDED:
+    "Superaste el máximo de idiomas simultáneos permitido por tu plan de suscripción.",
+  SUBSCRIPTION_LANGUAGE_NOT_ALLOWED:
+    "El idioma seleccionado no está habilitado dentro de los cupos activos de tu suscripción.",
+  LANGUAGE_NOT_SELECTED:
+    "Debes elegir al menos un idioma de estudio en configuración antes de generar lecturas.",
+  LANGUAGE_CHANGE_LOCKED:
+    "Tu selección de idiomas está bloqueada. Puedes modificarla una vez al año o adquirir un desbloqueo inmediato.",
+  CATEGORY_MODERATION_REJECTED:
+    "Una o más categorías propuestas no superaron las políticas de moderación de contenido.",
+  CATEGORY_DAILY_LIMIT_REACHED:
+    "Alcanzaste el límite diario para evaluar o añadir nuevas categorías personalizadas. Intenta mañana.",
   VALIDATION_ERROR:
     "Algunos campos del formulario contienen errores. Revisa los datos marcados.",
   INTERNAL_ERROR:
@@ -78,7 +125,7 @@ const ERROR_MESSAGES_ES: Record<KnownErrorCode, string> = {
   NETWORK_ERROR:
     "No fue posible conectar con el servidor. Verifica tu conexión o el estado del backend.",
   CONFIG_ERROR:
-    "El proxy del servidor no está configurado. Revisa BACKEND_INTERNAL_URL en el entorno del despliegue.",
+    "El proxy interno del servidor no está configurado correctamente en este entorno.",
   UNKNOWN_ERROR:
     "Se produjo un error inesperado al procesar la solicitud.",
 };
@@ -104,6 +151,28 @@ const ERROR_MESSAGES_EN: Record<KnownErrorCode, string> = {
     "You have reached the pending readings limit. Complete active evaluations before generating a new text.",
   READING_ALREADY_EVALUATED:
     "This reading has already been evaluated.",
+  READING_DAILY_LIMIT_REACHED:
+    "You have reached the daily reading generation limit for your current plan.",
+  EXPLANATION_DAILY_LIMIT_REACHED:
+    "You have reached the daily vocabulary explanation limit for your current plan.",
+  SUBSCRIPTION_REQUIRED:
+    "An active subscription plan is required before accessing study tools. Please select a plan.",
+  SUBSCRIPTION_INVALID_TIER:
+    "The selected subscription tier is invalid. Choose Dolly, Dolly Plus, or Dolly Pro.",
+  SUBSCRIPTION_CATEGORY_LIMIT_EXCEEDED:
+    "You have exceeded the maximum number of categories allowed by your subscription plan.",
+  SUBSCRIPTION_LANGUAGE_LIMIT_EXCEEDED:
+    "You have exceeded the maximum number of simultaneous languages allowed by your plan.",
+  SUBSCRIPTION_LANGUAGE_NOT_ALLOWED:
+    "The requested language is not enabled in your active subscription language selection.",
+  LANGUAGE_NOT_SELECTED:
+    "You must select your target study languages in settings before generating readings.",
+  LANGUAGE_CHANGE_LOCKED:
+    "Your selected languages are locked. You can change them once per year or unlock an immediate change.",
+  CATEGORY_MODERATION_REJECTED:
+    "One or more custom categories were rejected by content moderation.",
+  CATEGORY_DAILY_LIMIT_REACHED:
+    "Daily limit for adding or evaluating new custom categories has been reached. Try again tomorrow.",
   VALIDATION_ERROR:
     "Some form fields contain validation errors. Please check the highlighted inputs.",
   INTERNAL_ERROR:
@@ -113,10 +182,19 @@ const ERROR_MESSAGES_EN: Record<KnownErrorCode, string> = {
   NETWORK_ERROR:
     "Could not reach the backend server. Check your network connection.",
   CONFIG_ERROR:
-    "The server proxy is not configured. Check BACKEND_INTERNAL_URL in the deployment environment.",
+    "The internal server proxy is not properly configured in this environment.",
   UNKNOWN_ERROR:
     "An unexpected error occurred while processing the request.",
 };
+
+const KNOWN_ERROR_CODE_SET = new Set<string>(Object.values(ErrorCode));
+
+/**
+ * Valida si una cadena desconocida pertenece al catálogo oficial de errores.
+ */
+export function isErrorCode(value: unknown): value is KnownErrorCode {
+  return typeof value === "string" && KNOWN_ERROR_CODE_SET.has(value);
+}
 
 /**
  * Resuelve un mensaje legible para el usuario a partir de `error.code`.
@@ -160,7 +238,7 @@ export function extractValidationFields(
 }
 
 /**
- * Error uniforme lanzado por el cliente HTTP del frontend.
+ * Error uniforme lanzado por el cliente HTTP y servicios del frontend.
  */
 export class ApiClientError extends Error {
   public readonly code: KnownErrorCode | (string & {});
@@ -200,6 +278,36 @@ export class ApiClientError extends Error {
       this.code === ErrorCode.AUTH_UNAUTHORIZED ||
       this.code === ErrorCode.AUTH_TOKEN_EXPIRED ||
       this.code === ErrorCode.AUTH_TOKEN_INVALID
+    );
+  }
+
+  /**
+   * Indica si el usuario debe elegir un plan de suscripción antes de operar (HTTP 403).
+   */
+  public get isSubscriptionRequired(): boolean {
+    return this.code === ErrorCode.SUBSCRIPTION_REQUIRED;
+  }
+
+  /**
+   * Indica si se alcanzó un límite diario de cuota o moderación (HTTP 429).
+   */
+  public get isRateLimited(): boolean {
+    return (
+      this.status === 429 ||
+      this.code === ErrorCode.READING_DAILY_LIMIT_REACHED ||
+      this.code === ErrorCode.EXPLANATION_DAILY_LIMIT_REACHED ||
+      this.code === ErrorCode.CATEGORY_DAILY_LIMIT_REACHED
+    );
+  }
+
+  /**
+   * Indica si el bloqueo corresponde a idioma no seleccionado o candado anual.
+   */
+  public get isLanguageBlocked(): boolean {
+    return (
+      this.code === ErrorCode.LANGUAGE_CHANGE_LOCKED ||
+      this.code === ErrorCode.LANGUAGE_NOT_SELECTED ||
+      this.code === ErrorCode.SUBSCRIPTION_LANGUAGE_NOT_ALLOWED
     );
   }
 }

@@ -1,34 +1,33 @@
 import { type NextRequest } from "next/server";
 
+import {
+  ACCESS_COOKIE_NAME,
+  appendSessionCookies,
+  clearSessionCookies,
+  REFRESH_COOKIE_NAME,
+} from "@/lib/server/auth-cookies";
 import { backendInternalUrl } from "@/lib/server/backend-url";
+import {
+  extractSessionTokensFromEnvelope,
+  invalidateRefreshCache,
+  refreshTokensOnServer,
+} from "@/lib/server/bff-refresh";
 
 /**
- * Proxy del frontend hacia el backend (patron BFF de Next.js).
+ * Proxy BFF del frontend hacia `dolynation-atl-back`.
  *
- * El navegador nunca ve la direccion del backend: pide `/api/v1/<ruta>` a
- * este mismo origen y es el servidor de Next.js quien reenvia la peticion a
- * `BACKEND_INTERNAL_URL`, que es una variable **de servidor** (no lleva
- * `NEXT_PUBLIC_`, asi que no se compila en el bundle del navegador).
- *
- * Ventajas frente a llamar al backend desde el navegador:
- *
- * - La URL y el puerto del backend no se filtran al cliente.
- * - Gestiona la cookie `HttpOnly` de `refreshToken` en el servidor (front#3)
- *   para restaurar sesiones sin persistir tokens en `localStorage`.
- * - El navegador solo habla con un origen: no hay CORS ni preflight.
- * - `BACKEND_INTERNAL_URL` se lee en tiempo de ejecucion, no se hornea en
- *   el build: staging y produccion pueden apuntar a backends distintos.
+ * Garantías de arquitectura y seguridad:
+ * - El navegador nunca ve `BACKEND_INTERNAL_URL`: solo llama a `/api/v1/<ruta>`.
+ * - Ambos tokens JWT (`doly_access_token` y `doly_refresh_token`) se resguardan
+ *   exclusivamente en cookies `HttpOnly` del dominio Next.js, jamás en
+ *   `localStorage` ni en memoria JavaScript expuesta del navegador.
+ * - Las respuestas de `/auth/login`, `/auth/register` y `/auth/refresh` redactan
+ *   los JWT crudos antes de enviarse al cliente.
+ * - Si el access token expira en una petición privada, el proxy renueva el par
+ *   una sola vez (single-flight + caché de gracia en servidor) usando la cookie
+ *   `doly_refresh_token` y reintenta transparentemente antes de responder.
  */
 
-const REFRESH_COOKIE_NAME = "doly_refresh_token";
-const SESSION_FLAG_COOKIE_NAME = "doly_session";
-const REFRESH_COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 días
-
-/**
- * Cabeceras que se reenvian al backend. Todo lo demas se descarta: las
- * cookies del navegador no deben viajar a la API, y las cabeceras `host` o
- * `connection` harian que el backend creyera estar en otro servidor.
- */
 const FORWARDED_REQUEST_HEADERS = [
   "accept",
   "accept-language",
@@ -36,9 +35,12 @@ const FORWARDED_REQUEST_HEADERS = [
   "content-type",
 ] as const;
 
-/**
- * Methods que el backend expone.
- */
+const FORWARDED_RESPONSE_HEADERS = [
+  "content-type",
+  "cache-control",
+  "x-app-version",
+] as const;
+
 const ALLOWED_METHODS = new Set([
   "GET",
   "POST",
@@ -49,30 +51,35 @@ const ALLOWED_METHODS = new Set([
   "OPTIONS",
 ]);
 
-/**
- * Error con la misma forma que el envelope del backend
- * (`{ message, data, error }`), para que el cliente del frontend pueda
- * tratarlo sin cambiar su manejo de errores.
- */
+const PUBLIC_NO_BEARER_ROUTES = new Set([
+  "auth/login",
+  "auth/register",
+  "auth/refresh",
+]);
+
 function apiError(
   status: number,
   code: string,
   message: string,
+  extraHeaders?: Headers,
 ): Response {
-  return Response.json(
-    {
+  const headers = new Headers(extraHeaders);
+  headers.set("content-type", "application/json; charset=utf-8");
+  headers.set("x-dolynation-proxy", "nextjs");
+
+  return new Response(
+    JSON.stringify({
       message,
       data: null,
       error: { code, message },
-    },
-    { status },
+    }),
+    { status, headers },
   );
 }
 
 /**
- * Normaliza los segmentos de la ruta para impedir path traversal
- * (`..`, `.`) y separadores incrustados. Devuelve `null` si la ruta es
- * invalida.
+ * Normaliza los segmentos de la ruta para impedir path traversal (`..`, `.`) y
+ * separadores incrustados. Devuelve `null` si la ruta es inválida.
  */
 function sanitizeSegments(segments: string[]): string[] | null {
   const clean: string[] = [];
@@ -104,8 +111,7 @@ function sanitizeSegments(segments: string[]): string[] | null {
 }
 
 /**
- * Construye la URL final en el backend a partir de los segmentos de la ruta
- * y los parametros de consulta.
+ * Construye la URL final en el backend a partir de los segmentos y query params.
  */
 function buildTargetUrl(
   segments: string[],
@@ -114,7 +120,6 @@ function buildTargetUrl(
   const base = new URL(backendInternalUrl);
   const basePath = base.pathname.replace(/\/+$/, "");
   const path = segments.length > 0 ? `/${segments.join("/")}` : "";
-
   const target = new URL(`${basePath}${path}`, base);
 
   searchParams.forEach((value, key) => {
@@ -124,98 +129,146 @@ function buildTargetUrl(
   return target;
 }
 
-function buildCookieString(params: {
-  name: string;
-  value: string;
-  httpOnly: boolean;
-  maxAge: number;
-}): string {
-  const isProd = process.env.NODE_ENV === "production";
-  const parts = [
-    `${params.name}=${encodeURIComponent(params.value)}`,
-    "Path=/",
-    "SameSite=Lax",
-    `Max-Age=${params.maxAge}`,
-  ];
-  if (params.httpOnly) {
-    parts.push("HttpOnly");
+/**
+ * Redacta `accessToken` y `refreshToken` de la respuesta JSON antes de enviarla
+ * al navegador cuando el BFF ya fijó las cookies `HttpOnly`.
+ */
+function sanitizeAuthEnvelopeForBrowser(
+  routeKey: string,
+  rawJson: string,
+): string {
+  try {
+    const parsed = JSON.parse(rawJson) as {
+      message?: unknown;
+      data?: Record<string, unknown>;
+      error?: unknown;
+    };
+    if (!parsed || typeof parsed !== "object" || !parsed.data) {
+      return rawJson;
+    }
+
+    const tokens =
+      typeof parsed.data.tokens === "object" && parsed.data.tokens !== null
+        ? (parsed.data.tokens as { expiresIn?: unknown })
+        : (parsed.data as { expiresIn?: unknown });
+
+    const expiresIn =
+      typeof tokens.expiresIn === "number" ? tokens.expiresIn : undefined;
+
+    if (routeKey === "auth/refresh") {
+      return JSON.stringify({
+        message: parsed.message ?? "Token refreshed",
+        data: {
+          authenticated: true,
+          ...(expiresIn !== undefined ? { expiresIn } : {}),
+        },
+        error: parsed.error ?? null,
+      });
+    }
+
+    return JSON.stringify({
+      message: parsed.message ?? "OK",
+      data: {
+        user: parsed.data.user ?? null,
+        authenticated: true,
+        ...(expiresIn !== undefined ? { expiresIn } : {}),
+      },
+      error: parsed.error ?? null,
+    });
+  } catch {
+    return rawJson;
   }
-  if (isProd) {
-    parts.push("Secure");
-  }
-  return parts.join("; ");
 }
 
-function appendAuthCookies(headers: Headers, refreshToken: string): void {
-  headers.append(
-    "set-cookie",
-    buildCookieString({
-      name: REFRESH_COOKIE_NAME,
-      value: refreshToken,
-      httpOnly: true,
-      maxAge: REFRESH_COOKIE_MAX_AGE,
-    }),
-  );
-  headers.append(
-    "set-cookie",
-    buildCookieString({
-      name: SESSION_FLAG_COOKIE_NAME,
-      value: "1",
-      httpOnly: false,
-      maxAge: REFRESH_COOKIE_MAX_AGE,
-    }),
-  );
-}
-
-function clearAuthCookies(headers: Headers): void {
-  headers.append(
-    "set-cookie",
-    buildCookieString({
-      name: REFRESH_COOKIE_NAME,
-      value: "",
-      httpOnly: true,
-      maxAge: 0,
-    }),
-  );
-  headers.append(
-    "set-cookie",
-    buildCookieString({
-      name: SESSION_FLAG_COOKIE_NAME,
-      value: "",
-      httpOnly: false,
-      maxAge: 0,
-    }),
-  );
-}
-
-function extractRefreshTokenFromEnvelope(payload: unknown): string | null {
-  if (typeof payload !== "object" || payload === null || !("data" in payload)) {
+/**
+ * Parsea un posible `{ refreshToken }` en el cuerpo raw sin lanzar excepciones.
+ */
+function readExplicitRefreshToken(rawText: string): string | null {
+  if (!rawText.trim()) {
     return null;
   }
-  const data = (payload as { data?: unknown }).data;
-  if (typeof data !== "object" || data === null) {
+  try {
+    const parsed = JSON.parse(rawText) as { refreshToken?: unknown };
+    return typeof parsed?.refreshToken === "string" &&
+      parsed.refreshToken.trim().length > 0
+      ? parsed.refreshToken
+      : null;
+  } catch {
     return null;
   }
+}
 
-  if (
-    "refreshToken" in data &&
-    typeof (data as { refreshToken?: unknown }).refreshToken === "string"
-  ) {
-    return (data as { refreshToken: string }).refreshToken;
-  }
-
-  if (
-    "tokens" in data &&
-    typeof (data as { tokens?: unknown }).tokens === "object" &&
-    (data as { tokens?: unknown }).tokens !== null
-  ) {
-    const tokens = (data as { tokens: { refreshToken?: unknown } }).tokens;
-    if (typeof tokens.refreshToken === "string") {
-      return tokens.refreshToken;
+function copyUpstreamHeaders(upstream: Response): Headers {
+  const headers = new Headers();
+  for (const name of FORWARDED_RESPONSE_HEADERS) {
+    const value = upstream.headers.get(name);
+    if (value) {
+      headers.set(name, value);
     }
   }
+  headers.set("x-dolynation-proxy", "nextjs");
+  return headers;
+}
 
-  return null;
+async function handleRefreshRoute(
+  request: NextRequest,
+  rawBody: string,
+): Promise<Response> {
+  const explicitToken = readExplicitRefreshToken(rawBody);
+  const cookieToken = request.cookies.get(REFRESH_COOKIE_NAME)?.value ?? "";
+  const tokenToUse = explicitToken ?? cookieToken;
+
+  const responseHeaders = new Headers();
+  responseHeaders.set("x-dolynation-proxy", "nextjs");
+
+  if (!tokenToUse) {
+    clearSessionCookies(responseHeaders);
+    return apiError(
+      401,
+      "AUTH_UNAUTHORIZED",
+      "Authentication is required to refresh the session.",
+      responseHeaders,
+    );
+  }
+
+  const refreshResult = await refreshTokensOnServer(tokenToUse);
+
+  if (!refreshResult.ok) {
+    if (refreshResult.invalidSession) {
+      clearSessionCookies(responseHeaders);
+    }
+
+    if (refreshResult.rawBody) {
+      responseHeaders.set(
+        "content-type",
+        refreshResult.contentType ?? "application/json; charset=utf-8",
+      );
+      return new Response(refreshResult.rawBody, {
+        status: refreshResult.status,
+        headers: responseHeaders,
+      });
+    }
+
+    return apiError(
+      refreshResult.status,
+      refreshResult.invalidSession ? "AUTH_TOKEN_INVALID" : "SERVICE_UNAVAILABLE",
+      refreshResult.invalidSession
+        ? "Refresh token is invalid or expired."
+        : "No se pudo contactar con el servicio de autenticación.",
+      responseHeaders,
+    );
+  }
+
+  appendSessionCookies(responseHeaders, refreshResult.tokens);
+  responseHeaders.set("content-type", "application/json; charset=utf-8");
+
+  return new Response(
+    sanitizeAuthEnvelopeForBrowser("auth/refresh", refreshResult.rawBody),
+    {
+      status: 200,
+      headers: responseHeaders,
+    },
+  );
 }
 
 async function proxy(request: NextRequest, path: string[]): Promise<Response> {
@@ -244,9 +297,18 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
   } catch {
     return apiError(
       500,
-      "INTERNAL_ERROR",
+      "CONFIG_ERROR",
       "No se pudo construir la URL del backend.",
     );
+  }
+
+  const routeKey = segments.join("/");
+  const hasBody = method !== "GET" && method !== "HEAD";
+  const rawBuffer = hasBody ? await request.arrayBuffer() : null;
+
+  if (routeKey === "auth/refresh" && method === "POST") {
+    const rawText = rawBuffer ? new TextDecoder().decode(rawBuffer) : "";
+    return handleRefreshRoute(request, rawText);
   }
 
   const headers = new Headers();
@@ -257,6 +319,17 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
     }
   }
 
+  const cookieAccessToken = request.cookies.get(ACCESS_COOKIE_NAME)?.value;
+  const cookieRefreshToken = request.cookies.get(REFRESH_COOKIE_NAME)?.value;
+
+  if (
+    !headers.has("authorization") &&
+    cookieAccessToken &&
+    !PUBLIC_NO_BEARER_ROUTES.has(routeKey)
+  ) {
+    headers.set("authorization", `Bearer ${cookieAccessToken}`);
+  }
+
   const forwardedFor = request.headers.get("x-forwarded-for");
   const clientIp = request.headers.get("x-real-ip") ?? forwardedFor;
   if (clientIp) {
@@ -264,37 +337,27 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
   }
   headers.set("x-forwarded-proto", request.nextUrl.protocol.replace(":", ""));
 
-  const routeKey = segments.join("/");
-  const hasBody = method !== "GET" && method !== "HEAD";
-  let body: BodyInit | undefined;
+  let outboundBody: BodyInit | undefined =
+    rawBuffer && rawBuffer.byteLength > 0 ? rawBuffer : undefined;
 
-  if (hasBody) {
-    if (routeKey === "auth/refresh" && method === "POST") {
-      const rawText = await request.text();
-      let hasExplicitRefreshToken = false;
+  if (routeKey === "auth/logout" && method === "POST") {
+    const rawText = rawBuffer ? new TextDecoder().decode(rawBuffer) : "";
+    const explicitRefreshToken = readExplicitRefreshToken(rawText);
+    const activeRefreshToken = explicitRefreshToken ?? cookieRefreshToken ?? "";
 
-      if (rawText.trim().length > 0) {
-        try {
-          const parsed = JSON.parse(rawText) as { refreshToken?: unknown };
-          hasExplicitRefreshToken =
-            typeof parsed?.refreshToken === "string" &&
-            parsed.refreshToken.trim().length > 0;
-        } catch {
-          hasExplicitRefreshToken = false;
-        }
-      }
-
-      if (hasExplicitRefreshToken) {
-        body = rawText;
-      } else {
-        const cookieRefreshToken =
-          request.cookies.get(REFRESH_COOKIE_NAME)?.value ?? "";
-        body = JSON.stringify({ refreshToken: cookieRefreshToken });
-        headers.set("content-type", "application/json");
-      }
-    } else {
-      body = await request.arrayBuffer();
+    if (!activeRefreshToken) {
+      const responseHeaders = new Headers();
+      responseHeaders.set("content-type", "application/json; charset=utf-8");
+      responseHeaders.set("x-dolynation-proxy", "nextjs");
+      clearSessionCookies(responseHeaders);
+      return new Response(
+        JSON.stringify({ message: "Logged out", data: null, error: null }),
+        { status: 200, headers: responseHeaders },
+      );
     }
+
+    outboundBody = JSON.stringify({ refreshToken: activeRefreshToken });
+    headers.set("content-type", "application/json");
   }
 
   let upstream: Response;
@@ -302,7 +365,7 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
     upstream = await fetch(target, {
       method,
       headers,
-      body,
+      body: outboundBody,
       redirect: "manual",
       cache: "no-store",
     });
@@ -314,47 +377,92 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
     );
   }
 
-  const responseHeaders = new Headers();
-  const contentType = upstream.headers.get("content-type");
-  if (contentType) {
-    responseHeaders.set("content-type", contentType);
+  let rotatedTokensHeaders: Headers | null = null;
+
+  // Recuperación automática en servidor ante 401 cuando existe refresh cookie válido
+  if (
+    upstream.status === 401 &&
+    !PUBLIC_NO_BEARER_ROUTES.has(routeKey) &&
+    !request.headers.get("authorization") &&
+    cookieRefreshToken
+  ) {
+    const refreshed = await refreshTokensOnServer(cookieRefreshToken);
+    if (refreshed.ok) {
+      rotatedTokensHeaders = new Headers();
+      appendSessionCookies(rotatedTokensHeaders, refreshed.tokens);
+
+      headers.set("authorization", `Bearer ${refreshed.tokens.accessToken}`);
+      if (routeKey === "auth/logout" && method === "POST") {
+        outboundBody = JSON.stringify({
+          refreshToken: refreshed.tokens.refreshToken,
+        });
+        headers.set("content-type", "application/json");
+      }
+
+      try {
+        upstream = await fetch(target, {
+          method,
+          headers,
+          body: outboundBody,
+          redirect: "manual",
+          cache: "no-store",
+        });
+      } catch {
+        return apiError(
+          503,
+          "SERVICE_UNAVAILABLE",
+          "No se pudo contactar con el servicio tras renovar la sesión.",
+          rotatedTokensHeaders,
+        );
+      }
+    } else if (refreshed.invalidSession) {
+      rotatedTokensHeaders = new Headers();
+      clearSessionCookies(rotatedTokensHeaders);
+    }
   }
 
-  responseHeaders.set("x-dolynation-proxy", "nextjs");
+  const responseHeaders = copyUpstreamHeaders(upstream);
+
+  if (rotatedTokensHeaders) {
+    for (const setCookie of rotatedTokensHeaders.getSetCookie()) {
+      responseHeaders.append("set-cookie", setCookie);
+    }
+  }
+
+  const isLogoutRoute =
+    method === "POST" &&
+    (routeKey === "auth/logout" || routeKey === "auth/logout-all");
+
+  if (isLogoutRoute) {
+    invalidateRefreshCache(cookieRefreshToken);
+    clearSessionCookies(responseHeaders);
+  }
 
   const isAuthTokenIssuedRoute =
     method === "POST" &&
-    (routeKey === "auth/login" ||
-      routeKey === "auth/register" ||
-      routeKey === "auth/refresh");
+    (routeKey === "auth/login" || routeKey === "auth/register");
 
-  if (routeKey === "auth/logout" && method === "POST") {
-    clearAuthCookies(responseHeaders);
-  } else if (
-    routeKey === "auth/refresh" &&
-    method === "POST" &&
-    !upstream.ok
-  ) {
-    clearAuthCookies(responseHeaders);
-  }
-
+  const contentType = upstream.headers.get("content-type") ?? "";
   if (
     isAuthTokenIssuedRoute &&
     upstream.ok &&
-    contentType?.includes("application/json")
+    contentType.includes("application/json")
   ) {
     const rawJson = await upstream.text();
+    let responseBody = rawJson;
+
     try {
       const parsed = JSON.parse(rawJson) as unknown;
-      const issuedRefreshToken = extractRefreshTokenFromEnvelope(parsed);
-      if (issuedRefreshToken) {
-        appendAuthCookies(responseHeaders, issuedRefreshToken);
+      const issuedTokens = extractSessionTokensFromEnvelope(parsed);
+      if (issuedTokens) {
+        appendSessionCookies(responseHeaders, issuedTokens);
+        responseBody = sanitizeAuthEnvelopeForBrowser(routeKey, rawJson);
       }
     } catch {
-      // Si el cuerpo no es JSON valido, se reenvia tal cual sin anexar cookies.
+      // Si el cuerpo no es JSON válido, se reenvía tal cual sin anexar cookies.
     }
 
-    return new Response(rawJson, {
+    return new Response(responseBody, {
       status: upstream.status,
       statusText: upstream.statusText,
       headers: responseHeaders,
