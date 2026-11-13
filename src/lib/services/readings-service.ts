@@ -6,8 +6,11 @@ import {
   type EvaluationResultDto,
   type ExplanationResultDto,
   type GenerateReadingInput,
+  type GlossaryEntryDto,
+  type GlossaryQuery,
   type ReadingDto,
   type ReadingOptionsResponse,
+  type ToggleGlossarySaveInput,
 } from "@/lib/api-contracts";
 import { type ApiResponse } from "@/lib/api-errors";
 import { httpClient } from "@/lib/http-client";
@@ -76,6 +79,41 @@ export function createReadingsService(transport: ApiTransport) {
           timeoutMs: AI_TIMEOUT_MS,
           ...options,
         },
+      );
+    },
+
+    /** Lista las explicaciones contextuales previamente consultadas sobre una lectura. */
+    listExplanations(
+      id: number,
+      options?: ReadingsRequestOptions,
+    ): Promise<ApiResponse<GlossaryEntryDto[]>> {
+      return transport.get<GlossaryEntryDto[]>(
+        `/readings/${encodeURIComponent(String(id))}/explanations`,
+        options,
+      );
+    },
+
+    /** Consulta el glosario personal e historial de ayudas del usuario autenticado. */
+    getGlossary(
+      query?: GlossaryQuery,
+      options?: ReadingsRequestOptions,
+    ): Promise<ApiResponse<GlossaryEntryDto[]>> {
+      return transport.get<GlossaryEntryDto[]>("/readings/glossary", {
+        ...options,
+        query,
+      });
+    },
+
+    /** Guarda o retira una explicación existente en el glosario personal del usuario. */
+    toggleGlossarySave(
+      explanationId: number,
+      input: ToggleGlossarySaveInput,
+      options?: ReadingsRequestOptions,
+    ): Promise<ApiResponse<GlossaryEntryDto>> {
+      return transport.patch<GlossaryEntryDto>(
+        `/readings/explanations/${encodeURIComponent(String(explanationId))}/glossary`,
+        input,
+        options,
       );
     },
 

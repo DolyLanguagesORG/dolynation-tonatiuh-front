@@ -20,6 +20,7 @@ export { buildApiUrl, env } from "@/lib/env";
 export { apiRequest, httpClient } from "@/lib/http-client";
 export { AI_TIMEOUT_MS, DEFAULT_TIMEOUT_MS } from "@/lib/http-core";
 export {
+  cleanLookupSelection,
   cleanLookupWord,
   countWords,
   estimateReadingMinutes,

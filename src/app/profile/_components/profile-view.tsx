@@ -3,6 +3,7 @@
 import { LearningPreferencesCard } from "@/app/profile/_components/learning-preferences-card";
 import { ProfileOverviewCard } from "@/app/profile/_components/profile-overview-card";
 import { StreakCalendarCard } from "@/app/profile/_components/streak-calendar-card";
+import { SubscriptionPlanCard } from "@/app/profile/_components/subscription-plan-card";
 import { useProfileData } from "@/app/profile/_hooks/use-profile-data";
 import { RequireAuth } from "@/components/auth";
 import { Alert, Container, Eyebrow, SkeletonCard } from "@/components/ui";
@@ -56,18 +57,36 @@ function ProfileContent() {
           <StreakCalendarCard
             t={t}
             locale={locale}
-            currentStreak={data.resolvedUser?.currentStreak ?? 0}
+            currentStreak={data.resolvedStreakCount}
             streakDays={data.streakDays}
           />
 
           <LearningPreferencesCard
             t={t}
+            locale={locale}
             activeLanguages={data.activeLanguageItems}
+            languagesSettings={data.languagesSettings}
             categories={data.resolvedCategories}
             selectedCategoryIds={data.selectedCategoryIds}
             isSaving={data.isSavingPreferences}
+            isUnlockingLanguage={data.isUnlockingLanguage}
             onPromoteLanguage={data.handlePromoteLanguage}
+            onUpdateLanguages={data.handleUpdateLanguages}
+            onUnlockLanguageChange={data.handleUnlockLanguageChange}
             onToggleCategory={data.handleToggleCategory}
+            onAddCustomCategory={data.handleAddCustomCategory}
+          />
+
+          <SubscriptionPlanCard
+            locale={locale}
+            currentSubscription={data.currentSubscription}
+            plans={data.plans}
+            isLoadingPlans={data.isLoadingPlans}
+            plansError={data.plansError}
+            isSavingPlan={data.isSavingPlan}
+            isLoggingOutAll={data.isLoggingOutAll}
+            onSelectPlan={data.handleSelectPlan}
+            onLogoutAll={data.handleLogoutAll}
           />
         </>
       )}

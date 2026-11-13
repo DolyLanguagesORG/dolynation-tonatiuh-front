@@ -250,6 +250,20 @@ export function cleanLookupWord(token: string): string {
 }
 
 /**
+ * Normaliza una selección libre (frase u oración completa) preservando puntuación
+ * interna y apóstrofos mientras recorta comillas o delimitadores externos sobrantes.
+ */
+export function cleanLookupSelection(rawSelection: string): string {
+  const collapsed = rawSelection.replace(/\s+/g, " ").trim();
+  if (!collapsed) return "";
+  const stripped = collapsed
+    .replace(/^[\s"'«»“”‘’()[\]{},;:.]+|[\s"'«»“”‘’()[\]{},;:.]+$/g, "")
+    .trim();
+  if (!stripped) return "";
+  return stripped.includes(" ") ? stripped : cleanLookupWord(stripped);
+}
+
+/**
  * Extrae términos léxicos representativos del contenido de una lectura.
  */
 export function extractSalientVocabulary(

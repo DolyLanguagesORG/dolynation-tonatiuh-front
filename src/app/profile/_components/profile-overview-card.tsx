@@ -64,10 +64,21 @@ export function ProfileOverviewCard({
       ? "DOLLY PRO"
       : user?.subscriptionTier === "dolly_plus"
         ? "DOLLY PLUS"
-        : "DOLLY BASE";
+        : user?.subscriptionTier === "dolly"
+          ? "DOLLY BASE"
+          : locale === "es"
+            ? "SIN PLAN ACTIVO"
+            : "NO ACTIVE PLAN";
 
   const totalReadings = historySummary?.readings.total ?? 0;
-  const focusHours = ((totalReadings * 8) / 60).toFixed(1);
+  const completedReadings = historySummary?.readings.completed ?? 0;
+  const passedReadings = historySummary?.readings.passed ?? 0;
+  const passedUnit =
+    completedReadings > 0
+      ? locale === "es"
+        ? `de ${completedReadings} eval.`
+        : `of ${completedReadings} eval.`
+      : t.profile.stats.passedReadingsUnit;
   const activeVocab = historySummary?.wordsLookedUp ?? 0;
   const accuracy =
     historySummary?.readings.averageScore != null
@@ -183,9 +194,9 @@ export function ProfileOverviewCard({
         />
         <StatCard
           variant="inline"
-          label={t.profile.stats.focusHours}
-          value={focusHours}
-          unit={t.profile.stats.focusHoursUnit}
+          label={t.profile.stats.passedReadings}
+          value={passedReadings}
+          unit={passedUnit}
         />
         <StatCard
           variant="inline"
