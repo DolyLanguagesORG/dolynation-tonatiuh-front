@@ -3,7 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { type ReactNode, useEffect } from "react";
 
-import { Container } from "@/components/ui";
+import { Container, Skeleton, SkeletonCard } from "@/components/ui";
 import { useAuth } from "@/context";
 
 export interface RequireAuthProps {
@@ -66,8 +66,8 @@ export function RequireAuth({ children, fallback }: RequireAuthProps) {
         aria-live="polite"
         className="flex flex-col gap-4 py-12"
       >
-        <div className="h-6 w-48 animate-pulse rounded-xs bg-surface-muted" />
-        <div className="h-32 w-full animate-pulse rounded-xs border border-border bg-surface" />
+        <Skeleton className="h-6 w-48" />
+        <SkeletonCard lines={2} label="Verificando sesión académica" />
       </Container>
     );
   }

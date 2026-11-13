@@ -1,6 +1,12 @@
-import Link from "next/link";
-
-import { Badge, Button, Card, Container } from "@/components/ui";
+import {
+  ActionLink,
+  Badge,
+  Card,
+  Container,
+  Heading,
+  Icon,
+  Text,
+} from "@/components/ui";
 
 export default function NotFound() {
   return (
@@ -9,24 +15,23 @@ export default function NotFound() {
         <Badge variant="primary">[ERROR 404] ARCHIVO NO LOCALIZADO</Badge>
 
         <div className="flex flex-col gap-2">
-          <h1
-            id="main-heading"
-            tabIndex={-1}
-            className="font-serif text-3xl font-semibold text-ink sm:text-4xl"
-          >
+          <Heading as="h1" variant="display" mainHeading>
             Expediente o lectura no encontrada
-          </h1>
-          <p className="font-serif text-base leading-relaxed text-muted italic">
+          </Heading>
+          <Text variant="editorial" tone="muted" className="italic">
             La ruta solicitada no existe en el catálogo editorial de DolyNation
             o ha sido trasladada.
-          </p>
+          </Text>
         </div>
 
-        <Link href="/">
-          <Button variant="primary" tabIndex={-1}>
-            Volver al inicio académico
-          </Button>
-        </Link>
+        <ActionLink
+          href="/"
+          variant="primary"
+          size="md"
+          leftIcon={<Icon name="arrow-left" size="sm" />}
+        >
+          Volver al inicio académico
+        </ActionLink>
       </Card>
     </Container>
   );

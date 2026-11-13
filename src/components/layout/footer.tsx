@@ -1,9 +1,10 @@
 "use client";
 
 import { Footer as FlowbiteFooter, FooterLinkGroup } from "flowbite-react";
+import Link from "next/link";
 
-import { dolyFlowbiteTheme } from "@/components/ui/flowbite-theme";
 import { VersionBadge } from "@/components/layout/version-badge";
+import { dolyFlowbiteTheme } from "@/components/ui";
 import { useLocale } from "@/i18n";
 
 /**
@@ -31,6 +32,14 @@ export function Footer() {
         </div>
 
         <FooterLinkGroup className="flex flex-wrap items-center gap-4 text-[11px] font-semibold tracking-wider text-body uppercase sm:gap-6">
+          <li>
+            <Link
+              href="/design-system"
+              className="inline-flex min-h-6 items-center transition-colors hover:text-heading"
+            >
+              {t.designSystem.navLabel}
+            </Link>
+          </li>
           <li>
             <a
               href="#terminos"
