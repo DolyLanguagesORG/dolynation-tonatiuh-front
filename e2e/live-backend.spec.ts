@@ -20,8 +20,11 @@ test.describe("Live Backend Smoke Suite (E2E_TARGET=backend)", () => {
       .getByRole("button", { name: "Iniciar sesión en DolyNation" })
       .click();
 
+    // El codigo vive en el badge del banner de error (`role="alert"`). Un locator
+    // laxo sobre la palabra "credenciales" tambien matchea el subtitulo del
+    // formulario y el boton en estado de carga, y Playwright falla en modo estricto.
     await expect(
-      page.getByText(/AUTH_INVALID_CREDENTIALS|credenciales/i),
+      page.getByRole("alert").getByText("AUTH_INVALID_CREDENTIALS", { exact: true }),
     ).toBeVisible({ timeout: 10_000 });
   });
 
