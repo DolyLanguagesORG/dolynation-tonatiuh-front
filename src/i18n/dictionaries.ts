@@ -211,6 +211,33 @@ export interface Dictionary {
     uiKitTitle: string;
     uiKitSubtitle: string;
   };
+  study: {
+    pageBadge: string;
+    pageTitle: string;
+    pageSubtitle: string;
+    formTitle: string;
+    step1Language: string;
+    step2Category: string;
+    step3Difficulty: string;
+    step4Length: string;
+    addCategoryPrompt: string;
+    addCategoryPlaceholder: string;
+    addCategoryButton: string;
+    customCategoryBadge: string;
+    estimatedTimePrefix: string;
+    estimatedMinutes: string;
+    savePreferencesButton: string;
+    generateButton: string;
+    savingNotice: string;
+    savedSuccessNotice: string;
+    generationReadyNotice: string;
+    errorRequiredLanguage: string;
+    errorRequiredCategory: string;
+    errorRequiredDifficulty: string;
+    errorRequiredLength: string;
+    emptyCategoriesNotice: string;
+    loadingParametersNotice: string;
+  };
 }
 
 export const dictionaries: Record<Locale, Dictionary> = {
@@ -450,6 +477,38 @@ export const dictionaries: Record<Locale, Dictionary> = {
       uiKitSubtitle:
         "Verificación interactiva de tokens editoriales, estados accesibles (foco, error, deshabilitado) y cliente API.",
     },
+    study: {
+      pageBadge: "LECTURAS CON IA • CONFIGURACIÓN DE ESTUDIO",
+      pageTitle: "Configuración y Parámetros de Estudio",
+      pageSubtitle:
+        "Personaliza el idioma meta, los dominios temáticos de tu interés, el nivel de complejidad CEFR y la extensión del texto antes de iniciar la lectura.",
+      formTitle: "GENERAR LECTURA",
+      step1Language: "01. IDIOMA META",
+      step2Category: "02. DOMINIO TEMÁTICO",
+      step3Difficulty: "03. NIVEL DE COMPLEJIDAD LINGÜÍSTICA",
+      step4Length: "04. LONGITUD DEL TEXTO",
+      addCategoryPrompt: "Añadir tema personalizado",
+      addCategoryPlaceholder: "Ej. Neurociencia, Astronomía, Ciberseguridad...",
+      addCategoryButton: "+ AÑADIR",
+      customCategoryBadge: "PROPIO",
+      estimatedTimePrefix: "Tiempo de análisis aproximado: ",
+      estimatedMinutes: " minutos",
+      savePreferencesButton: "Guardar preferencias",
+      generateButton: "GENERAR Y COMENZAR LECTURA",
+      savingNotice: "Guardando preferencias...",
+      savedSuccessNotice:
+        "Preferencias de estudio guardadas y sincronizadas exitosamente.",
+      generationReadyNotice:
+        "Parámetros de estudio configurados. La invocación del generador IA (front#7) y el visor (front#6) están listos para recibir estos parámetros.",
+      errorRequiredLanguage: "Selecciona un idioma meta de aprendizaje.",
+      errorRequiredCategory:
+        "Selecciona al menos una categoría o temática de estudio.",
+      errorRequiredDifficulty:
+        "Selecciona un nivel de complejidad lingüística.",
+      errorRequiredLength: "Selecciona la longitud deseada del texto.",
+      emptyCategoriesNotice: "No hay categorías disponibles en este momento.",
+      loadingParametersNotice: "Cargando opciones y preferencias de estudio...",
+    },
   },
   en: {
     meta: {
@@ -683,6 +742,38 @@ export const dictionaries: Record<Locale, Dictionary> = {
       uiKitTitle: "BASE COMPONENT SYSTEM & HTTP CLIENT STATUS",
       uiKitSubtitle:
         "Interactive verification of editorial tokens, accessible states (focus, error, disabled), and API client.",
+    },
+    study: {
+      pageBadge: "AI READINGS • STUDY CONFIGURATION",
+      pageTitle: "Study Configuration & Parameters",
+      pageSubtitle:
+        "Customize target language, thematic domains, CEFR complexity tier, and text length prior to reading generation.",
+      formTitle: "GENERATE READING",
+      step1Language: "01. TARGET LANGUAGE",
+      step2Category: "02. THEMATIC DOMAIN",
+      step3Difficulty: "03. LINGUISTIC COMPLEXITY LEVEL",
+      step4Length: "04. TEXT LENGTH",
+      addCategoryPrompt: "Add custom topic",
+      addCategoryPlaceholder: "E.g. Neuroscience, Astronomy, Cybersecurity...",
+      addCategoryButton: "+ ADD",
+      customCategoryBadge: "CUSTOM",
+      estimatedTimePrefix: "Estimated analysis time: ",
+      estimatedMinutes: " minutes",
+      savePreferencesButton: "Save preferences",
+      generateButton: "GENERATE & START READING",
+      savingNotice: "Saving preferences...",
+      savedSuccessNotice:
+        "Study preferences saved and synced successfully.",
+      generationReadyNotice:
+        "Study parameters configured. AI generation (front#7) and reader viewer (front#6) are ready to consume these parameters.",
+      errorRequiredLanguage: "Please select a target language.",
+      errorRequiredCategory:
+        "Please select at least one study domain or topic.",
+      errorRequiredDifficulty:
+        "Please select a linguistic complexity level.",
+      errorRequiredLength: "Please select a text length option.",
+      emptyCategoriesNotice: "No categories currently available.",
+      loadingParametersNotice: "Loading options and study preferences...",
     },
   },
 };

@@ -49,6 +49,10 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-# local infrastructure docs (not to be committed)
+# local infrastructure and api docs (not to be committed)
 INFRAESTRUCTURA.md
+API_DOCUMENTATION.md
+DOLYNGLISH_API.md
+*.api.json
+dolynglish-api.json
 
