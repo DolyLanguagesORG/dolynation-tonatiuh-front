@@ -40,10 +40,15 @@ if (body.error) {
 ## URL base y prefijo
 
 - Prefijo global de rutas: **`/api/v1`**.
-- En local, el backend corre en `http://localhost:3333`, así que una ruta real
-  es `http://localhost:3333/api/v1/...`.
-- Define la URL base por variable de entorno (p. ej. `NEXT_PUBLIC_API_URL`) en
-  un `.env.local`; **nunca** hardcodees la URL de producción en el código.
+- El navegador **no** conoce la dirección del backend: todas las peticiones van
+  al proxy BFF de este mismo origen (`/api/v1/...`).
+- La URL del backend se configura en el **servidor**, con `BACKEND_INTERNAL_URL`
+  (sin prefijo `NEXT_PUBLIC_`, para que no se compile en el bundle ni se filtre
+  al cliente). Está en `.env.example`.
+- En local, el backend corre en `http://localhost:3333`, así que
+  `BACKEND_INTERNAL_URL=http://localhost:3333/api/v1`.
+- **Nunca** hardcodees la URL del backend en el código ni la expongas con
+  `NEXT_PUBLIC_`: es un detalle de implementación del servidor.
 
 ## Errores más comunes
 
