@@ -76,6 +76,7 @@ export {
   type StepperProps,
 } from "@/components/ui/stepper";
 export { Textarea, type TextareaProps } from "@/components/ui/textarea";
+export { ToastViewport } from "@/components/ui/toast-viewport";
 export {
   Divider,
   type DividerProps,

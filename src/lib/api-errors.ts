@@ -197,6 +197,140 @@ const ERROR_MESSAGES_EN: Record<KnownErrorCode, string> = {
     "An unexpected error occurred while processing the request.",
 };
 
+const ERROR_MESSAGES_FR: Record<KnownErrorCode, string> = {
+  AUTH_INVALID_CREDENTIALS:
+    "E-mail ou mot de passe invalide. Vérifiez vos identifiants académiques.",
+  AUTH_TOKEN_EXPIRED:
+    "Votre session académique a expiré. Veuillez vous reconnecter.",
+  AUTH_TOKEN_INVALID:
+    "Votre session actuelle n'est plus valide. Veuillez vous reconnecter.",
+  AUTH_EMAIL_ALREADY_EXISTS:
+    "Un compte est déjà enregistré avec cette adresse e-mail.",
+  AUTH_PASSWORD_TOO_WEAK:
+    "Le mot de passe ne respecte pas les exigences minimales de sécurité.",
+  AUTH_UNAUTHORIZED:
+    "Vous devez vous connecter pour accéder à cette ressource académique.",
+  AUTH_EMAIL_NOT_VERIFIED:
+    "Veuillez confirmer votre adresse e-mail avant de continuer.",
+  AUTH_EMAIL_TOKEN_INVALID:
+    "Ce lien de vérification est invalide, déjà utilisé ou expiré. Demandez-en un nouveau.",
+  RESOURCE_NOT_FOUND:
+    "La ressource demandée est introuvable ou n'est plus disponible.",
+  RESOURCE_FORBIDDEN:
+    "Vous ne disposez pas des autorisations nécessaires pour effectuer cette action.",
+  READING_PENDING_LIMIT_REACHED:
+    "Vous avez atteint la limite de lectures en attente. Terminez vos évaluations actives avant de générer un nouveau texte.",
+  READING_ALREADY_EVALUATED:
+    "Cette lecture a déjà été évaluée et sa note est clôturée.",
+  READING_DAILY_LIMIT_REACHED:
+    "Vous avez atteint la limite quotidienne de génération de lectures pour votre forfait actuel.",
+  EXPLANATION_DAILY_LIMIT_REACHED:
+    "Vous avez atteint la limite quotidienne d'aides et d'explications lexicales pour votre forfait actuel.",
+  SUBSCRIPTION_REQUIRED:
+    "Vous devez sélectionner un abonnement actif avant d'utiliser les outils d'étude.",
+  SUBSCRIPTION_INVALID_TIER:
+    "Le forfait d'abonnement indiqué n'est pas valide. Choisissez Dolly, Dolly Plus ou Dolly Pro.",
+  SUBSCRIPTION_CATEGORY_LIMIT_EXCEEDED:
+    "Vous avez dépassé le nombre maximal de catégories autorisé par votre abonnement.",
+  SUBSCRIPTION_LANGUAGE_LIMIT_EXCEEDED:
+    "Vous avez dépassé le nombre maximal de langues simultanées autorisé par votre forfait.",
+  SUBSCRIPTION_LANGUAGE_NOT_ALLOWED:
+    "La langue demandée n'est pas activée dans les emplacements de votre abonnement actuel.",
+  LANGUAGE_NOT_SELECTED:
+    "Vous devez sélectionner au moins une langue d'étude dans vos préférences avant de générer des lectures.",
+  LANGUAGE_CHANGE_LOCKED:
+    "Votre sélection de langues est verrouillée. Vous pouvez la modifier une fois par an ou débloquer un changement immédiat.",
+  CATEGORY_MODERATION_REJECTED:
+    "Une ou plusieurs catégories proposées ont été refusées par la modération de contenu.",
+  CATEGORY_DAILY_LIMIT_REACHED:
+    "Limite quotidienne atteinte pour évaluer ou ajouter de nouvelles catégories. Réessayez demain.",
+  VALIDATION_ERROR:
+    "Certains champs du formulaire contiennent des erreurs. Vérifiez les données saisies.",
+  INTERNAL_ERROR:
+    "Une erreur interne du serveur est survenue. Veuillez réessayer dans quelques instants.",
+  SERVICE_UNAVAILABLE:
+    "Le service linguistique est temporairement indisponible. Veuillez réessayer plus tard.",
+  NETWORK_ERROR:
+    "Impossible de joindre le serveur. Vérifiez votre connexion réseau.",
+  CONFIG_ERROR:
+    "Le proxy interne du serveur n'est pas correctement configuré dans cet environnement.",
+  UNKNOWN_ERROR:
+    "Une erreur inattendue est survenue lors du traitement de la demande.",
+};
+
+const ERROR_MESSAGES_IT: Record<KnownErrorCode, string> = {
+  AUTH_INVALID_CREDENTIALS:
+    "E-mail o password non validi. Verifica le tue credenziali accademiche.",
+  AUTH_TOKEN_EXPIRED:
+    "La tua sessione accademica è scaduta. Accedi nuovamente.",
+  AUTH_TOKEN_INVALID:
+    "Il token della sessione attuale non è valido. Accedi di nuovo.",
+  AUTH_EMAIL_ALREADY_EXISTS:
+    "Esiste già un account registrato con questo indirizzo e-mail.",
+  AUTH_PASSWORD_TOO_WEAK:
+    "La password non soddisfa i requisiti minimi di sicurezza.",
+  AUTH_UNAUTHORIZED:
+    "Devi accedere per poter consultare questa risorsa accademica.",
+  AUTH_EMAIL_NOT_VERIFIED:
+    "Conferma il tuo indirizzo e-mail prima di continuare.",
+  AUTH_EMAIL_TOKEN_INVALID:
+    "Il link di verifica non è valido, è già stato utilizzato o è scaduto. Richiedine uno nuovo.",
+  RESOURCE_NOT_FOUND:
+    "La risorsa richiesta non è stata trovata o non è più disponibile.",
+  RESOURCE_FORBIDDEN:
+    "Non disponi dei permessi necessari per eseguire questa operazione.",
+  READING_PENDING_LIMIT_REACHED:
+    "Hai raggiunto il limite di letture in sospeso. Completa le valutazioni attive prima di generare un nuovo testo.",
+  READING_ALREADY_EVALUATED:
+    "Questa lettura è già stata valutata e il risultato è definitivo.",
+  READING_DAILY_LIMIT_REACHED:
+    "Hai raggiunto il limite giornaliero di generazione di letture previsto dal tuo piano.",
+  EXPLANATION_DAILY_LIMIT_REACHED:
+    "Hai raggiunto il limite giornaliero di spiegazioni e aiuti lessicali del tuo piano attuale.",
+  SUBSCRIPTION_REQUIRED:
+    "È necessario un piano di abbonamento attivo prima di accedere agli strumenti di studio.",
+  SUBSCRIPTION_INVALID_TIER:
+    "Il piano di abbonamento selezionato non è valido. Scegli Dolly, Dolly Plus o Dolly Pro.",
+  SUBSCRIPTION_CATEGORY_LIMIT_EXCEEDED:
+    "Hai superato il numero massimo di categorie consentito dal tuo abbonamento.",
+  SUBSCRIPTION_LANGUAGE_LIMIT_EXCEEDED:
+    "Hai superato il numero massimo di lingue simultanee consentito dal tuo piano.",
+  SUBSCRIPTION_LANGUAGE_NOT_ALLOWED:
+    "La lingua richiesta non è abilitata tra quelle attive nel tuo piano.",
+  LANGUAGE_NOT_SELECTED:
+    "Devi selezionare almeno una lingua di studio nelle preferenze prima di generare letture.",
+  LANGUAGE_CHANGE_LOCKED:
+    "La selezione delle lingue è bloccata. Puoi modificarla una volta all'anno o sbloccare una modifica immediata.",
+  CATEGORY_MODERATION_REJECTED:
+    "Una o più categorie inserite non hanno superato i controlli di moderazione.",
+  CATEGORY_DAILY_LIMIT_REACHED:
+    "Hai raggiunto il limite giornaliero per valutare o aggiungere nuove categorie. Riprova domani.",
+  VALIDATION_ERROR:
+    "Alcuni campi del modulo contengono errori. Controlla i dati evidenziati.",
+  INTERNAL_ERROR:
+    "Si è verificato un errore interno del server. Riprova tra qualche istante.",
+  SERVICE_UNAVAILABLE:
+    "Il servizio linguistico è temporaneamente non disponibile. Riprova più tardi.",
+  NETWORK_ERROR:
+    "Impossibile connettersi al server. Verifica la tua connessione di rete.",
+  CONFIG_ERROR:
+    "Il proxy interno del server non è configurato correttamente in questo ambiente.",
+  UNKNOWN_ERROR:
+    "Si è verificato un errore imprevisto durante l'elaborazione della richiesta.",
+};
+
+export type ErrorMessageLanguage = "es" | "en" | "fr" | "it";
+
+const ERROR_MESSAGES_BY_LANGUAGE: Record<
+  ErrorMessageLanguage,
+  Record<KnownErrorCode, string>
+> = {
+  es: ERROR_MESSAGES_ES,
+  en: ERROR_MESSAGES_EN,
+  fr: ERROR_MESSAGES_FR,
+  it: ERROR_MESSAGES_IT,
+};
+
 const KNOWN_ERROR_CODE_SET = new Set<string>(Object.values(ErrorCode));
 
 /**
@@ -211,9 +345,9 @@ export function isErrorCode(value: unknown): value is KnownErrorCode {
  */
 export function resolveErrorMessage(
   code: string | undefined,
-  locale: "es" | "en" = "es",
+  locale: ErrorMessageLanguage = "es",
 ): string {
-  const dictionary = locale === "en" ? ERROR_MESSAGES_EN : ERROR_MESSAGES_ES;
+  const dictionary = ERROR_MESSAGES_BY_LANGUAGE[locale] ?? ERROR_MESSAGES_ES;
   if (code && code in dictionary) {
     return dictionary[code as KnownErrorCode];
   }
@@ -250,6 +384,47 @@ export function extractValidationFields(
 /**
  * Error uniforme lanzado por el cliente HTTP y servicios del frontend.
  */
+export interface RejectedCategoryDetail {
+  category: string;
+  layer?: string;
+  reason?: string;
+}
+
+export function extractRejectedCategories(
+  details?: Record<string, unknown>,
+): RejectedCategoryDetail[] {
+  const raw = details?.rejected;
+  if (!Array.isArray(raw)) {
+    return [];
+  }
+
+  const seen = new Set<string>();
+  const items: RejectedCategoryDetail[] = [];
+
+  for (const entry of raw) {
+    if (!entry || typeof entry !== "object") continue;
+    const record = entry as Record<string, unknown>;
+    if (typeof record.category !== "string") continue;
+    const category = record.category.trim();
+    if (!category) continue;
+    const key = category.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    items.push({
+      category,
+      ...(typeof record.layer === "string" && record.layer.trim()
+        ? { layer: record.layer.trim() }
+        : {}),
+      ...(typeof record.reason === "string" && record.reason.trim()
+        ? { reason: record.reason.trim() }
+        : {}),
+    });
+  }
+
+  return items;
+}
+
 export class ApiClientError extends Error {
   public readonly code: KnownErrorCode | (string & {});
   public readonly status: number;
@@ -273,10 +448,31 @@ export class ApiClientError extends Error {
   }
 
   /**
-   * Devuelve el mensaje localizado seguro para mostrar en componentes `Alert` o formularios.
+   * Extrae las categorías rechazadas cuando el backend adjunta `details.rejected`.
    */
-  public getUserMessage(locale: "es" | "en" = "es"): string {
-    return resolveErrorMessage(this.code, locale);
+  public getRejectedCategories(): RejectedCategoryDetail[] {
+    return extractRejectedCategories(this.details);
+  }
+
+  /**
+   * Devuelve el mensaje localizado seguro para mostrar en componentes `Alert`, formularios o toasts.
+   */
+  public getUserMessage(locale: ErrorMessageLanguage = "es"): string {
+    const base = resolveErrorMessage(this.code, locale);
+    if (this.code === ErrorCode.CATEGORY_MODERATION_REJECTED) {
+      const rejected = this.getRejectedCategories();
+      if (rejected.length > 0) {
+        const quoted = rejected.map((item) => `"${item.category}"`).join(", ");
+        const prefixes: Record<ErrorMessageLanguage, string> = {
+          es: `Categoría(s) rechazada(s): ${quoted}.`,
+          en: `Rejected category(ies): ${quoted}.`,
+          fr: `Catégorie(s) refusée(s) : ${quoted}.`,
+          it: `Categoria/e rifiutata/e: ${quoted}.`,
+        };
+        return `${base} ${prefixes[locale] ?? prefixes.es}`;
+      }
+    }
+    return base;
   }
 
   /**

@@ -4,8 +4,9 @@ import { cookies } from "next/headers";
 import { Geist, Geist_Mono, Newsreader } from "next/font/google";
 
 import { AppShell } from "@/components/layout";
+import { ToastViewport } from "@/components/ui";
 import { dolyFlowbiteTheme } from "@/components/ui/flowbite-theme";
-import { AuthProvider } from "@/context";
+import { AuthProvider, ToastProvider } from "@/context";
 import { LocaleProvider, type Locale } from "@/i18n";
 import { isDesignSystemEnabled } from "@/lib/feature-flags";
 
@@ -50,11 +51,14 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col bg-neutral-secondary-soft text-heading font-sans">
         <ThemeProvider theme={dolyFlowbiteTheme}>
           <LocaleProvider initialLocale={initialLocale}>
-            <AuthProvider>
-              <AppShell designSystemEnabled={designSystemEnabled}>
-                {children}
-              </AppShell>
-            </AuthProvider>
+            <ToastProvider>
+              <AuthProvider>
+                <AppShell designSystemEnabled={designSystemEnabled}>
+                  {children}
+                </AppShell>
+              </AuthProvider>
+              <ToastViewport />
+            </ToastProvider>
           </LocaleProvider>
         </ThemeProvider>
       </body>

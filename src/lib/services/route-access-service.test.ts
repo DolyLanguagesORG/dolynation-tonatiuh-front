@@ -187,4 +187,17 @@ describe("routeAccessService", () => {
       }).allowed,
     ).toBe(true);
   });
+
+  it("identifies immersive reading routes without matching /readings list", () => {
+    expect(routeAccessService.isImmersiveReadingRoute("/readings/42")).toBe(true);
+    expect(
+      routeAccessService.isImmersiveReadingRoute("/readings/42/evaluate"),
+    ).toBe(true);
+    expect(
+      routeAccessService.isImmersiveReadingRoute("/readings/42/result/"),
+    ).toBe(true);
+    expect(routeAccessService.isImmersiveReadingRoute("/readings")).toBe(false);
+    expect(routeAccessService.isImmersiveReadingRoute("/readings/")).toBe(false);
+    expect(routeAccessService.isImmersiveReadingRoute("/generate")).toBe(false);
+  });
 });

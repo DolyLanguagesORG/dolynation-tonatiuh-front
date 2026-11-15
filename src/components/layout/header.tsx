@@ -5,12 +5,17 @@ import { usePathname } from "next/navigation";
 import { useState } from "react";
 
 import { ActionLink, Button, Icon, IconButton } from "@/components/ui";
+import { UserMenuDropdown } from "@/components/layout/user-menu-dropdown";
 import { useAuth } from "@/context";
 import { useLocale } from "@/i18n";
 
 export interface HeaderProps {
   isMobileMenuOpen: boolean;
   onToggleMobileMenu: () => void;
+  /** Visibilidad de la barra lateral en escritorio (`lg+`). */
+  isDesktopSidebarOpen?: boolean;
+  /** Alterna mostrar u ocultar la barra lateral en escritorio (`lg+`). */
+  onToggleDesktopSidebar?: () => void;
   /**
    * Cuando es `true`, renderiza la barra superior minimalista de las vistas
    * de autenticación y onboarding (`/login`, `/register`, `/verify-email`,
@@ -27,12 +32,17 @@ function LocaleEditionButton() {
       variant="secondary"
       size="xs"
       onClick={toggleLocale}
+      title={
+        locale === "es"
+          ? "Idioma: Español (clic para cambiar a inglés)"
+          : "Language: English (click to switch to Spanish)"
+      }
       aria-label={
         locale === "es"
-          ? "Cambiar idioma de la interfaz a inglés (actual: Español Académico)"
-          : "Switch interface language to Spanish (current: English Academic)"
+          ? "Cambiar idioma de la interfaz a inglés (actual: ES)"
+          : "Switch interface language to Spanish (current: EN)"
       }
-      className="min-h-7 bg-surface-subtle/60 px-2.5 py-1 text-[10px] tracking-wider text-muted sm:text-[11px]"
+      className="min-h-7 min-w-10 bg-surface-subtle/60 px-2.5 py-1 font-mono text-[11px] font-semibold tracking-wider text-heading uppercase"
     >
       {t.meta.editionBadge}
     </Button>
@@ -47,6 +57,8 @@ function LocaleEditionButton() {
 export function Header({
   isMobileMenuOpen,
   onToggleMobileMenu,
+  isDesktopSidebarOpen = true,
+  onToggleDesktopSidebar,
   isAuthRoute = false,
 }: HeaderProps) {
   const pathname = usePathname();
@@ -151,28 +163,58 @@ export function Header({
     );
   }
 
+  const desktopSidebarToggleLabel = isDesktopSidebarOpen
+    ? locale === "es"
+      ? "Ocultar barra lateral"
+      : "Hide sidebar"
+    : locale === "es"
+      ? "Mostrar barra lateral"
+      : "Show sidebar";
+
   return (
     <header className="sticky top-0 z-30 flex h-14 w-full shrink-0 items-center border-b border-border bg-surface">
       {/* Bloque izquierdo alineado con el ancho del sidebar en escritorio */}
-      <div className="flex h-full items-center gap-2 px-4 lg:w-60 lg:shrink-0 lg:justify-end lg:border-r lg:border-border lg:px-5">
-        <IconButton
-          icon={isMobileMenuOpen ? "close" : "menu"}
-          variant="secondary"
-          size="md"
-          iconSize="lg"
-          onClick={onToggleMobileMenu}
-          aria-expanded={isMobileMenuOpen}
-          aria-controls="doly-sidebar-drawer"
-          aria-label={isMobileMenuOpen ? t.meta.closeMenu : t.meta.openMenu}
-          className="lg:hidden"
-        />
+      <div
+        data-testid="header-brand-slot"
+        className={`flex h-full items-center gap-2 px-4 transition-colors lg:w-48 lg:shrink-0 lg:justify-between lg:border-r lg:px-3.5 ${
+          isDesktopSidebarOpen ? "lg:border-border" : "lg:border-transparent"
+        }`}
+      >
+        <div className="flex items-center gap-2">
+          <IconButton
+            icon={isMobileMenuOpen ? "close" : "menu"}
+            variant="secondary"
+            size="md"
+            iconSize="lg"
+            onClick={onToggleMobileMenu}
+            aria-expanded={isMobileMenuOpen}
+            aria-controls="doly-sidebar-drawer"
+            aria-label={isMobileMenuOpen ? t.meta.closeMenu : t.meta.openMenu}
+            className="lg:hidden"
+          />
 
-        <Link
-          href="/"
-          className="font-serif text-lg font-bold tracking-tight text-ink sm:text-xl"
-        >
-          DolyNation
-        </Link>
+          <Link
+            href="/"
+            className="font-serif text-lg font-bold tracking-tight text-ink sm:text-xl"
+          >
+            DolyNation
+          </Link>
+        </div>
+
+        {onToggleDesktopSidebar && (
+          <IconButton
+            icon={isDesktopSidebarOpen ? "panel-left-close" : "panel-left-open"}
+            variant="ghost"
+            size="xs"
+            iconSize="sm"
+            onClick={onToggleDesktopSidebar}
+            aria-expanded={isDesktopSidebarOpen}
+            aria-controls="doly-sidebar-desktop"
+            aria-label={desktopSidebarToggleLabel}
+            title={desktopSidebarToggleLabel}
+            className="hidden text-muted hover:text-heading lg:inline-flex"
+          />
+        )}
       </div>
 
       {/* Barra de contexto y utilidades */}
@@ -218,15 +260,7 @@ export function Header({
           />
 
           {isAuthenticated ? (
-            <Button
-              variant="secondary"
-              size="xs"
-              isLoading={isLoggingOut}
-              onClick={handleLogout}
-              className="normal-case tracking-normal"
-            >
-              {isLoggingOut ? t.nav.signingOut : t.nav.signOut}
-            </Button>
+            <UserMenuDropdown pathname={pathname} />
           ) : (
             <div className="flex items-center gap-2">
               <ActionLink

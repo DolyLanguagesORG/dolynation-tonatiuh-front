@@ -2,12 +2,14 @@ export * from "@/lib/api-contracts";
 export {
   ApiClientError,
   ErrorCode,
+  extractRejectedCategories,
   extractValidationFields,
   isErrorCode,
   resolveErrorMessage,
   type ApiError,
   type ApiResponse,
   type KnownErrorCode,
+  type RejectedCategoryDetail,
   type ValidationFieldIssue,
 } from "@/lib/api-errors";
 export { authClient } from "@/lib/auth-client";
@@ -22,17 +24,22 @@ export { AI_TIMEOUT_MS, DEFAULT_TIMEOUT_MS } from "@/lib/http-core";
 export {
   cleanLookupSelection,
   cleanLookupWord,
+  computeNextTokenSpan,
   countWords,
   estimateReadingMinutes,
   extractSalientVocabulary,
+  findTokenSpanInParagraphs,
   formatReadingDate,
   formatReadingLanguageBadge,
   getDifficultyMeta,
   getSpeechLocale,
+  MAX_LOOKUP_SELECTION_CHARS,
+  type ParagraphTokenSpan,
+  resolveSpanSelectionText,
+  tokenizeReadingParagraph,
 } from "@/lib/reading-utils";
 export * from "@/lib/services";
 export {
-  DEFAULT_CATEGORIES,
   DEFAULT_DIFFICULTIES,
   DEFAULT_LANGUAGES,
   DEFAULT_SIZES,

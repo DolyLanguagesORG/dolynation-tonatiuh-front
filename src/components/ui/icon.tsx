@@ -24,10 +24,13 @@ import {
   Info,
   Layers,
   ListChecks,
+  Loader2,
   Lock,
   LogOut,
   type LucideIcon,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   Pencil,
   Play,
   Plus,
@@ -91,11 +94,14 @@ const ICON_REGISTRY = {
   "badge-check": BadgeCheck,
   "list-checks": ListChecks,
   layers: Layers,
+  loader: Loader2,
   trash: Trash2,
   lock: Lock,
   unlock: Unlock,
   shield: Shield,
   refresh: RefreshCw,
+  "panel-left-close": PanelLeftClose,
+  "panel-left-open": PanelLeftOpen,
 } satisfies Record<string, LucideIcon>;
 
 export type IconName = keyof typeof ICON_REGISTRY;

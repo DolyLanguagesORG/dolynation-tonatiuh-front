@@ -127,6 +127,9 @@ export const MINIMAL_SHELL_ROUTES: readonly RoutePolicyEntry[] = [
   ...INFORMATIONAL_ROUTES,
 ];
 
+const IMMERSIVE_READING_ROUTE_REGEX =
+  /^\/readings\/[^/]+(?:\/(?:evaluate|result))?$/;
+
 export function normalizeRoutePath(pathname: string): string {
   if (!pathname || pathname === "/") {
     return "/";
@@ -205,6 +208,15 @@ export function createRouteAccessPolicy(config: RouteAccessPolicyConfig = {}) {
         { path: ROUTE_SELECT_PLAN, match: "exact" },
         { path: "/setup-preferences", match: "exact" },
       ]);
+    },
+
+    /**
+     * Identifica rutas de inmersión de lectura (`/readings/[id]`, `/evaluate`, `/result`)
+     * donde se ocultan barra superior, barra lateral y pie global.
+     */
+    isImmersiveReadingRoute(pathname: string): boolean {
+      const normalized = normalizeRoutePath(pathname);
+      return IMMERSIVE_READING_ROUTE_REGEX.test(normalized);
     },
 
     evaluate(context: RouteAccessContext): RouteAccessDecision {
