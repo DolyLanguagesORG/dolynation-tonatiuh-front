@@ -5,11 +5,10 @@ import { useEffect, useState } from "react";
 
 import { useAuth } from "@/context";
 import { useToast } from "@/context/toast-context";
-import { useLocale } from "@/i18n";
+import { formatMessage, useLocale } from "@/i18n";
 import {
   ApiClientError,
   type CategoriesSettings,
-  DEFAULT_LANGUAGES,
   historyService,
   type HistorySummary,
   type LanguagesSettings,
@@ -94,7 +93,7 @@ export function useProfileData() {
     setNotice(null);
     setErrorMessage(message);
     toast.error(message, {
-      title: locale === "es" ? "Error al guardar" : "Save error",
+      title: t.profile.hooks.saveErrorTitle,
     });
   };
 
@@ -181,16 +180,11 @@ export function useProfileData() {
       await reloadAccountState();
       reportSuccess(
         t.profile.savedProfileNotice,
-        locale === "es" ? "Cambios guardados" : "Changes saved",
+        t.profile.hooks.changesSavedTitle,
       );
       return true;
     } catch (err) {
-      reportError(
-        err,
-        locale === "es"
-          ? "No fue posible actualizar el perfil."
-          : "Could not update profile.",
-      );
+      reportError(err, t.profile.hooks.updateProfileError);
       return false;
     } finally {
       setIsSavingProfile(false);
@@ -210,16 +204,11 @@ export function useProfileData() {
       await refreshPreferences();
       reportSuccess(
         t.profile.savedPreferencesNotice,
-        locale === "es" ? "Preferencias guardadas" : "Preferences saved",
+        t.profile.hooks.prefsSavedTitle,
       );
       return true;
     } catch (err) {
-      reportError(
-        err,
-        locale === "es"
-          ? "No fue posible actualizar tus categorías."
-          : "Could not update favorite categories.",
-      );
+      reportError(err, t.profile.hooks.updateCategoriesError);
       return false;
     } finally {
       setIsSavingPreferences(false);
@@ -257,9 +246,10 @@ export function useProfileData() {
       setErrorMessage(null);
       setDraftCategoryIds(nextCategories);
       toast.info(
-        locale === "es"
-          ? `Selecciona al menos ${MIN_USER_CATEGORIES} categorías (${nextCategories.length}/${MIN_USER_CATEGORIES}) para guardar.`
-          : `Select at least ${MIN_USER_CATEGORIES} categories (${nextCategories.length}/${MIN_USER_CATEGORIES}) to save.`,
+        formatMessage(t.profile.hooks.selectMinCategoriesInfo, {
+          min: MIN_USER_CATEGORIES,
+          count: nextCategories.length,
+        }),
       );
       return;
     }
@@ -270,10 +260,7 @@ export function useProfileData() {
   const handleAddCustomCategory = async (name: string): Promise<boolean> => {
     const clean = name.trim();
     if (clean.length < 2 || clean.length > 50) {
-      const msg =
-        locale === "es"
-          ? "La categoría debe tener entre 2 y 50 caracteres."
-          : "Category name must be between 2 and 50 characters.";
+      const msg = t.profile.hooks.categoryLengthError;
       setErrorMessage(msg);
       toast.warning(msg);
       return false;
@@ -285,9 +272,9 @@ export function useProfileData() {
     );
     if (alreadyExists) {
       toast.info(
-        locale === "es"
-          ? `La categoría "${clean}" ya está en tus preferencias.`
-          : `Category "${clean}" is already in your preferences.`,
+        formatMessage(t.profile.hooks.categoryAlreadySelectedInfo, {
+          name: clean,
+        }),
       );
       return true;
     }
@@ -302,9 +289,11 @@ export function useProfileData() {
       setErrorMessage(null);
       setDraftCategoryIds(nextCategories);
       toast.info(
-        locale === "es"
-          ? `Categoría "${clean}" añadida al borrador (${nextCategories.length}/${MIN_USER_CATEGORIES}).`
-          : `Category "${clean}" added to draft (${nextCategories.length}/${MIN_USER_CATEGORIES}).`,
+        formatMessage(t.profile.hooks.categoryAddedDraftInfo, {
+          name: clean,
+          count: nextCategories.length,
+          min: MIN_USER_CATEGORIES,
+        }),
       );
       return true;
     }
@@ -362,15 +351,10 @@ export function useProfileData() {
       }
       reportSuccess(
         t.profile.savedPreferencesNotice,
-        locale === "es" ? "Preferencias guardadas" : "Preferences saved",
+        t.profile.hooks.prefsSavedTitle,
       );
     } catch (err) {
-      reportError(
-        err,
-        locale === "es"
-          ? "No fue posible reordenar los idiomas."
-          : "Could not reorder languages.",
-      );
+      reportError(err, t.profile.hooks.reorderLanguagesError);
     } finally {
       setIsSavingPreferences(false);
     }
@@ -391,16 +375,11 @@ export function useProfileData() {
       setCurrentSubscription(subRes.data);
       reportSuccess(
         t.profile.savedPreferencesNotice,
-        locale === "es" ? "Preferencias guardadas" : "Preferences saved",
+        t.profile.hooks.prefsSavedTitle,
       );
       return true;
     } catch (err) {
-      reportError(
-        err,
-        locale === "es"
-          ? "No fue posible actualizar tus idiomas de estudio."
-          : "Could not update study languages.",
-      );
+      reportError(err, t.profile.hooks.updateLanguagesError);
       return false;
     } finally {
       setIsSavingPreferences(false);
@@ -417,19 +396,10 @@ export function useProfileData() {
       const res = await settingsService.unlockLanguageChange();
       setLanguagesSettings(res.data);
       await refreshPreferences();
-      reportSuccess(
-        locale === "es"
-          ? "Cambio de idioma desbloqueado (+1 crédito disponible)."
-          : "Language change unlocked (+1 credit available).",
-      );
+      reportSuccess(t.profile.hooks.unlockSuccess);
       return true;
     } catch (err) {
-      reportError(
-        err,
-        locale === "es"
-          ? "No fue posible desbloquear el cambio de idioma."
-          : "Could not unlock language change.",
-      );
+      reportError(err, t.profile.hooks.unlockError);
       return false;
     } finally {
       setIsUnlockingLanguage(false);
@@ -471,18 +441,13 @@ export function useProfileData() {
 
       const planDisplayName = updatedSub.plan?.name ?? tier;
       reportSuccess(
-        locale === "es"
-          ? `Plan actualizado a ${planDisplayName}.`
-          : `Plan switched to ${planDisplayName}.`,
+        formatMessage(t.profile.hooks.planUpdatedNotice, {
+          name: planDisplayName,
+        }),
       );
       return true;
     } catch (err) {
-      reportError(
-        err,
-        locale === "es"
-          ? "No se pudo cambiar el plan de suscripción."
-          : "Could not switch subscription plan.",
-      );
+      reportError(err, t.profile.hooks.switchPlanError);
       return false;
     } finally {
       setIsSavingPlan(false);
@@ -530,14 +495,11 @@ export function useProfileData() {
         ? languagesSettings.selected
         : profile?.selectedLanguages ?? [];
 
-  const activeLanguageItems = activeLanguageCodes.map((code, index) => {
-    const meta = DEFAULT_LANGUAGES.find((item) => item.id === code);
-    return {
-      code,
-      name: meta ? (locale === "es" ? meta.nameEs : meta.nameEn) : code.toUpperCase(),
-      isPrimary: index === 0,
-    };
-  });
+  const activeLanguageItems = activeLanguageCodes.map((code, index) => ({
+    code,
+    name: t.languages[code] ?? code.toUpperCase(),
+    isPrimary: index === 0,
+  }));
 
   return {
     locale,

@@ -2,46 +2,24 @@
 
 import { ActionLink, Card, Eyebrow, Icon, Text } from "@/components/ui";
 import { type Dictionary, type Locale } from "@/i18n";
-import { type HistorySummary } from "@/lib";
 
 export interface StreakSummaryCardProps {
   t: Dictionary;
-  locale: Locale;
+  locale?: Locale;
   streakDaysCount: number;
   weeklyActiveDays: readonly boolean[];
-  historySummary: HistorySummary | null;
   isAuthenticated: boolean;
 }
 
 /**
- * Tarjeta editorial de racha semanal, retención sintáctica y vocabulario acumulado (`01-inicio.png`).
+ * Tarjeta editorial de racha semanal y meta diaria en el panel principal (`/`).
  */
 export function StreakSummaryCard({
   t,
-  locale,
   streakDaysCount,
   weeklyActiveDays,
-  historySummary,
   isAuthenticated,
 }: StreakSummaryCardProps) {
-  const averageLabel =
-    isAuthenticated && historySummary?.readings.averageScore != null
-      ? locale === "es"
-        ? `PRECISIÓN PROMEDIO: ${Math.round(historySummary.readings.averageScore)}%`
-        : `AVERAGE ACCURACY: ${Math.round(historySummary.readings.averageScore)}%`
-      : locale === "es"
-        ? "PRECISIÓN PROMEDIO: —"
-        : "AVERAGE ACCURACY: —";
-
-  const vocabLabel =
-    isAuthenticated && typeof historySummary?.wordsLookedUp === "number"
-      ? locale === "es"
-        ? `TÉRMINOS CONSULTADOS: ${historySummary.wordsLookedUp}`
-        : `LOOKED-UP TERMS: ${historySummary.wordsLookedUp}`
-      : locale === "es"
-        ? "TÉRMINOS CONSULTADOS: 0"
-        : "LOOKED-UP TERMS: 0";
-
   return (
     <Card variant="subtle" padding="lg" as="section">
       <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
@@ -65,9 +43,7 @@ export function StreakSummaryCard({
           <Text variant="small" tone="muted" className="max-w-md">
             {streakDaysCount > 0
               ? t.home.streakDailyGoal
-              : locale === "es"
-                ? "Completa y evalúa una lectura hoy para iniciar tu racha diaria."
-                : "Complete and evaluate a reading today to start your daily streak."}
+              : t.home.streakGoalPending}
           </Text>
         </div>
 
@@ -94,7 +70,7 @@ export function StreakSummaryCard({
               return (
                 <div
                   key={`${day}-${idx}`}
-                  className="flex flex-col items-center gap-1 rounded-xs border border-border bg-surface px-2 py-1.5"
+                  className="flex flex-col items-center gap-1 rounded-xs border border-border bg-surface px-1 py-1.5 sm:px-2"
                 >
                   <span
                     className={`text-[10px] font-bold ${
@@ -119,28 +95,6 @@ export function StreakSummaryCard({
             })}
           </div>
         </div>
-      </div>
-
-      <div className="mt-5 flex flex-wrap items-center justify-between gap-4 border-t border-border pt-3.5 text-[11px] font-bold tracking-wider text-muted uppercase">
-        <div className="flex flex-wrap items-center gap-4 sm:gap-6">
-          <span>{averageLabel}</span>
-          <span>{vocabLabel}</span>
-        </div>
-
-        <svg
-          aria-hidden="true"
-          className="h-5 w-24 text-ink"
-          viewBox="0 0 96 20"
-          fill="none"
-        >
-          <path
-            d="M2 16L18 14L34 15L50 9L66 11L82 5L94 3"
-            stroke="currentColor"
-            strokeWidth="1.75"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
       </div>
     </Card>
   );

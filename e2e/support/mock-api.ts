@@ -11,7 +11,7 @@ export interface MockUserState {
   currentStreak: number;
   lastStreakDate: string | null;
   emailVerifiedAt: string | null;
-  locale: "es" | "en";
+  locale: TargetLanguageCode;
   createdAt: string;
 }
 
@@ -39,6 +39,7 @@ export interface MockGlossaryEntry {
   id: number;
   readingId: number;
   readingTitle: string;
+  readingAvailable?: boolean;
   word: string;
   normalizedWord: string;
   entryType: "word" | "phrase";
@@ -73,6 +74,7 @@ export interface MockBackendConfig {
   initialLastLanguageChangeAt?: string | null;
   initialLanguageChangeCredits?: number;
   initialReadings?: MockReading[];
+  initialExplanations?: MockGlossaryEntry[];
   initialReadingsCreatedToday?: number;
   initialCategoriesEvaluatedToday?: string[];
 }
@@ -221,7 +223,7 @@ export async function attachMockBackend(
     readings: [...(config.initialReadings ?? [])],
     readingsCreatedToday: config.initialReadingsCreatedToday ?? 0,
     categoriesEvaluatedToday: [...(config.initialCategoriesEvaluatedToday ?? [])],
-    explanations: [],
+    explanations: [...(config.initialExplanations ?? [])],
     requests: [],
   };
 
@@ -819,8 +821,16 @@ export async function attachMockBackend(
       );
     }
 
+    const withReadingAvailability = (entry: MockGlossaryEntry) => {
+      const source = state.readings.find((r) => r.id === entry.readingId);
+      const readingAvailable = source
+        ? source.deletedAt === null
+        : (entry.readingAvailable ?? true);
+      return { ...entry, readingAvailable };
+    };
+
     if (apiPath === "/readings/glossary" && method === "GET") {
-      return okResponse(route, [...state.explanations]);
+      return okResponse(route, state.explanations.map(withReadingAvailability));
     }
 
     const readingExplainMatch = /^\/readings\/(\d+)\/explanations$/.exec(apiPath);
@@ -829,7 +839,9 @@ export async function attachMockBackend(
       if (method === "GET") {
         return okResponse(
           route,
-          state.explanations.filter((e) => e.readingId === readingId),
+          state.explanations
+            .filter((e) => e.readingId === readingId)
+            .map(withReadingAvailability),
         );
       }
       if (method === "POST") {
@@ -842,6 +854,7 @@ export async function attachMockBackend(
           id: expId,
           readingId,
           readingTitle: reading?.title ?? `Reading #${readingId}`,
+          readingAvailable: reading ? reading.deletedAt === null : true,
           word,
           normalizedWord: word.toLowerCase(),
           entryType: word.includes(" ") ? "phrase" : "word",
@@ -878,7 +891,7 @@ export async function attachMockBackend(
       }
       target.isSaved = Boolean(body.isSaved);
       target.savedAt = target.isSaved ? new Date().toISOString() : null;
-      return okResponse(route, target);
+      return okResponse(route, withReadingAvailability(target));
     }
 
     const readingEvalMatch = /^\/readings\/(\d+)\/evaluate$/.exec(apiPath);

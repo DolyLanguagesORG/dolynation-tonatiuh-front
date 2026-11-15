@@ -15,11 +15,11 @@ import {
   SkeletonCard,
   Text,
 } from "@/components/ui";
-import { type Dictionary, type Locale } from "@/i18n";
+import { type Dictionary, getReadingFlowDictionary, type Locale } from "@/i18n";
 
 export interface RecentReadingsSectionProps {
   t: Dictionary;
-  locale: Locale;
+  locale?: Locale;
   isAuthenticated: boolean;
   isLoadingData: boolean;
   searchQuery: string;
@@ -34,7 +34,6 @@ export interface RecentReadingsSectionProps {
  */
 export function RecentReadingsSection({
   t,
-  locale,
   isAuthenticated,
   isLoadingData,
   searchQuery,
@@ -84,22 +83,20 @@ export function RecentReadingsSection({
               size="xs"
               variant="ghost"
               onClick={() => onSearchChange("")}
-              aria-label={locale === "es" ? "Limpiar filtro" : "Clear filter"}
+              aria-label={t.home.clearFilterAria}
             />
           ) : undefined
         }
       />
 
       {isLoadingData ? (
-        <SkeletonCard lines={3} label="Cargando lecturas recientes" />
+        <SkeletonCard lines={3} label={t.home.loadingRecentReadings} />
       ) : readings.length === 0 ? (
         <EmptyState
           icon="book-open"
           title={
             searchQuery.trim()
-              ? locale === "es"
-                ? "Sin coincidencias en tus lecturas"
-                : "No readings match your filter"
+              ? t.home.noFilterMatchTitle
               : t.readings.emptyTitle
           }
           description={t.readings.emptyDescription}
@@ -116,72 +113,76 @@ export function RecentReadingsSection({
         />
       ) : (
         <div className="flex flex-col gap-4">
-          {readings.map((reading) => (
-            <Card
-              key={reading.id}
-              as="article"
-              padding="lg"
-              className="flex flex-col gap-4"
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant="secondary">{reading.languageLabel}</Badge>
-                  <Badge variant={reading.difficultyVariant}>
-                    {reading.difficultyLabel}
-                  </Badge>
-                  <span className="text-xs text-muted">
-                    • {reading.timestampLabel}
+          {readings.map((reading) => {
+            const cardDict = getReadingFlowDictionary(reading.languageCode);
+            return (
+              <Card
+                key={reading.id}
+                as="article"
+                lang={reading.languageCode}
+                padding="lg"
+                className="flex flex-col gap-4"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">{reading.languageLabel}</Badge>
+                    <Badge variant={reading.difficultyVariant}>
+                      {reading.difficultyLabel}
+                    </Badge>
+                    <span className="text-xs text-muted">
+                      • {reading.timestampLabel}
+                    </span>
+                  </div>
+
+                  <span className="text-[11px] font-bold tracking-wider text-ink uppercase">
+                    {reading.statusLabel}
                   </span>
                 </div>
 
-                <span className="text-[11px] font-bold tracking-wider text-ink uppercase">
-                  {reading.statusLabel}
-                </span>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <Heading as="h3" variant="section" lang={reading.languageCode}>
-                  {reading.title}
-                </Heading>
-                <Text
-                  variant="editorial"
-                  tone="muted"
-                  lang={reading.languageCode}
-                  className="sm:text-base"
-                >
-                  {reading.excerpt}
-                </Text>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
-                <p className="text-[11px] font-semibold tracking-wider text-muted uppercase">
-                  {reading.durationLabel} • {reading.metaLabel}
-                </p>
-
-                <div className="flex items-center gap-2">
-                  <ActionLink
-                    href={reading.feedbackHref}
-                    variant="secondary"
-                    size="sm"
+                <div className="flex flex-col gap-2">
+                  <Heading as="h3" variant="section" lang={reading.languageCode}>
+                    {reading.title}
+                  </Heading>
+                  <Text
+                    variant="editorial"
+                    tone="muted"
+                    lang={reading.languageCode}
+                    className="sm:text-base"
                   >
-                    {reading.hasScore
-                      ? t.home.feedbackButton
-                      : t.readings.evaluateAction}
-                  </ActionLink>
-                  <ActionLink
-                    href={reading.detailHref}
-                    variant="primary"
-                    size="sm"
-                    rightIcon={<Icon name="play" size="xs" />}
-                  >
-                    {reading.isCompleted
-                      ? t.home.rereadButton
-                      : t.readings.startReadingAction}
-                  </ActionLink>
+                    {reading.excerpt}
+                  </Text>
                 </div>
-              </div>
-            </Card>
-          ))}
+
+                <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3">
+                  <p className="text-[11px] font-semibold tracking-wider text-muted uppercase">
+                    {reading.durationLabel} • {reading.metaLabel}
+                  </p>
+
+                  <div className="flex items-center gap-2">
+                    <ActionLink
+                      href={reading.feedbackHref}
+                      variant="secondary"
+                      size="sm"
+                    >
+                      {reading.hasScore
+                        ? cardDict.readingCard.feedbackButton
+                        : cardDict.readings.evaluateAction}
+                    </ActionLink>
+                    <ActionLink
+                      href={reading.detailHref}
+                      variant="primary"
+                      size="sm"
+                      rightIcon={<Icon name="play" size="xs" />}
+                    >
+                      {reading.isCompleted
+                        ? cardDict.readingCard.rereadButton
+                        : cardDict.readings.startReadingAction}
+                    </ActionLink>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
         </div>
       )}
     </section>

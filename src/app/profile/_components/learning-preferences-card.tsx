@@ -14,9 +14,10 @@ import {
   Input,
   Text,
 } from "@/components/ui";
-import { type Dictionary, type Locale } from "@/i18n";
+import { type Dictionary, formatMessage, type Locale } from "@/i18n";
 import {
   DEFAULT_LANGUAGES,
+  getDateLocale,
   type LanguagesSettings,
   MIN_USER_CATEGORIES,
   type TargetLanguageCode,
@@ -85,7 +86,7 @@ export function LearningPreferencesCard({
   const credits = languagesSettings?.languageChangeCredits ?? 0;
   const nextFreeChangeLabel = languagesSettings?.nextFreeChangeAt
     ? new Date(languagesSettings.nextFreeChangeAt).toLocaleDateString(
-        locale === "es" ? "es-MX" : "en-US",
+        getDateLocale(locale),
         { day: "numeric", month: "short", year: "numeric" },
       )
     : null;
@@ -97,20 +98,13 @@ export function LearningPreferencesCard({
 
   const languageCatalog =
     languagesSettings?.catalog && languagesSettings.catalog.length > 0
-      ? languagesSettings.catalog.map((item) => {
-          const meta = DEFAULT_LANGUAGES.find((lang) => lang.id === item.id);
-          return {
-            id: item.id,
-            name: meta
-              ? locale === "es"
-                ? meta.nameEs
-                : meta.nameEn
-              : item.name,
-          };
-        })
+      ? languagesSettings.catalog.map((item) => ({
+          id: item.id,
+          name: t.languages[item.id] ?? item.name,
+        }))
       : DEFAULT_LANGUAGES.map((lang) => ({
           id: lang.id,
-          name: locale === "es" ? lang.nameEs : lang.nameEn,
+          name: t.languages[lang.id],
         }));
 
   const handleToggleLanguage = (code: TargetLanguageCode): void => {
@@ -199,7 +193,7 @@ export function LearningPreferencesCard({
             </Eyebrow>
             <Badge variant="outline">
               {activeLanguages.length}/{maxLanguages}{" "}
-              {locale === "es" ? "CUPOS ACTIVOS" : "ACTIVE SLOTS"}
+              {t.profile.activeSlotsLabel}
             </Badge>
           </div>
 
@@ -242,20 +236,14 @@ export function LearningPreferencesCard({
                       </span>
                       <span className="font-mono text-[10px] text-muted uppercase">
                         {lang.isPrimary
-                          ? locale === "es"
-                            ? "PRIMARIO • ACTIVO"
-                            : "PRIMARY • ACTIVE"
-                          : locale === "es"
-                            ? "SECUNDARIO • ACTIVO"
-                            : "SECONDARY • ACTIVE"}
+                          ? t.profile.primaryActiveLabel
+                          : t.profile.secondaryActiveLabel}
                       </span>
                     </div>
                   </div>
 
                   {lang.isPrimary ? (
-                    <Badge variant="primary">
-                      {locale === "es" ? "ACTIVO" : "ACTIVE"}
-                    </Badge>
+                    <Badge variant="primary">{t.profile.activeBadge}</Badge>
                   ) : (
                     <Button
                       variant="secondary"
@@ -286,41 +274,31 @@ export function LearningPreferencesCard({
                     className="text-heading"
                   />
                   <span className="font-mono text-[11px] font-bold tracking-wider text-heading uppercase">
-                    {locale === "es"
-                      ? "Configurar idiomas objetivo"
-                      : "Configure target languages"}
+                    {t.profile.configureTargetLanguagesTitle}
                   </span>
                 </div>
 
                 {canChangeFree ? (
                   <Badge variant="secondary">
-                    {locale === "es" ? "CAMBIO LIBRE" : "FREE CHANGE"}
+                    {t.profile.freeChangeBadge}
                   </Badge>
                 ) : credits > 0 ? (
                   <Badge variant="primary">
                     {credits}{" "}
-                    {locale === "es"
-                      ? credits === 1
-                        ? "CRÉDITO DISPONIBLE"
-                        : "CRÉDITOS DISPONIBLES"
-                      : credits === 1
-                        ? "CREDIT READY"
-                        : "CREDITS READY"}
+                    {credits === 1
+                      ? t.profile.creditReadySingular
+                      : t.profile.creditsReadyPlural}
                   </Badge>
                 ) : hasOpenLanguageSlot ? (
                   <Badge variant="secondary">
                     {remainingOpenSlots}{" "}
-                    {locale === "es"
-                      ? remainingOpenSlots === 1
-                        ? "CUPO LIBRE"
-                        : "CUPOS LIBRES"
-                      : remainingOpenSlots === 1
-                        ? "OPEN SLOT"
-                        : "OPEN SLOTS"}
+                    {remainingOpenSlots === 1
+                      ? t.profile.openSlotSingular
+                      : t.profile.openSlotsPlural}
                   </Badge>
                 ) : (
                   <Badge variant="warning">
-                    {locale === "es" ? "BLOQUEADO ANUAL" : "ANNUAL LOCK"}
+                    {t.profile.annualLockBadge}
                   </Badge>
                 )}
               </div>
@@ -360,7 +338,7 @@ export function LearningPreferencesCard({
                       void handleSaveLanguages();
                     }}
                   >
-                    {locale === "es" ? "Guardar idiomas" : "Save languages"}
+                    {t.profile.saveLanguagesButton}
                   </Button>
                   <Button
                     type="button"
@@ -369,7 +347,7 @@ export function LearningPreferencesCard({
                     disabled={isSaving}
                     onClick={() => setDraftLanguages(null)}
                   >
-                    {locale === "es" ? "Restablecer" : "Reset"}
+                    {t.profile.resetButton}
                   </Button>
                 </div>
               )}
@@ -378,16 +356,21 @@ export function LearningPreferencesCard({
                 <div className="flex flex-col gap-2.5 border-t border-default pt-2.5">
                   <Text variant="caption" tone="muted">
                     {hasOpenLanguageSlot
-                      ? locale === "es"
-                        ? `Puedes agregar ${remainingOpenSlots} idioma${remainingOpenSlots === 1 ? "" : "s"} adicional${remainingOpenSlots === 1 ? "" : "es"} gratis sin esperar ni usar créditos. Reemplazar un idioma ya guardado requiere esperar al ${nextFreeChangeLabel ?? "próximo ciclo anual"} o usar +1 crédito.`
-                        : `You can add ${remainingOpenSlots} more language${remainingOpenSlots === 1 ? "" : "s"} for free without cooldown or credits. Replacing an already-saved language waits until ${nextFreeChangeLabel ?? "the next annual cycle"} or uses +1 credit.`
+                      ? formatMessage(t.profile.unlockOpenSlotsHint, {
+                          slotsText:
+                            remainingOpenSlots === 1
+                              ? t.profile.openSlotCountSingular
+                              : formatMessage(t.profile.openSlotCountPlural, {
+                                  count: remainingOpenSlots,
+                                }),
+                          date:
+                            nextFreeChangeLabel ?? t.profile.nextCycleFallback,
+                        })
                       : nextFreeChangeLabel
-                        ? locale === "es"
-                          ? `Próximo cambio gratuito el ${nextFreeChangeLabel}. Puedes desbloquear un cambio anticipado acreditando +1 uso.`
-                          : `Next free change available on ${nextFreeChangeLabel}. You can unlock an immediate change (+1 credit).`
-                        : locale === "es"
-                          ? "Tu selección actual tiene bloqueo anual activo."
-                          : "Your current language selection is under the annual cooldown."}
+                        ? formatMessage(t.profile.nextFreeChangeHint, {
+                            date: nextFreeChangeLabel,
+                          })
+                        : t.profile.annualLockHint}
                   </Text>
 
                   <div className="flex flex-wrap items-center gap-2">
@@ -400,9 +383,7 @@ export function LearningPreferencesCard({
                         leftIcon={<Icon name="unlock" size="xs" />}
                         onClick={() => setConfirmingUnlock(true)}
                       >
-                        {locale === "es"
-                          ? "Desbloquear cambio de idioma"
-                          : "Unlock language change"}
+                        {t.profile.unlockLanguageChangeButton}
                       </Button>
                     ) : (
                       <>
@@ -416,9 +397,7 @@ export function LearningPreferencesCard({
                             void handleConfirmUnlock();
                           }}
                         >
-                          {locale === "es"
-                            ? "Confirmar (+1 crédito)"
-                            : "Confirm (+1 credit)"}
+                          {t.profile.confirmCreditButton}
                         </Button>
                         <Button
                           type="button"
@@ -427,7 +406,7 @@ export function LearningPreferencesCard({
                           disabled={isUnlockingLanguage}
                           onClick={() => setConfirmingUnlock(false)}
                         >
-                          {locale === "es" ? "Cancelar" : "Cancel"}
+                          {t.profile.cancelButton}
                         </Button>
                       </>
                     )}
@@ -446,7 +425,10 @@ export function LearningPreferencesCard({
             <div className="flex items-center gap-2">
               {isMissingMinCategories && (
                 <Badge variant="warning">
-                  mín. {selectedCategoryIds.length}/{MIN_USER_CATEGORIES}
+                  {formatMessage(t.profile.minRequiredBadge, {
+                    count: selectedCategoryIds.length,
+                    min: MIN_USER_CATEGORIES,
+                  })}
                 </Badge>
               )}
               <Text variant="caption" tone="muted" className="font-mono">

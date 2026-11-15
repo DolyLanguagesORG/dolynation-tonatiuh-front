@@ -3,10 +3,17 @@
 import { useEffect, useState } from "react";
 
 import { useAuth } from "@/context";
-import { useLocale } from "@/i18n";
 import {
-  historyService,
-  type HistorySummary,
+  formatMessage,
+  getReadingFlowDictionary,
+  type Locale,
+  resolveReadingLanguage,
+  useLocale,
+} from "@/i18n";
+import {
+  formatReadingLanguageBadge,
+  getDateLocale,
+  getDifficultyMeta,
   type ReadingDifficulty,
   type ReadingDto,
   readingsService,
@@ -31,55 +38,31 @@ export interface HomeReadingItem {
   excerpt: string;
   durationLabel: string;
   metaLabel: string;
+  searchKeywords: string;
   detailHref: string;
   feedbackHref: string;
 }
 
-function formatLanguageTag(code: TargetLanguageCode, locale: "es" | "en"): string {
-  const names: Record<TargetLanguageCode, { es: string; en: string }> = {
-    en: { es: "INGLÉS", en: "ENGLISH" },
-    fr: { es: "FRANCÉS", en: "FRENCH" },
-    it: { es: "ITALIANO", en: "ITALIAN" },
-    es: { es: "ESPAÑOL", en: "SPANISH" },
-  };
-  const label = names[code]?.[locale] ?? code.toUpperCase();
-  return `[${code.toUpperCase()}] ${label}`;
-}
-
-function formatDifficultyTag(
-  difficulty: ReadingDifficulty | null,
-  locale: "es" | "en",
-): { label: string; variant: "primary" | "secondary" } {
-  if (difficulty === "hard") {
-    return {
-      label: locale === "es" ? "NIVEL ALTO" : "HIGH LEVEL",
-      variant: "primary",
-    };
-  }
-  if (difficulty === "easy") {
-    return {
-      label: locale === "es" ? "NIVEL BAJO" : "LOW LEVEL",
-      variant: "secondary",
-    };
-  }
-  return {
-    label: locale === "es" ? "NIVEL MEDIO" : "MEDIUM LEVEL",
-    variant: "secondary",
-  };
-}
-
-function mapDtoToHomeReading(
+/**
+ * Transforma un `ReadingDto` en una tarjeta de resumen reciente inmersa en el propio
+ * idioma de la lectura mientras conserva palabras clave bilingües para el buscador local.
+ */
+export function mapDtoToHomeReading(
   dto: ReadingDto,
-  locale: "es" | "en",
+  fallbackLocale: Locale = "es",
 ): HomeReadingItem {
-  const diff = formatDifficultyTag(dto.difficulty, locale);
+  const cardLanguage = resolveReadingLanguage(dto.language, fallbackLocale);
+  const cardDict = getReadingFlowDictionary(cardLanguage);
+  const difficultyKey: ReadingDifficulty = dto.difficulty ?? "medium";
+  const difficultyVariant: "primary" | "secondary" =
+    difficultyKey === "hard" ? "primary" : "secondary";
   const words = dto.wordCount ?? Math.max(120, dto.content.split(/\s+/).length);
   const mins = Math.max(2, Math.round(words / 180));
   const isCompleted = dto.status === "completed";
   const hasScore = typeof dto.score === "number";
 
   const dateStr = new Date(dto.createdAt).toLocaleDateString(
-    locale === "es" ? "es-MX" : "en-US",
+    getDateLocale(cardLanguage),
     { day: "2-digit", month: "short", year: "numeric" },
   );
 
@@ -89,30 +72,45 @@ function mapDtoToHomeReading(
       ? `"${excerptSource.slice(0, 187).trimEnd()}..."`
       : `"${excerptSource}"`;
 
+  const languageLabel = formatReadingLanguageBadge(cardLanguage, cardLanguage);
+  const difficultyLabel = getDifficultyMeta(
+    difficultyKey,
+    cardLanguage,
+  ).label;
+  const localeLanguageLabel = formatReadingLanguageBadge(
+    cardLanguage,
+    fallbackLocale,
+  );
+  const localeDifficultyMeta = getDifficultyMeta(difficultyKey, fallbackLocale);
+
   return {
     id: `reading-${dto.id}`,
     numericId: dto.id,
-    languageCode: dto.language,
-    languageLabel: formatLanguageTag(dto.language, locale),
-    difficultyLabel: diff.label,
-    difficultyVariant: diff.variant,
+    languageCode: cardLanguage,
+    languageLabel,
+    difficultyLabel,
+    difficultyVariant,
     timestampLabel: dateStr,
     statusLabel: hasScore
-      ? `${locale === "es" ? "COMPLETADA" : "COMPLETED"} (${dto.score}/100)`
+      ? `${cardDict.readingCard.statusCompleted} (${dto.score}/100)`
       : isCompleted
-        ? locale === "es"
-          ? "COMPLETADA"
-          : "COMPLETED"
-        : locale === "es"
-          ? "PENDIENTE DE EVALUACIÓN"
-          : "PENDING EVALUATION",
+        ? cardDict.readingCard.statusCompleted
+        : cardDict.readingCard.statusPendingEvaluation,
     isCompleted,
     hasScore,
     title: dto.title,
     excerpt,
-    durationLabel:
-      locale === "es" ? `${mins} MIN LECTURA` : `${mins} MIN READ`,
-    metaLabel: `${words} ${locale === "es" ? "PALABRAS" : "WORDS"}`,
+    durationLabel: `${mins} ${cardDict.readingCard.minReadUnit}`,
+    metaLabel: `${words} ${cardDict.readingCard.wordsUnit}`,
+    searchKeywords: [
+      languageLabel,
+      localeLanguageLabel,
+      difficultyLabel,
+      localeDifficultyMeta.label,
+      dto.category ?? "",
+    ]
+      .join(" ")
+      .toLowerCase(),
     detailHref: `/readings/${dto.id}`,
     feedbackHref: hasScore
       ? `/readings/${dto.id}/result`
@@ -129,9 +127,6 @@ export function useHomeDashboard() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [liveReadings, setLiveReadings] = useState<HomeReadingItem[]>([]);
-  const [historySummary, setHistorySummary] = useState<HistorySummary | null>(
-    null,
-  );
   const [streakCount, setStreakCount] = useState<number | null>(null);
   const [subscriptionUsage, setSubscriptionUsage] =
     useState<SubscriptionUsage | null>(null);
@@ -160,7 +155,6 @@ export function useHomeDashboard() {
     Promise.allSettled([
       readingsService.listCompleted(),
       readingsService.listPending(),
-      historyService.getSummary(),
       usersService.getStreak({ days: 7 }),
       subscriptionsService.getCurrentSubscription(),
       usersService.getProfile(),
@@ -169,7 +163,6 @@ export function useHomeDashboard() {
         ([
           completedRes,
           pendingRes,
-          summaryRes,
           streakRes,
           subscriptionRes,
           profileRes,
@@ -198,10 +191,6 @@ export function useHomeDashboard() {
           setLiveReadings(
             merged.slice(0, 6).map((dto) => mapDtoToHomeReading(dto, locale)),
           );
-
-          if (summaryRes.status === "fulfilled" && summaryRes.value.data) {
-            setHistorySummary(summaryRes.value.data);
-          }
 
           if (
             profileRes.status === "fulfilled" &&
@@ -249,19 +238,13 @@ export function useHomeDashboard() {
     "";
 
   const welcomeHeading = firstNameDisplay
-    ? locale === "es"
-      ? `Bienvenido de vuelta, ${firstNameDisplay}.`
-      : `Welcome back, ${firstNameDisplay}.`
+    ? formatMessage(t.home.welcomeWithName, { name: firstNameDisplay })
     : t.home.welcomeHeading;
 
   const streakDaysCount = streakCount ?? user?.currentStreak ?? 0;
 
   const searchError =
-    searchQuery.trim().length > 40
-      ? locale === "es"
-        ? "El término de filtrado no debe exceder 40 caracteres."
-        : "Filter query must not exceed 40 characters."
-      : undefined;
+    searchQuery.trim().length > 40 ? t.home.searchMaxLengthError : undefined;
 
   const sourceReadings = liveReadings;
 
@@ -271,7 +254,8 @@ export function useHomeDashboard() {
     return (
       item.title.toLowerCase().includes(q) ||
       item.languageLabel.toLowerCase().includes(q) ||
-      item.difficultyLabel.toLowerCase().includes(q)
+      item.difficultyLabel.toLowerCase().includes(q) ||
+      item.searchKeywords.includes(q)
     );
   });
 
@@ -284,7 +268,6 @@ export function useHomeDashboard() {
     welcomeHeading,
     streakDaysCount,
     weeklyActiveDays,
-    historySummary,
     subscriptionUsage,
     isLoadingData,
     searchQuery,

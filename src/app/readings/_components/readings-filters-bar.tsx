@@ -13,6 +13,7 @@ import {
   Select,
 } from "@/components/ui";
 import { type Dictionary, type Locale } from "@/i18n";
+import { formatReadingLanguageBadge, getDifficultyMeta } from "@/lib";
 
 export interface ReadingsFiltersBarProps {
   t: Dictionary;
@@ -65,23 +66,17 @@ export function ReadingsFiltersBar({
 
   const languageOptions = [
     { value: "all", label: t.readings.allLanguagesFilter },
-    { value: "en", label: locale === "es" ? "[EN] INGLÉS" : "[EN] ENGLISH" },
-    { value: "es", label: locale === "es" ? "[ES] ESPAÑOL" : "[ES] SPANISH" },
-    { value: "fr", label: locale === "es" ? "[FR] FRANCÉS" : "[FR] FRENCH" },
-    { value: "it", label: locale === "es" ? "[IT] ITALIANO" : "[IT] ITALIAN" },
+    { value: "en", label: formatReadingLanguageBadge("en", locale) },
+    { value: "es", label: formatReadingLanguageBadge("es", locale) },
+    { value: "fr", label: formatReadingLanguageBadge("fr", locale) },
+    { value: "it", label: formatReadingLanguageBadge("it", locale) },
   ];
 
   const difficultyOptions = [
     { value: "all", label: t.readings.allDifficultiesFilter },
-    { value: "easy", label: locale === "es" ? "BÁSICO (A1–A2)" : "EASY (A1–A2)" },
-    {
-      value: "medium",
-      label: locale === "es" ? "MEDIO (B1–B2)" : "MEDIUM (B1–B2)",
-    },
-    {
-      value: "hard",
-      label: locale === "es" ? "AVANZADO (C1–C2)" : "ADVANCED (C1–C2)",
-    },
+    { value: "easy", label: getDifficultyMeta("easy", locale).label },
+    { value: "medium", label: getDifficultyMeta("medium", locale).label },
+    { value: "hard", label: getDifficultyMeta("hard", locale).label },
   ];
 
   return (
@@ -139,7 +134,7 @@ export function ReadingsFiltersBar({
               icon="close"
               size="xs"
               variant="ghost"
-              aria-label={locale === "es" ? "Limpiar búsqueda" : "Clear search"}
+              aria-label={t.readings.clearSearchAria}
               onClick={() => onSearchChange("")}
             />
           ) : undefined

@@ -13,8 +13,8 @@ import {
   StatCard,
   Text,
 } from "@/components/ui";
-import { type Dictionary, type Locale } from "@/i18n";
-import { type AuthUser, type HistorySummary } from "@/lib";
+import { formatMessage, type Dictionary, type Locale } from "@/i18n";
+import { type AuthUser, getDateLocale, type HistorySummary } from "@/lib";
 
 export interface ProfileOverviewCardProps {
   t: Dictionary;
@@ -49,14 +49,15 @@ export function ProfileOverviewCard({
   const [isEditing, setIsEditing] = useState(false);
   const [draftName, setDraftName] = useState(user?.fullName ?? "");
 
-  const displayName = user?.fullName?.trim() || user?.email || "Estudiante";
+  const displayName =
+    user?.fullName?.trim() || user?.email || t.profile.defaultRole;
   const initials = getInitials(displayName);
 
   const memberSince = user?.createdAt
-    ? new Date(user.createdAt).toLocaleDateString(
-        locale === "es" ? "es-MX" : "en-US",
-        { month: "long", year: "numeric" },
-      )
+    ? new Date(user.createdAt).toLocaleDateString(getDateLocale(locale), {
+        month: "long",
+        year: "numeric",
+      })
     : "—";
 
   const planLabel =
@@ -66,18 +67,14 @@ export function ProfileOverviewCard({
         ? "DOLLY PLUS"
         : user?.subscriptionTier === "dolly"
           ? "DOLLY BASE"
-          : locale === "es"
-            ? "SIN PLAN ACTIVO"
-            : "NO ACTIVE PLAN";
+          : t.profile.subscription.noActivePlanBadge;
 
   const totalReadings = historySummary?.readings.total ?? 0;
   const completedReadings = historySummary?.readings.completed ?? 0;
   const passedReadings = historySummary?.readings.passed ?? 0;
   const passedUnit =
     completedReadings > 0
-      ? locale === "es"
-        ? `de ${completedReadings} eval.`
-        : `of ${completedReadings} eval.`
+      ? formatMessage(t.profile.evalUnit, { count: completedReadings })
       : t.profile.stats.passedReadingsUnit;
   const activeVocab = historySummary?.wordsLookedUp ?? 0;
   const accuracy =
@@ -101,7 +98,7 @@ export function ProfileOverviewCard({
   return (
     <Card padding="lg" as="section" className="flex flex-col gap-6">
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
-        <div className="flex items-start gap-4">
+        <div className="flex min-w-0 items-start gap-4">
           <div
             aria-hidden="true"
             className="relative flex h-20 w-20 shrink-0 items-center justify-center rounded-base border border-brand bg-neutral-secondary-medium font-serif text-2xl font-bold text-heading"
@@ -110,7 +107,7 @@ export function ProfileOverviewCard({
             <span className="absolute right-1.5 bottom-1.5 h-3 w-3 rounded-full border-2 border-neutral-primary-soft bg-brand" />
           </div>
 
-          <div className="flex min-w-0 flex-col gap-1.5">
+          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
             <div className="flex flex-wrap items-center gap-2">
               <Heading as="h2" variant="title">
                 {displayName}
@@ -118,7 +115,7 @@ export function ProfileOverviewCard({
               <Icon name="badge-check" size="lg" className="text-heading" />
             </div>
 
-            <Text variant="small" tone="muted">
+            <Text variant="small" tone="muted" className="break-all">
               {user?.email ?? "—"}
             </Text>
 

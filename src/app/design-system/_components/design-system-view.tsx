@@ -38,28 +38,40 @@ import {
   Text,
   Textarea,
 } from "@/components/ui";
-import { useLocale } from "@/i18n";
+import { formatMessage, useLocale } from "@/i18n";
+import {
+  formatReadingLanguageBadge,
+  getDifficultyMeta,
+  type ReadingDifficulty,
+  type TargetLanguageCode,
+} from "@/lib";
 
-const SAMPLE_ROWS = [
+const SAMPLE_ROWS: ReadonlyArray<{
+  id: number;
+  title: string;
+  langCode: TargetLanguageCode;
+  levelKey: ReadingDifficulty;
+  score: number;
+}> = [
   {
     id: 101,
     title: "The Architecture of Distributed Memory",
-    lang: "[EN] INGLÉS",
-    level: "B2",
+    langCode: "en",
+    levelKey: "medium",
     score: 94,
   },
   {
     id: 102,
     title: "L'économie circulaire urbaine",
-    lang: "[FR] FRANCÉS",
-    level: "B1",
+    langCode: "fr",
+    levelKey: "easy",
     score: 88,
   },
   {
     id: 103,
     title: "Ética algorítmica en la clínica moderna",
-    lang: "[ES] ESPAÑOL",
-    level: "C1",
+    langCode: "es",
+    levelKey: "hard",
     score: 91,
   },
 ];
@@ -70,7 +82,7 @@ const SAMPLE_ROWS = [
 export function DesignSystemView() {
   const { locale, t } = useLocale();
 
-  const [chipValues, setChipValues] = useState<string[]>(["en", "tech"]);
+  const [chipValues, setChipValues] = useState<string[]>(["en", "fr"]);
   const [selectedPlan, setSelectedPlan] = useState<"basic" | "pro">("pro");
   const [activeStep, setActiveStep] = useState(2);
   const [page, setPage] = useState(1);
@@ -96,25 +108,25 @@ export function DesignSystemView() {
   const stepperItems = [
     {
       step: 1,
-      label: locale === "es" ? "Datos" : "Details",
+      label: t.designSystem.stepperStep1,
       isCompleted: activeStep > 1,
       isCurrent: activeStep === 1,
     },
     {
       step: 2,
-      label: locale === "es" ? "Verificar" : "Verify",
+      label: t.designSystem.stepperStep2,
       isCompleted: activeStep > 2,
       isCurrent: activeStep === 2,
     },
     {
       step: 3,
-      label: locale === "es" ? "Plan" : "Plan",
+      label: t.designSystem.stepperStep3,
       isCompleted: activeStep > 3,
       isCurrent: activeStep === 3,
     },
     {
       step: 4,
-      label: locale === "es" ? "Idiomas" : "Languages",
+      label: t.designSystem.stepperStep4,
       isCompleted: false,
       isCurrent: activeStep === 4,
     },
@@ -139,9 +151,7 @@ export function DesignSystemView() {
 
       {/* 01. Tipografía Editorial */}
       <section className="flex flex-col gap-4">
-        <Eyebrow tone="muted">
-          01. {locale === "es" ? "TIPOGRAFÍA Y JERARQUÍA" : "TYPOGRAPHY & HIERARCHY"}
-        </Eyebrow>
+        <Eyebrow tone="muted">{t.designSystem.section01}</Eyebrow>
         <Card padding="lg" className="flex flex-col gap-4">
           <Heading as="h2" variant="display">
             Display Serif Heading (Newsreader)
@@ -160,16 +170,14 @@ export function DesignSystemView() {
             Cuerpo estándar sans-serif (`Plus Jakarta Sans`) para instrucciones, formularios y tarjetas.
           </Text>
           <Text variant="meta" tone="muted">
-            [META / CODE] • CEFR B1-B2 • 14 MIN FOCUS
+            [META / CODE] • MEDIO • 14 MIN FOCUS
           </Text>
         </Card>
       </section>
 
       {/* 02. Botones y Enlaces */}
       <section className="flex flex-col gap-4">
-        <Eyebrow tone="muted">
-          02. {locale === "es" ? "BOTONES, ENLACES E ICONOGRAFÍA" : "BUTTONS, ACTION LINKS & ICON BUTTONS"}
-        </Eyebrow>
+        <Eyebrow tone="muted">{t.designSystem.section02}</Eyebrow>
         <Card padding="lg" className="flex flex-col gap-5">
           <div className="flex flex-wrap items-center gap-3">
             <Button variant="primary" size="md">
@@ -209,51 +217,61 @@ export function DesignSystemView() {
             <ActionLink href="#design-system-tables" variant="secondary" size="sm">
               ActionLink → #tables
             </ActionLink>
-            <IconButton icon="bookmark" variant="secondary" aria-label="Guardar" />
-            <IconButton icon="volume-2" variant="outline" aria-label="Audio" />
-            <IconButton icon="settings" variant="ghost" aria-label="Ajustes" />
+            <IconButton
+              icon="bookmark"
+              variant="secondary"
+              aria-label={t.designSystem.saveIconAria}
+            />
+            <IconButton
+              icon="volume-2"
+              variant="outline"
+              aria-label={t.designSystem.audioIconAria}
+            />
+            <IconButton
+              icon="settings"
+              variant="ghost"
+              aria-label={t.designSystem.settingsIconAria}
+            />
           </div>
         </Card>
       </section>
 
       {/* 03. Formularios */}
       <section id="design-system-forms" className="flex flex-col gap-4">
-        <Eyebrow tone="muted">
-          03. {locale === "es" ? "CONTROLES DE FORMULARIO" : "FORM CONTROLS"}
-        </Eyebrow>
+        <Eyebrow tone="muted">{t.designSystem.section03}</Eyebrow>
         <Card padding="lg" className="grid grid-cols-1 gap-5 md:grid-cols-2">
           <Input
-            label="Correo institucional"
-            hint="Validación accesible aria-describedby"
+            label={t.designSystem.emailInputLabel}
+            hint={t.designSystem.emailInputHint}
             value={sampleInput}
             onChange={(e) => setSampleInput(e.target.value)}
           />
           <PasswordInput
-            label="Contraseña académica"
+            label={t.designSystem.passwordInputLabel}
             value={samplePassword}
             onChange={(e) => setSamplePassword(e.target.value)}
           />
           <Select
-            label="Nivel CEFR objetivo"
+            label={t.designSystem.difficultySelectLabel}
             value={sampleLevel}
             onChange={(e) => setSampleLevel(e.target.value)}
             options={[
-              { value: "easy", label: "Básico (A1–A2)" },
-              { value: "medium", label: "Intermedio (B1–B2)" },
-              { value: "hard", label: "Avanzado (C1–C2)" },
+              { value: "easy", label: t.study.difficulties.easy.label },
+              { value: "medium", label: t.study.difficulties.medium.label },
+              { value: "hard", label: t.study.difficulties.hard.label },
             ]}
           />
           <div className="flex flex-col justify-end pb-1">
             <Checkbox
-              label="Activar sincronización de progreso CEFR"
-              hint="Guarda estadísticas en tu perfil académico."
+              label={t.designSystem.syncCheckboxLabel}
+              hint={t.designSystem.syncCheckboxHint}
               checked={checkedTerms}
               onChange={(e) => setCheckedTerms(e.target.checked)}
             />
           </div>
           <div className="md:col-span-2">
             <Textarea
-              label="Resumen de comprensión"
+              label={t.designSystem.summaryTextareaLabel}
               rows={3}
               value={sampleSummary}
               onChange={(e) => setSampleSummary(e.target.value)}
@@ -264,16 +282,14 @@ export function DesignSystemView() {
 
       {/* 04. Chips, Cards de Selección y Stepper */}
       <section className="flex flex-col gap-4">
-        <Eyebrow tone="muted">
-          04. {locale === "es" ? "CHIPS, TARJETAS DE SELECCIÓN Y STEPPER" : "CHIPS, CHOICE CARDS & STEPPER"}
-        </Eyebrow>
+        <Eyebrow tone="muted">{t.designSystem.section04}</Eyebrow>
         <Card padding="lg" className="flex flex-col gap-6">
           <div className="flex flex-wrap gap-2">
             {[
-              { id: "en", code: "EN", label: "Inglés" },
-              { id: "fr", code: "FR", label: "Francés" },
-              { id: "tech", label: "Tecnología" },
-              { id: "science", label: "Ciencia" },
+              { id: "en", code: "EN", label: t.languages.en },
+              { id: "fr", code: "FR", label: t.languages.fr },
+              { id: "es", code: "ES", label: t.languages.es },
+              { id: "it", code: "IT", label: t.languages.it },
             ].map((item) => (
               <ChoiceChip
                 key={item.id}
@@ -290,25 +306,26 @@ export function DesignSystemView() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <ChoiceCard
               selected={selectedPlan === "basic"}
-              badge="BASIC"
-              title="Dolly"
-              meta="10 lecturas / día"
-              description="1 idioma activo y lecturas diarias adaptadas."
+              badge={t.plans.tiers.dolly.badge}
+              title={t.plans.tiers.dolly.name}
+              meta={formatMessage(t.plans.quotaHeadlineLimited, { readings: 10 })}
+              description={t.plans.tiers.dolly.description}
               onClick={() => setSelectedPlan("basic")}
             />
             <ChoiceCard
               selected={selectedPlan === "pro"}
               emphasis="filled"
-              badge="ALL ACCESS"
-              title="Dolly Pro"
-              meta="Cuotas ilimitadas"
-              description="4 idiomas simultáneos y retroalimentación ilimitada."
+              badge={t.plans.tiers.dolly_pro.badge}
+              title={t.plans.tiers.dolly_pro.name}
+              meta={t.plans.quotaHeadlineUnlimited}
+              description={t.plans.tiers.dolly_pro.description}
               onClick={() => setSelectedPlan("pro")}
             />
           </div>
 
           <Stepper
             items={stepperItems}
+            ariaLabel={t.meta.stepperAriaLabel}
             onStepSelect={(nextStep) => setActiveStep(nextStep)}
           />
         </Card>
@@ -316,9 +333,7 @@ export function DesignSystemView() {
 
       {/* 05. Alertas, Badges, Progreso y KPIs */}
       <section className="flex flex-col gap-4">
-        <Eyebrow tone="muted">
-          05. {locale === "es" ? "ALERTAS, INSIGNIAS, MÉTRICAS Y PROGRESO" : "ALERTS, BADGES, STATS & PROGRESS"}
-        </Eyebrow>
+        <Eyebrow tone="muted">{t.designSystem.section05}</Eyebrow>
         <div className="flex flex-col gap-4">
           <div className="flex flex-wrap gap-2">
             <Badge variant="primary">PRIMARY B&W</Badge>
@@ -332,44 +347,48 @@ export function DesignSystemView() {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <Alert
               variant="info"
-              title="Nota editorial"
-              quote="Incluye dos conectores de contraste en tu próximo resumen."
-              quoteLabel="RECOMENDACIÓN IA:"
+              title={t.designSystem.infoAlertTitle}
+              quote={t.designSystem.infoAlertQuote}
+              quoteLabel={t.designSystem.infoAlertQuoteLabel}
             >
-              Solo las alertas semánticas introducen color fuera de la paleta B&W.
+              {t.designSystem.infoAlertBody}
             </Alert>
-            <Alert variant="success" title="Sincronización correcta" code="HTTP_200">
-              Tus preferencias académicas están listas para generar nuevas lecturas.
+            <Alert
+              variant="success"
+              title={t.designSystem.successAlertTitle}
+              code="HTTP_200"
+            >
+              {t.designSystem.successAlertBody}
             </Alert>
           </div>
 
           <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
             <StatCard
-              label="LECTURAS COMPLETADAS"
+              label={t.designSystem.statCompletedLabel}
               value={28}
-              unit="textos"
-              footer="Última sesión hace 2 h"
+              unit={t.designSystem.statCompletedUnit}
+              footer={t.designSystem.statCompletedFooter}
               footerIcon="clock"
             />
             <StatCard
-              label="PRECISIÓN CONTEXTUAL"
+              label={t.designSystem.statAccuracyLabel}
               topMeta="92%"
               progress={92}
               value={92}
               unit="/ 100"
-              description="Promedio sostenido en lecturas B1–B2."
+              description={t.designSystem.statAccuracyDesc}
             />
             <Card padding="sm" className="flex flex-col justify-between gap-4">
               <ProgressBar
                 value={74}
-                label="Meta diaria de palabras"
+                label={t.designSystem.progressDailyLabel}
                 valueLabel="74 / 100"
               />
               <SegmentedMeter
                 activeCount={3}
                 total={3}
-                caption="Fortaleza léxica"
-                statusLabel="ÓPTIMA"
+                caption={t.designSystem.meterCaption}
+                statusLabel={t.designSystem.meterStatus}
                 tone="success"
               />
             </Card>
@@ -379,17 +398,15 @@ export function DesignSystemView() {
 
       {/* 06. Tablas, Paginación y Estados */}
       <section id="design-system-tables" className="flex flex-col gap-4">
-        <Eyebrow tone="muted">
-          06. {locale === "es" ? "TABLAS, PAGINACIÓN Y ESTADOS" : "TABLES, PAGINATION & STATES"}
-        </Eyebrow>
+        <Eyebrow tone="muted">{t.designSystem.section06}</Eyebrow>
         <Card padding="none" className="overflow-hidden">
           <DataTable>
             <DataTableHead>
               <DataTableRow>
-                <DataTableHeadCell>LECTURA</DataTableHeadCell>
-                <DataTableHeadCell>IDIOMA</DataTableHeadCell>
-                <DataTableHeadCell>CEFR</DataTableHeadCell>
-                <DataTableHeadCell>SCORE</DataTableHeadCell>
+                <DataTableHeadCell>{t.designSystem.tableColReading}</DataTableHeadCell>
+                <DataTableHeadCell>{t.designSystem.tableColLanguage}</DataTableHeadCell>
+                <DataTableHeadCell>{t.designSystem.tableColDifficulty}</DataTableHeadCell>
+                <DataTableHeadCell>{t.designSystem.tableColScore}</DataTableHeadCell>
               </DataTableRow>
             </DataTableHead>
             <DataTableBody>
@@ -399,10 +416,14 @@ export function DesignSystemView() {
                     {row.title}
                   </DataTableCell>
                   <DataTableCell>
-                    <Badge variant="secondary">{row.lang}</Badge>
+                    <Badge variant="secondary">
+                      {formatReadingLanguageBadge(row.langCode, locale)}
+                    </Badge>
                   </DataTableCell>
                   <DataTableCell>
-                    <Badge variant="outline">{row.level}</Badge>
+                    <Badge variant="outline">
+                      {getDifficultyMeta(row.levelKey, locale).label.toUpperCase()}
+                    </Badge>
                   </DataTableCell>
                   <DataTableCell>
                     <Badge variant="success">{row.score}/100</Badge>
@@ -418,6 +439,13 @@ export function DesignSystemView() {
           totalPages={3}
           totalItems={15}
           visibleItemsCount={5}
+          previousLabel={t.meta.paginationPrevious}
+          nextLabel={t.meta.paginationNext}
+          ariaLabel={t.meta.paginationAriaLabel}
+          summaryText={formatMessage(t.meta.paginationSummaryDefault, {
+            visible: 5,
+            total: 15,
+          })}
           onPageChange={setPage}
         />
 
@@ -425,15 +453,15 @@ export function DesignSystemView() {
           <EmptyState
             icon="book-open"
             badge="EMPTY STATE"
-            title="Sin lecturas pendientes"
-            description="Genera un texto adaptado a tu nivel CEFR para practicar hoy."
+            title={t.designSystem.emptyTitle}
+            description={t.designSystem.emptyDescription}
             actions={
               <ActionLink href="#design-system-forms" variant="primary" size="sm">
-                Ir a formularios demo
+                {t.designSystem.emptyCta}
               </ActionLink>
             }
           />
-          <SkeletonCard lines={3} label="Demostración de esqueleto" />
+          <SkeletonCard lines={3} label={t.designSystem.skeletonLabel} />
         </div>
       </section>
 
@@ -441,10 +469,13 @@ export function DesignSystemView() {
       <section className="flex flex-col gap-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
           <Eyebrow tone="muted">
-            07. ICON REGISTRY ({filteredIcons.length} / {AVAILABLE_ICON_NAMES.length})
+            {formatMessage(t.designSystem.section07, {
+              filtered: filteredIcons.length,
+              total: AVAILABLE_ICON_NAMES.length,
+            })}
           </Eyebrow>
           <Input
-            label={locale === "es" ? "Filtrar íconos" : "Filter icons"}
+            label={t.designSystem.filterIconsLabel}
             placeholder="bookmark, sparkles..."
             value={iconQuery}
             onChange={(e) => setIconQuery(e.target.value)}

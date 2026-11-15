@@ -24,7 +24,7 @@ function ProfileContent() {
       {data.notice && (
         <Alert
           variant="success"
-          title={locale === "es" ? "Sincronización completada" : "Synced"}
+          title={t.profile.syncSuccessTitle}
           onDismiss={() => data.setNotice(null)}
         >
           {data.notice}
@@ -34,7 +34,7 @@ function ProfileContent() {
       {data.errorMessage && (
         <Alert
           variant="error"
-          title={locale === "es" ? "No se pudo guardar" : "Save error"}
+          title={t.profile.saveErrorTitle}
           onDismiss={() => data.setErrorMessage(null)}
         >
           {data.errorMessage}
@@ -42,7 +42,7 @@ function ProfileContent() {
       )}
 
       {data.isLoading ? (
-        <SkeletonCard lines={5} label="Cargando perfil académico" />
+        <SkeletonCard lines={5} label={t.profile.loadingProfile} />
       ) : (
         <>
           <ProfileOverviewCard
@@ -78,6 +78,7 @@ function ProfileContent() {
           />
 
           <SubscriptionPlanCard
+            t={t}
             locale={locale}
             currentSubscription={data.currentSubscription}
             plans={data.plans}

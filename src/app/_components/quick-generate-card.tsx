@@ -9,12 +9,12 @@ import {
   Icon,
   Text,
 } from "@/components/ui";
-import { type Dictionary, type Locale } from "@/i18n";
+import { formatMessage, type Dictionary, type Locale } from "@/i18n";
 import { type SubscriptionUsage } from "@/lib";
 
 export interface QuickGenerateCardProps {
   t: Dictionary;
-  locale: Locale;
+  locale?: Locale;
   canGenerateReadings?: boolean;
   subscriptionUsage?: SubscriptionUsage | null;
 }
@@ -24,7 +24,6 @@ export interface QuickGenerateCardProps {
  */
 export function QuickGenerateCard({
   t,
-  locale,
   canGenerateReadings = true,
   subscriptionUsage = null,
 }: QuickGenerateCardProps) {
@@ -55,26 +54,21 @@ export function QuickGenerateCard({
               {!canGenerateReadings
                 ? t.home.preferencesSetupBadge
                 : dailyReadingsLimit != null
-                  ? locale === "es"
-                    ? `${dailyReadingsRemaining ?? 0}/${dailyReadingsLimit} HOY`
-                    : `${dailyReadingsRemaining ?? 0}/${dailyReadingsLimit} LEFT TODAY`
-                  : locale === "es"
-                    ? "LECTURAS ILIMITADAS"
-                    : "UNLIMITED READINGS"}
+                  ? formatMessage(t.home.quickDailyRemainingBadge, {
+                      remaining: dailyReadingsRemaining ?? 0,
+                      limit: dailyReadingsLimit,
+                    })
+                  : t.study.unlimitedReadingsBadge}
             </Badge>
           </div>
           <Heading as="h2" variant="subsection">
-            {locale === "es"
-              ? "Prepara una nueva sesión de lectura adaptada con IA"
-              : "Prepare a new AI-tailored reading session"}
+            {t.home.quickGenerateHeading}
           </Heading>
           <Text variant="small" tone="muted">
             {!canGenerateReadings
               ? t.home.preferencesSetupBody
               : isDailyLimitReached
-                ? locale === "es"
-                  ? "Alcanzaste tu cupo diario de generación en tu plan actual. Revisa tus lecturas pendientes o administra tu plan."
-                  : "You reached your daily generation quota on your current plan. Review pending readings or manage your plan."
+                ? t.home.dailyQuotaReachedDesc
                 : t.home.estimatedTime}
           </Text>
         </div>
@@ -94,9 +88,7 @@ export function QuickGenerateCard({
             className="shrink-0 normal-case tracking-normal"
           >
             {isDailyLimitReached
-              ? locale === "es"
-                ? "Ver lecturas"
-                : "View readings"
+              ? t.home.viewReadingsButton
               : t.home.generateButton}
           </ActionLink>
         ) : (

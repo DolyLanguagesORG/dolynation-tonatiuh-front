@@ -1,18 +1,21 @@
 "use client";
 
+import { type GlossaryLanguagePlanContext } from "@/app/glossary/_hooks/glossary-language-filter";
 import {
   type GlossaryEntryTypeFilter,
   type GlossaryLanguageFilter,
   type GlossaryScopeFilter,
 } from "@/app/glossary/_hooks/use-glossary";
 import {
+  Badge,
   Card,
   ChoiceChip,
   IconButton,
   Input,
-  Select,
+  Text,
 } from "@/components/ui";
 import { type Dictionary, type Locale } from "@/i18n";
+import { formatReadingLanguageBadge } from "@/lib";
 
 export interface GlossaryFiltersBarProps {
   t: Dictionary;
@@ -20,10 +23,12 @@ export interface GlossaryFiltersBarProps {
   counts: {
     totalEntries: number;
     savedCount: number;
+    allLanguagesScopedTotal: number;
     scopedTotal: number;
     scopedWords: number;
     scopedPhrases: number;
   };
+  languagePlan: GlossaryLanguagePlanContext;
   scopeFilter: GlossaryScopeFilter;
   typeFilter: GlossaryEntryTypeFilter;
   languageFilter: GlossaryLanguageFilter;
@@ -36,12 +41,14 @@ export interface GlossaryFiltersBarProps {
 
 /**
  * Barra modular de filtros del glosario: alcance (guardados vs historial),
- * clasificación (palabras vs oraciones/expresiones), idioma y búsqueda textual.
+ * filtro rápido de idiomas adaptado al plan de suscripción, clasificación
+ * (palabras vs oraciones/expresiones) y búsqueda textual.
  */
 export function GlossaryFiltersBar({
   t,
   locale,
   counts,
+  languagePlan,
   scopeFilter,
   typeFilter,
   languageFilter,
@@ -51,14 +58,6 @@ export function GlossaryFiltersBar({
   onLanguageChange,
   onSearchChange,
 }: GlossaryFiltersBarProps) {
-  const languageOptions = [
-    { value: "all", label: t.glossary.allLanguagesFilter },
-    { value: "es", label: locale === "es" ? "[ES] ESPAÑOL" : "[ES] SPANISH" },
-    { value: "en", label: locale === "es" ? "[EN] INGLÉS" : "[EN] ENGLISH" },
-    { value: "fr", label: locale === "es" ? "[FR] FRANCÉS" : "[FR] FRENCH" },
-    { value: "it", label: locale === "es" ? "[IT] ITALIANO" : "[IT] ITALIAN" },
-  ];
-
   return (
     <Card padding="md" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -85,16 +84,57 @@ export function GlossaryFiltersBar({
           </ChoiceChip>
         </div>
 
-        <Select
-          sizing="sm"
-          aria-label={t.readings.columns.language}
-          value={languageFilter}
-          options={languageOptions}
-          onChange={(event) =>
-            onLanguageChange(event.target.value as GlossaryLanguageFilter)
-          }
-        />
+        {!languagePlan.showQuickFilter && languagePlan.singlePlanLanguage && (
+          <Badge variant="outline" className="font-mono uppercase">
+            {t.glossary.singleLanguagePlanHint}:{" "}
+            {formatReadingLanguageBadge(
+              languagePlan.singlePlanLanguage.language,
+              locale,
+            )}{" "}
+            ({languagePlan.singlePlanLanguage.count})
+          </Badge>
+        )}
       </div>
+
+      {languagePlan.showQuickFilter && (
+        <div className="flex flex-col gap-2 border-t border-default pt-3">
+          <div
+            role="radiogroup"
+            aria-label={t.glossary.languageFilterAriaLabel}
+            className="flex flex-wrap items-center gap-2"
+          >
+            <ChoiceChip
+              size="sm"
+              selectionRole="radio"
+              selected={languageFilter === "all"}
+              onClick={() => onLanguageChange("all")}
+            >
+              {t.glossary.allLanguagesFilter} ({counts.allLanguagesScopedTotal})
+            </ChoiceChip>
+            {languagePlan.options.map((option) => (
+              <ChoiceChip
+                key={option.language}
+                size="sm"
+                selectionRole="radio"
+                selected={languageFilter === option.language}
+                onClick={() => onLanguageChange(option.language)}
+              >
+                {formatReadingLanguageBadge(option.language, locale)} (
+                {option.count})
+                {option.isHistorical
+                  ? ` · ${t.glossary.historicalLanguageTag}`
+                  : ""}
+              </ChoiceChip>
+            ))}
+          </div>
+
+          {languagePlan.hasHistoricalLanguages && (
+            <Text variant="caption" tone="muted">
+              {t.glossary.historicalLanguagesHint}
+            </Text>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-t border-default pt-3">
         <div
@@ -141,9 +181,7 @@ export function GlossaryFiltersBar({
               icon="close"
               size="xs"
               variant="ghost"
-              aria-label={
-                locale === "es" ? "Limpiar búsqueda" : "Clear search"
-              }
+              aria-label={t.glossary.clearSearchAria}
               onClick={() => onSearchChange("")}
             />
           ) : undefined

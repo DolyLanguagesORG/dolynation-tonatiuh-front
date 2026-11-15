@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { buildGlossaryLanguagePlanContext } from "@/app/glossary/_hooks/glossary-language-filter";
 import { useAuth } from "@/context";
 import { useLocale } from "@/i18n";
 import {
@@ -21,8 +22,8 @@ export type GlossaryScopeFilter = "saved" | "all";
  * Hook de datos, filtros y acciones para la vista `/glossary`.
  */
 export function useGlossary() {
-  const { locale } = useLocale();
-  const { user, isAuthenticated } = useAuth();
+  const { locale, t } = useLocale();
+  const { user, subscription, languagesSettings, isAuthenticated } = useAuth();
 
   const [entries, setEntries] = useState<GlossaryEntryDto[]>([]);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
@@ -61,9 +62,7 @@ export function useGlossary() {
         setErrorMessage(
           err instanceof ApiClientError
             ? err.getUserMessage(locale)
-            : locale === "es"
-              ? "No fue posible cargar tu glosario."
-              : "Could not load your glossary.",
+            : t.glossary.loadErrorFallback,
         );
       })
       .finally(() => {
@@ -75,26 +74,66 @@ export function useGlossary() {
     return () => {
       cancelled = true;
     };
-  }, [fetchKey, locale]);
+  }, [fetchKey, locale, t]);
+
+  const scopedEntries = useMemo(
+    () =>
+      scopeFilter === "saved" ? entries.filter((e) => e.isSaved) : entries,
+    [entries, scopeFilter],
+  );
+
+  const languagePlan = useMemo(
+    () =>
+      buildGlossaryLanguagePlanContext({
+        entries,
+        scopedEntries,
+        tier: subscription?.tier ?? user?.subscriptionTier,
+        planMaxLanguages: subscription?.plan?.maxLanguages,
+        languagesSettings,
+      }),
+    [
+      entries,
+      languagesSettings,
+      scopedEntries,
+      subscription?.plan?.maxLanguages,
+      subscription?.tier,
+      user?.subscriptionTier,
+    ],
+  );
+
+  const effectiveLanguageFilter: GlossaryLanguageFilter = useMemo(() => {
+    if (languageFilter === "all") return "all";
+    const stillVisible = languagePlan.options.some(
+      (opt) => opt.language === languageFilter,
+    );
+    return stillVisible ? languageFilter : "all";
+  }, [languageFilter, languagePlan.options]);
 
   const counts = useMemo(() => {
-    const scoped =
-      scopeFilter === "saved" ? entries.filter((e) => e.isSaved) : entries;
+    const languageScoped =
+      effectiveLanguageFilter === "all"
+        ? scopedEntries
+        : scopedEntries.filter((e) => e.language === effectiveLanguageFilter);
+
     return {
       totalEntries: entries.length,
       savedCount: entries.filter((e) => e.isSaved).length,
-      scopedTotal: scoped.length,
-      scopedWords: scoped.filter((e) => e.entryType === "word").length,
-      scopedPhrases: scoped.filter((e) => e.entryType === "phrase").length,
+      allLanguagesScopedTotal: scopedEntries.length,
+      scopedTotal: languageScoped.length,
+      scopedWords: languageScoped.filter((e) => e.entryType === "word").length,
+      scopedPhrases: languageScoped.filter((e) => e.entryType === "phrase")
+        .length,
     };
-  }, [entries, scopeFilter]);
+  }, [effectiveLanguageFilter, entries, scopedEntries]);
 
   const filteredEntries = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    return entries.filter((entry) => {
-      if (scopeFilter === "saved" && !entry.isSaved) return false;
+    return scopedEntries.filter((entry) => {
       if (typeFilter !== "all" && entry.entryType !== typeFilter) return false;
-      if (languageFilter !== "all" && entry.language !== languageFilter)
+      if (
+        effectiveLanguageFilter !== "all" &&
+        entry.language !== effectiveLanguageFilter
+      )
         return false;
       if (!q) return true;
       return (
@@ -105,7 +144,12 @@ export function useGlossary() {
         entry.readingTitle.toLowerCase().includes(q)
       );
     });
-  }, [entries, languageFilter, scopeFilter, searchQuery, typeFilter]);
+  }, [
+    effectiveLanguageFilter,
+    scopedEntries,
+    searchQuery,
+    typeFilter,
+  ]);
 
   const toggleSave = useCallback(
     async (entry: GlossaryEntryDto) => {
@@ -125,15 +169,13 @@ export function useGlossary() {
         setErrorMessage(
           err instanceof ApiClientError
             ? err.getUserMessage(locale)
-            : locale === "es"
-              ? "No se pudo actualizar esta entrada del glosario."
-              : "Could not update this glossary entry.",
+            : t.glossary.updateErrorFallback,
         );
       } finally {
         setTogglingId(null);
       }
     },
-    [locale, togglingId],
+    [locale, t, togglingId],
   );
 
   const pronounceText = useCallback(
@@ -163,7 +205,7 @@ export function useGlossary() {
 
   const hasActiveFilters =
     typeFilter !== "all" ||
-    languageFilter !== "all" ||
+    effectiveLanguageFilter !== "all" ||
     searchQuery.trim().length > 0;
 
   return {
@@ -171,10 +213,11 @@ export function useGlossary() {
     errorMessage,
     togglingId,
     counts,
+    languagePlan,
     filteredEntries,
     scopeFilter,
     typeFilter,
-    languageFilter,
+    languageFilter: effectiveLanguageFilter,
     searchQuery,
     hasActiveFilters,
     setScopeFilter,
