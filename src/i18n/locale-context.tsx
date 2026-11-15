@@ -15,10 +15,17 @@ import {
   type Dictionary,
   type Locale,
 } from "@/i18n/dictionaries";
+import {
+  DEFAULT_UI_LOCALE,
+  getNextUiLocale,
+  UI_LOCALE_COOKIE_NAME,
+  UI_LOCALE_LIST,
+} from "@/i18n/locales";
 
 interface LocaleContextValue {
   locale: Locale;
   t: Dictionary;
+  locales: typeof UI_LOCALE_LIST;
   setLocale: (next: Locale) => void;
   toggleLocale: () => void;
 }
@@ -30,18 +37,16 @@ export interface LocaleProviderProps {
   initialLocale?: Locale;
 }
 
-const LOCALE_COOKIE_NAME = "doly_ui_locale";
-
 function persistLocalePreference(next: Locale): void {
   if (typeof document !== "undefined") {
-    document.cookie = `${LOCALE_COOKIE_NAME}=${next}; Path=/; SameSite=Lax; Max-Age=31536000`;
+    document.cookie = `${UI_LOCALE_COOKIE_NAME}=${next}; Path=/; SameSite=Lax; Max-Age=31536000`;
     document.documentElement.lang = next;
   }
 }
 
 export function LocaleProvider({
   children,
-  initialLocale = "es",
+  initialLocale = DEFAULT_UI_LOCALE,
 }: LocaleProviderProps) {
   const [locale, setLocaleState] = useState<Locale>(initialLocale);
 
@@ -52,7 +57,7 @@ export function LocaleProvider({
 
   const toggleLocale = useCallback(() => {
     setLocaleState((current) => {
-      const next: Locale = current === "es" ? "en" : "es";
+      const next = getNextUiLocale(current);
       persistLocalePreference(next);
       return next;
     });
@@ -68,6 +73,7 @@ export function LocaleProvider({
     () => ({
       locale,
       t: dictionaries[locale],
+      locales: UI_LOCALE_LIST,
       setLocale,
       toggleLocale,
     }),

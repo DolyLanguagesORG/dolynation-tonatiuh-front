@@ -37,6 +37,18 @@ const nextConfig: NextConfig = {
   // que la app necesita en runtime (sin node_modules completo). Es lo que
   // hace posible una imagen de produccion petite.
   output: 'standalone',
+  // Los documentos legales (privacidad, terminos, soporte) se leen del disco
+  // en el servidor: sin esto, el build `standalone` no los incluye en la
+  // imagen y las rutas /terms, /privacy y /support darian 404 en produccion.
+  outputFileTracingIncludes: {
+    '/terms': ['./src/i18n/content/**/*.md'],
+    '/privacy': ['./src/i18n/content/**/*.md'],
+    '/support': ['./src/i18n/content/**/*.md'],
+  },
+  // De develop: el host publico de desarrollo entra por variable
+  // (`NEXT_ALLOWED_DEV_ORIGINS`), no hardcodeado. La rama traia las IPs de su
+  // maquina (192.168.1.7, 192.168.98.86): con la variable, cambiar de dominio
+  // no obliga a tocar codigo.
   allowedDevOrigins,
   experimental: {
     // Desactiva el auto-upgrade experimental en segundo plano que falla en Windows
