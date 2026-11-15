@@ -113,6 +113,7 @@ jobs:
       - name: Regenerar .env del frontend en el servidor
         env:
           BACKEND_INTERNAL_URL: ${{ secrets.BACKEND_INTERNAL_URL }}
+          NEXT_ALLOWED_DEV_ORIGINS: ${{ vars.NEXT_ALLOWED_DEV_ORIGINS }}
         run: |
           set -euo pipefail
           # El agente SSH se creo en el paso anterior, en otro shell: hay que
@@ -128,8 +129,19 @@ jobs:
             echo "::error::Es la URL interna del backend (p. ej. http://backend:3333/api/v1)."
             exit 1
           fi
+          # El dev server de Next 16 bloquea los recursos cross-site (incluido
+          # el websocket de HMR) si el `Origin` no esta en `allowedDevOrigins`.
+          # Como el host publico se cambia por variable, el dominio puede
+          # cambiar sin tocar codigo.
+          if [ -z "${NEXT_ALLOWED_DEV_ORIGINS:-}" ]; then
+            echo "::error::Falta NEXT_ALLOWED_DEV_ORIGINS en el environment 'desarrollo'."
+            echo "::error::Es el host publico del frontend de desarrollo (admite comodines:"
+            echo "::error::'**.yacaterkos.tech'), separado por comas si hay varios."
+            exit 1
+          fi
           {
             printf 'BACKEND_INTERNAL_URL=%s\n' "$BACKEND_INTERNAL_URL"
+            printf 'NEXT_ALLOWED_DEV_ORIGINS=%s\n' "$NEXT_ALLOWED_DEV_ORIGINS"
           } > /tmp/frontend.env
           base64 -w0 /tmp/frontend.env | ssh -i ~/.ssh/deploy_key \
             -p "${{ secrets.DEPLOY_PORT }}" \

@@ -22,12 +22,16 @@ function requiresServerSessionRedirect(pathname: string): boolean {
 }
 
 /**
- * Middleware de protección de rutas en borde de servidor:
+ * Proxy de protección de rutas en el borde del servidor:
  * bloquea el acceso directo sin sesión a las vistas privadas del sistema y
  * redirige a `/login`, preservando públicas únicamente autenticación, onboarding por token,
  * páginas informativas y `/design-system`.
+ *
+ * En Next.js 16 el archivo `middleware.ts` está deprecado y se renombró a
+ * `proxy.ts` (`export function proxy`). Solo se renombró el archivo y la
+ * función: el comportamiento y el `matcher` quedan igual.
  */
-export function middleware(request: NextRequest): NextResponse {
+export function proxy(request: NextRequest): NextResponse {
   const { pathname } = request.nextUrl;
 
   if (
