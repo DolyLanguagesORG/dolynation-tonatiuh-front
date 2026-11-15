@@ -11,6 +11,14 @@ un PR de release contra `develop` que sube la versión y escribe esta sección; 
 mergearlo se crean el tag anotado y la GitHub Release. Ver
 [`conventions/versioning.md`](https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs/blob/develop/conventions/versioning.md).
 
+## [0.6.1](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.6.0...v0.6.1) (2026-11-15)
+
+
+### Bug Fixes
+
+* **front:** arregla el websocket de HMR y migra middleware a proxy ([#91](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/91)) ([7eb34bf](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/7eb34bfcace41539040fbdb6536523eec81ee997)), closes [#90](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/90)
+* **kanban:** leer la accion del evento y no el nombre del step ([#88](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/88)) ([6ba775c](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/6ba775cd66e37bf9ada8f2688959d90660dd38c4)), closes [#66](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/66)
+
 ## [0.6.0](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.5.0...v0.6.0) (2026-11-15)
 
 
