@@ -56,26 +56,26 @@ const DIFFICULTY_META: Record<
   }
 > = {
   easy: {
-    es: "BÁSICO",
+    es: "FÁCIL",
     en: "EASY",
-    fr: "DÉBUTANT",
-    it: "BASE",
+    fr: "FACILE",
+    it: "FACILE",
     cefrBadge: "A1–A2",
     badgeVariant: "secondary",
   },
   medium: {
     es: "MEDIO",
     en: "MEDIUM",
-    fr: "INTERMÉDIAIRE",
-    it: "INTERMEDIO",
+    fr: "MOYEN",
+    it: "MEDIO",
     cefrBadge: "B1–B2",
     badgeVariant: "primary",
   },
   hard: {
-    es: "AVANZADO",
-    en: "ADVANCED",
-    fr: "AVANCÉ",
-    it: "AVANZATO",
+    es: "DIFÍCIL",
+    en: "HARD",
+    fr: "DIFFICILE",
+    it: "DIFFICILE",
     cefrBadge: "C1–C2",
     badgeVariant: "primary",
   },
@@ -254,6 +254,13 @@ export function estimateReadingMinutes(
 }
 
 /**
+ * Mapea un `TargetLanguageCode` al locale BCP-47 para formateo de fechas editoriales.
+ */
+export function getDateLocale(language: TargetLanguageCode): string {
+  return DATE_LOCALES[language] ?? "en-US";
+}
+
+/**
  * Formatea una fecha ISO de lectura en formato editorial corto.
  */
 export function formatReadingDate(
@@ -264,7 +271,7 @@ export function formatReadingDate(
   const parsed = new Date(isoDate);
   if (Number.isNaN(parsed.getTime())) return "—";
 
-  const dateLocale = DATE_LOCALES[displayLanguage] ?? "en-US";
+  const dateLocale = getDateLocale(displayLanguage);
   return new Intl.DateTimeFormat(dateLocale, {
     day: "2-digit",
     month: "short",

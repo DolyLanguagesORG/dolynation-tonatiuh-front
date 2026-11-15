@@ -60,6 +60,7 @@ function toGlossaryEntry(
     id: result.id,
     readingId: result.reading.id,
     readingTitle: result.reading.title,
+    readingAvailable: result.reading.deletedAt === null,
     word: result.word,
     normalizedWord,
     entryType: result.entryType,

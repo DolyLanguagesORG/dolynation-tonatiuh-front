@@ -69,7 +69,7 @@ export function ResultScoreHero({
               )}{" "}
               •{" "}
               {formatReadingLanguageBadge(reading.language, displayLanguage)} •{" "}
-              {diffMeta.cefrBadge}
+              {diffMeta.label}
             </Text>
           </div>
         </div>
@@ -88,7 +88,7 @@ export function ResultScoreHero({
             progress={score}
             value={score}
             unit={t.readings.result.scoreMetricUnit}
-            description={`${t.readings.result.scoreMetricLevelPrefix} ${diffMeta.label} (${diffMeta.cefrBadge}).`}
+            description={`${t.readings.result.scoreMetricLevelPrefix} ${diffMeta.label}.`}
           />
 
           <StatCard

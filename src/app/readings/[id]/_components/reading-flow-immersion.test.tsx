@@ -145,14 +145,15 @@ describe("Immersive reading flow localization", () => {
 
     expect(await screen.findByText("RETOUR AUX LECTURES")).toBeInTheDocument();
     expect(screen.getByText("[FR] FRANÇAIS")).toBeInTheDocument();
-    expect(screen.getByText("DÉBUTANT · A1–A2")).toBeInTheDocument();
+    expect(screen.getByText("FACILE")).toBeInTheDocument();
+    expect(screen.queryByText(/A1–A2/)).not.toBeInTheDocument();
     expect(screen.getByText("DÍA DE MUERTOS")).toBeInTheDocument();
     expect(screen.getByText("1 MIN DE LECTURE")).toBeInTheDocument();
     expect(screen.getByText("CONTINUER L'ÉVALUATION")).toBeInTheDocument();
     expect(screen.getByText("Revenir à la configuration")).toBeInTheDocument();
 
     expect(screen.queryByText("VOLVER A LECTURAS")).not.toBeInTheDocument();
-    expect(screen.queryByText(/BÁSICO/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/FÁCIL|BÁSICO/)).not.toBeInTheDocument();
     expect(
       screen.queryByText("CONTINUAR CON LA EVALUACIÓN"),
     ).not.toBeInTheDocument();
@@ -166,7 +167,7 @@ describe("Immersive reading flow localization", () => {
     const aside = await screen.findByRole("complementary", {
       name: /AIDE & EXPLICATION • IA/i,
     });
-    expect(within(aside).getByText("[FR] FRANÇAIS · DÉBUTANT")).toBeInTheDocument();
+    expect(within(aside).getByText("[FR] FRANÇAIS · FACILE")).toBeInTheDocument();
     expect(within(aside).getByText("Sens littéral")).toBeInTheDocument();
     expect(
       within(aside).getByText("Ce que cela signifie dans cette lecture"),

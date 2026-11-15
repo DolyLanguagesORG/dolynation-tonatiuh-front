@@ -57,10 +57,12 @@ test.describe("Backend Critical Flows Ported (T2–T5, T7–T9)", () => {
     // Deleting one pending reading frees the 3-slot queue
     await page.goto("/readings");
     await page
-      .getByRole("button", { name: /Eliminar lectura: Lectura Pendiente Alpha/i })
+      .getByRole("button", {
+        name: /Delete reading: Lectura Pendiente Alpha|Eliminar lectura: Lectura Pendiente Alpha/i,
+      })
       .first()
       .click();
-    await page.getByRole("button", { name: "Confirmar" }).first().click();
+    await page.getByRole("button", { name: /^Confirm(ar)?$/i }).first().click();
 
     await expect(page.getByText("Lectura Pendiente Alpha")).toHaveCount(0);
 
@@ -165,10 +167,12 @@ test.describe("Backend Critical Flows Ported (T2–T5, T7–T9)", () => {
     // Soft-delete reading #201 does NOT reset readingsCreatedToday
     await page.goto("/readings");
     await page
-      .getByRole("button", { name: /Eliminar lectura: Lectura Previa Hoy/i })
+      .getByRole("button", {
+        name: /Delete reading: Lectura Previa Hoy|Eliminar lectura: Lectura Previa Hoy/i,
+      })
       .first()
       .click();
-    await page.getByRole("button", { name: "Confirmar" }).first().click();
+    await page.getByRole("button", { name: /^Confirm(ar)?$/i }).first().click();
     await expect(page.getByText("Lectura Previa Hoy")).toHaveCount(0);
 
     await page.goto("/generate");

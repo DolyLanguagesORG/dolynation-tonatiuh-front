@@ -12,15 +12,20 @@ import {
   IconButton,
   Text,
 } from "@/components/ui";
-import { type Dictionary, type Locale } from "@/i18n";
+import {
+  getReadingFlowDictionary,
+  type Locale,
+  resolveReadingLanguage,
+} from "@/i18n";
 import {
   formatReadingDate,
+  formatReadingLanguageBadge,
+  getDifficultyMeta,
   type GlossaryEntryDto,
   type TargetLanguageCode,
 } from "@/lib";
 
 export interface GlossaryEntryCardProps {
-  t: Dictionary;
   locale: Locale;
   entry: GlossaryEntryDto;
   isToggling: boolean;
@@ -29,18 +34,25 @@ export interface GlossaryEntryCardProps {
 }
 
 /**
- * Tarjeta editorial de una entrada persistida del glosario: muestra el sentido
- * literal, la explicación en su lectura de origen, el desglose palabra por palabra,
- * alternativas naturales y otros contextos con ejemplos reales.
+ * Tarjeta editorial inmersiva de una entrada del glosario: toda su estructura fija
+ * (encabezado, acciones, lectura de origen, aviso de lectura eliminada y desglose)
+ * se presenta en el idioma meta en el que fue consultada la entrada.
  */
 export function GlossaryEntryCard({
-  t,
   locale,
   entry,
   isToggling,
   onToggleSave,
   onPronounce,
 }: GlossaryEntryCardProps) {
+  const cardLanguage = resolveReadingLanguage(entry.language, locale);
+  const g = getReadingFlowDictionary(cardLanguage).glossary;
+  const difficultyLabel = getDifficultyMeta(
+    entry.difficulty,
+    cardLanguage,
+  ).label;
+  const isReadingAvailable = entry.readingAvailable !== false;
+
   const hasDetails =
     entry.wordBreakdown.length > 0 ||
     entry.otherWaysToSay.length > 0 ||
@@ -48,23 +60,27 @@ export function GlossaryEntryCard({
   const [expanded, setExpanded] = useState(true);
 
   return (
-    <Card padding="lg" className="flex flex-col gap-4 border-default-medium">
+    <Card
+      as="article"
+      lang={cardLanguage}
+      padding="lg"
+      className="flex flex-col gap-4 border-default-medium"
+    >
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex flex-col gap-2">
           <div className="flex flex-wrap items-center gap-1.5">
             <Badge variant="outline">
               {entry.entryType === "phrase"
-                ? t.glossary.entryTypePhrase
-                : t.glossary.entryTypeWord}
+                ? g.entryTypePhrase
+                : g.entryTypeWord}
             </Badge>
             <Badge variant="secondary">
-              {entry.language.toUpperCase()} · {entry.difficulty.toUpperCase()}
+              {formatReadingLanguageBadge(cardLanguage, cardLanguage)} ·{" "}
+              {difficultyLabel}
             </Badge>
-            {entry.isSaved && (
-              <Badge variant="primary">{t.glossary.savedBadge}</Badge>
-            )}
+            {entry.isSaved && <Badge variant="primary">{g.savedBadge}</Badge>}
             <Text variant="caption" tone="muted" className="font-mono">
-              {formatReadingDate(entry.createdAt, locale)}
+              {formatReadingDate(entry.createdAt, cardLanguage)}
             </Text>
           </div>
 
@@ -76,8 +92,8 @@ export function GlossaryEntryCard({
               icon="volume-2"
               size="xs"
               variant="ghost"
-              aria-label={`${t.glossary.pronounceButton}: ${entry.word}`}
-              onClick={() => onPronounce(entry.word, entry.language)}
+              aria-label={`${g.pronounceButton}: ${entry.word}`}
+              onClick={() => onPronounce(entry.word, cardLanguage)}
             />
           </div>
         </div>
@@ -92,37 +108,59 @@ export function GlossaryEntryCard({
             }
             onClick={() => onToggleSave(entry)}
           >
-            {entry.isSaved
-              ? t.glossary.removeFromGlossaryButton
-              : t.glossary.addToGlossaryButton}
+            {entry.isSaved ? g.removeFromGlossaryButton : g.addToGlossaryButton}
           </Button>
 
-          <ActionLink
-            href={`/readings/${entry.readingId}`}
-            variant="secondary"
-            size="xs"
-            rightIcon={<Icon name="arrow-right" size="xs" />}
-          >
-            {t.glossary.openReadingButton}
-          </ActionLink>
+          {isReadingAvailable ? (
+            <ActionLink
+              href={`/readings/${entry.readingId}`}
+              variant="secondary"
+              size="xs"
+              rightIcon={<Icon name="arrow-right" size="xs" />}
+            >
+              {g.openReadingButton}
+            </ActionLink>
+          ) : (
+            <Badge
+              variant="outline"
+              className="inline-flex items-center gap-1 font-mono uppercase"
+            >
+              <Icon name="archive" size="xs" />
+              <span>{g.readingUnavailableBadge}</span>
+            </Badge>
+          )}
         </div>
       </div>
 
-      {entry.context && (
+      {(entry.context || entry.readingTitle || !isReadingAvailable) && (
         <div className="rounded-base border border-default bg-neutral-secondary-soft px-3.5 py-2">
-          <Text variant="caption" tone="muted" className="font-mono uppercase">
-            {t.glossary.sourceReadingLabel} {entry.readingTitle}
-          </Text>
-          <Text variant="small" tone="body" className="mt-1 italic">
-            “{entry.context}”
-          </Text>
+          {entry.readingTitle && (
+            <Text variant="caption" tone="muted" className="font-mono uppercase">
+              {g.sourceReadingLabel} {entry.readingTitle}
+            </Text>
+          )}
+          {entry.context && (
+            <Text variant="small" tone="body" className="mt-1 italic">
+              “{entry.context}”
+            </Text>
+          )}
+          {!isReadingAvailable && (
+            <Text
+              variant="caption"
+              tone="muted"
+              className="mt-1.5 flex items-center gap-1.5"
+            >
+              <Icon name="info" size="xs" />
+              <span>{g.readingUnavailableNotice}</span>
+            </Text>
+          )}
         </div>
       )}
 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="flex flex-col gap-1">
           <Text variant="caption" tone="muted" className="font-bold uppercase">
-            {t.glossary.readingContextLabel}
+            {g.readingContextLabel}
           </Text>
           <Text variant="body" tone="heading" className="leading-relaxed">
             {entry.explanation}
@@ -136,7 +174,7 @@ export function GlossaryEntryCard({
               tone="muted"
               className="font-bold uppercase"
             >
-              {t.glossary.literalLabel}
+              {g.literalLabel}
             </Text>
             <Text variant="small" tone="body" className="mt-1 leading-relaxed">
               {entry.literalMeaning}
@@ -149,28 +187,22 @@ export function GlossaryEntryCard({
         <>
           <Divider />
 
-          <div className="flex items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2">
             <Text
               variant="caption"
               tone="muted"
               className="font-mono uppercase"
             >
-              {t.glossary.breakdownLabel} · {entry.wordBreakdown.length} ·{" "}
-              {t.glossary.alternativesLabel} · {entry.otherWaysToSay.length} ·{" "}
-              {t.glossary.otherContextsLabel} · {entry.otherContexts.length}
+              {g.breakdownLabel} · {entry.wordBreakdown.length} ·{" "}
+              {g.alternativesLabel} · {entry.otherWaysToSay.length} ·{" "}
+              {g.otherContextsLabel} · {entry.otherContexts.length}
             </Text>
             <Button
               variant="ghost"
               size="xs"
               onClick={() => setExpanded((prev) => !prev)}
             >
-              {expanded
-                ? locale === "es"
-                  ? "Ocultar detalles"
-                  : "Hide details"
-                : locale === "es"
-                  ? "Ver detalles"
-                  : "Show details"}
+              {expanded ? g.hideDetailsButton : g.showDetailsButton}
             </Button>
           </div>
 
@@ -183,7 +215,7 @@ export function GlossaryEntryCard({
                     tone="muted"
                     className="font-bold uppercase"
                   >
-                    {t.glossary.breakdownLabel}
+                    {g.breakdownLabel}
                   </Text>
                   <ul className="divide-y divide-default rounded-base border border-default bg-surface">
                     {entry.wordBreakdown.map((item, idx) => (
@@ -211,7 +243,7 @@ export function GlossaryEntryCard({
                         </Text>
                         {item.roleInPhrase && (
                           <Text variant="caption" tone="muted">
-                            {item.roleInPhrase}
+                            {g.roleLabel} {item.roleInPhrase}
                           </Text>
                         )}
                       </li>
@@ -227,7 +259,7 @@ export function GlossaryEntryCard({
                     tone="muted"
                     className="font-bold uppercase"
                   >
-                    {t.glossary.alternativesLabel}
+                    {g.alternativesLabel}
                   </Text>
                   <ul className="flex flex-col gap-2">
                     {entry.otherWaysToSay.map((alt, idx) => (
@@ -248,9 +280,9 @@ export function GlossaryEntryCard({
                             icon="volume-2"
                             size="xs"
                             variant="ghost"
-                            aria-label={`${t.glossary.pronounceButton}: ${alt.expression}`}
+                            aria-label={`${g.pronounceButton}: ${alt.expression}`}
                             onClick={() =>
-                              onPronounce(alt.expression, entry.language)
+                              onPronounce(alt.expression, cardLanguage)
                             }
                           />
                         </div>
@@ -272,7 +304,7 @@ export function GlossaryEntryCard({
                     tone="muted"
                     className="font-bold uppercase"
                   >
-                    {t.glossary.otherContextsLabel}
+                    {g.otherContextsLabel}
                   </Text>
                   <div className="flex flex-col gap-2">
                     {entry.otherContexts.map((ctx, idx) => (
@@ -307,9 +339,9 @@ export function GlossaryEntryCard({
                               icon="volume-2"
                               size="xs"
                               variant="ghost"
-                              aria-label={`${t.glossary.pronounceButton}: ${ctx.example}`}
+                              aria-label={`${g.pronounceButton}: ${ctx.example}`}
                               onClick={() =>
-                                onPronounce(ctx.example, entry.language)
+                                onPronounce(ctx.example, cardLanguage)
                               }
                             />
                           </div>
