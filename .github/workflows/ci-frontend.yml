@@ -84,6 +84,52 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
+  unit:
+    name: unit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Las unitarias (jest) corren aqui: antes no se ejecutaban en ningun job
+      # y una suite en rojo podia mergearse sin que nadie lo notara.
+      - name: Unit tests
+        run: npm test
+
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Playwright necesita el navegador: `npm ci` no lo baja.
+      - name: Instalar el navegador de Playwright
+        run: npx playwright install --with-deps chromium
+
+      # El `webServer` del `playwright.config.ts` levanta `next dev` solo.
+      # Las pruebas de la suite `live-backend` (que pegan contra el backend
+      # desplegado) quedan fuera: `E2E_TARGET` no se define, asi que
+      # `live-backend.spec.ts` se ignora.
+      - name: E2E tests
+        run: npm run test:e2e
+
   build:
     name: build
     runs-on: ubuntu-latest

@@ -80,6 +80,13 @@ test.describe("Onboarding & Gating Flows (Frontend Core)", () => {
     context,
     baseURL,
   }) => {
+    // Este test recorre seis rutas restringidas. Next compila cada vista de
+    // forma perezosa: la primera navegacion a una ruta nueva puede tardar
+    // (y el HMR recarga la pagina a mitad, abortando el `goto` con
+    // `ERR_ABORTED`). Se marca como lento y se calientan las rutas antes de
+    // comprobar las redirecciones, para que la compilacion ya este en cache.
+    test.slow();
+
     const mock = await attachMockBackend(page, context, baseURL!, {
       emailVerificationRequired: true,
       initialAuthenticated: true,
@@ -98,6 +105,13 @@ test.describe("Onboarding & Gating Flows (Frontend Core)", () => {
       "/profile",
       "/setup-preferences",
     ];
+
+    // Calentado: deja que el servidor de desarrollo compile cada vista. Si la
+    // navegacion se aborta por el HMR, da igual: la compilacion queda en
+    // cache y la segunda pasada va en caliente.
+    for (const routePath of restrictedRoutes) {
+      await page.goto(routePath, { waitUntil: "commit" }).catch(() => undefined);
+    }
 
     for (const routePath of restrictedRoutes) {
       await page.goto(routePath);
