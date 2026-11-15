@@ -45,7 +45,7 @@ export function StepLanguageSelection({
       {languagesError && (
         <Alert
           variant="error"
-          title="Aviso de Idiomas"
+          title={t.plans.ui.languageNoticeTitle}
           onDismiss={onDismissError}
         >
           {languagesError}
@@ -97,7 +97,7 @@ export function StepLanguageSelection({
           leftIcon={<Icon name="arrow-left" size="xs" />}
           onClick={onBack}
         >
-          Cambiar plan
+          {t.plans.ui.changePlanButton}
         </Button>
 
         <Button

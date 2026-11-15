@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
 import { type ReactNode } from "react";
 
-export const metadata: Metadata = {
-  title: "Definir Nueva Contraseña",
-  description:
-    "Valida tu enlace de recuperación y actualiza la contraseña de tu cuenta en DolyNation.",
-};
+import { getDictionary } from "@/i18n";
+import { getServerLocale } from "@/i18n/server-locale";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale();
+  const t = getDictionary(locale);
+  return {
+    title: t.auth.resetPassword.title,
+    description: t.auth.resetPassword.subtitle,
+  };
+}
 
 export default function ResetPasswordLayout({
   children,

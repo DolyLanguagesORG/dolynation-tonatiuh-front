@@ -47,7 +47,7 @@ const VARIANT_STYLES: Record<
  */
 export function ToastViewport() {
   const { toasts, dismiss, pause, resume } = useToast();
-  const { locale } = useLocale();
+  const { t } = useLocale();
 
   if (toasts.length === 0) {
     return null;
@@ -55,7 +55,7 @@ export function ToastViewport() {
 
   return (
     <section
-      aria-label={locale === "es" ? "Notificaciones" : "Notifications"}
+      aria-label={t.meta.notificationsAria}
       className="pointer-events-none fixed right-4 bottom-4 z-50 flex w-[calc(100vw-2rem)] max-w-md flex-col gap-2.5 sm:right-6 sm:bottom-6"
     >
       {toasts.map((toast) => {
@@ -106,11 +106,7 @@ export function ToastViewport() {
             <button
               type="button"
               onClick={() => dismiss(toast.id)}
-              aria-label={
-                locale === "es"
-                  ? "Cerrar notificación"
-                  : "Dismiss notification"
-              }
+              aria-label={t.meta.dismissNotificationAria}
               className="inline-flex size-6 shrink-0 items-center justify-center rounded-base text-muted transition-colors hover:bg-neutral-secondary-soft hover:text-heading focus:outline-none focus:ring-2 focus:ring-brand/20"
             >
               <Icon name="close" size="xs" />

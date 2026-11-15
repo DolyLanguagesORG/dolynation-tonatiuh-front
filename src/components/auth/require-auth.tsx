@@ -21,7 +21,7 @@ export interface RequireAuthProps {
 export function RequireAuth({ children }: RequireAuthProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { locale } = useLocale();
+  const { t } = useLocale();
   const { accessPhase, isAuthenticated } = useAuth();
 
   useEffect(() => {
@@ -45,14 +45,7 @@ export function RequireAuth({ children }: RequireAuthProps) {
   if (accessPhase !== "ready" || !isAuthenticated) {
     return (
       <Container size="lg" className="py-10">
-        <SkeletonCard
-          lines={4}
-          label={
-            locale === "es"
-              ? "Verificando acceso de tu sesión..."
-              : "Verifying session access..."
-          }
-        />
+        <SkeletonCard lines={4} label={t.guards.validatingSession} />
       </Container>
     );
   }

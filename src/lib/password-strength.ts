@@ -1,4 +1,4 @@
-import { type Locale } from "@/i18n";
+import { getDictionary, type Locale } from "@/i18n";
 
 export interface PasswordStrengthAssessment {
   activeSegments: number;
@@ -14,6 +14,7 @@ export function evaluatePasswordStrength(
   password: string,
   locale: Locale,
 ): PasswordStrengthAssessment {
+  const labels = getDictionary(locale).errors.passwordStrength;
   const hasMinLength = password.length >= 8;
   const hasMixedCase = /[a-z]/.test(password) && /[A-Z]/.test(password);
   const hasDigitOrSymbol = /\d/.test(password) || /[^A-Za-z0-9]/.test(password);
@@ -26,7 +27,7 @@ export function evaluatePasswordStrength(
   if (password.length === 0) {
     return {
       activeSegments: 0,
-      label: locale === "es" ? "Seguridad: Sin definir" : "Strength: Empty",
+      label: labels.empty,
       tone: "default",
     };
   }
@@ -34,7 +35,7 @@ export function evaluatePasswordStrength(
   if (score <= 1) {
     return {
       activeSegments: 1,
-      label: locale === "es" ? "Seguridad: Débil" : "Strength: Weak",
+      label: labels.weak,
       tone: "warning",
     };
   }
@@ -42,14 +43,14 @@ export function evaluatePasswordStrength(
   if (score === 2) {
     return {
       activeSegments: 2,
-      label: locale === "es" ? "Seguridad: Media" : "Strength: Medium",
+      label: labels.medium,
       tone: "warning",
     };
   }
 
   return {
     activeSegments: 3,
-    label: locale === "es" ? "Seguridad: Segura" : "Strength: Strong",
+    label: labels.strong,
     tone: "success",
   };
 }

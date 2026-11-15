@@ -19,7 +19,7 @@ import {
 } from "@/components/ui";
 import { useAuth } from "@/context";
 import { useToast } from "@/context/toast-context";
-import { useLocale } from "@/i18n";
+import { formatMessage, useLocale } from "@/i18n";
 import {
   ApiClientError,
   type CatalogItem,
@@ -65,11 +65,7 @@ export function SetupPreferencesView() {
       <Container size="none" className="w-full max-w-4xl px-0">
         <SkeletonCard
           lines={6}
-          label={
-            locale === "es"
-              ? "Cargando preferencias de estudio"
-              : "Loading study preferences"
-          }
+          label={t.auth.stepper.step4Preferences.loadingLabel}
         />
       </Container>
     );
@@ -166,11 +162,7 @@ export function SetupPreferencesView() {
     }
 
     if (maxCategories !== null && effectiveCategories.length >= maxCategories) {
-      setFormError(
-        `${sp.categoriesMaxAlertPrefix} ${maxCategories} ${
-          locale === "es" ? "categorías." : "categories."
-        }`,
-      );
+      setFormError(`${sp.categoriesMaxAlertPrefix} ${maxCategories} ${sp.categoriesUnit}`);
       return;
     }
 
@@ -180,12 +172,8 @@ export function SetupPreferencesView() {
   const handleAddCustomCategory = (): void => {
     const cleanName = customInput.trim();
     if (cleanName.length < 2 || cleanName.length > 50) {
-      const msg =
-        locale === "es"
-          ? "La categoría debe tener entre 2 y 50 caracteres."
-          : "Category name must be between 2 and 50 characters.";
-      setCustomError(msg);
-      toast.warning(msg);
+      setCustomError(sp.categoryLengthError);
+      toast.warning(sp.categoryLengthError);
       return;
     }
 
@@ -204,9 +192,7 @@ export function SetupPreferencesView() {
           maxCategories !== null &&
           effectiveCategories.length >= maxCategories
         ) {
-          const msg = `${sp.categoriesMaxAlertPrefix} ${maxCategories} ${
-            locale === "es" ? "categorías." : "categories."
-          }`;
+          const msg = `${sp.categoriesMaxAlertPrefix} ${maxCategories} ${sp.categoriesUnit}`;
           setCustomError(msg);
           toast.warning(msg);
           return;
@@ -219,9 +205,7 @@ export function SetupPreferencesView() {
     }
 
     if (maxCategories !== null && effectiveCategories.length >= maxCategories) {
-      const msg = `${sp.categoriesMaxAlertPrefix} ${maxCategories} ${
-        locale === "es" ? "categorías." : "categories."
-      }`;
+      const msg = `${sp.categoriesMaxAlertPrefix} ${maxCategories} ${sp.categoriesUnit}`;
       setCustomError(msg);
       toast.warning(msg);
       return;
@@ -259,25 +243,16 @@ export function SetupPreferencesView() {
         ...(canChangeLanguages ? { languages: effectiveLanguages } : {}),
         categories: effectiveCategories,
       });
-      toast.success(
-        locale === "es"
-          ? "Preferencias guardadas correctamente."
-          : "Preferences saved successfully.",
-      );
+      toast.success(sp.preferencesSavedSuccess);
       router.replace("/");
     } catch (error) {
       const msg =
         error instanceof ApiClientError
           ? error.getUserMessage(locale)
-          : locale === "es"
-            ? "No fue posible guardar tus preferencias. Inténtalo de nuevo."
-            : "Could not save your preferences. Please try again.";
+          : sp.preferencesSaveErrorFallback;
       setFormError(msg);
       toast.error(msg, {
-        title:
-          locale === "es"
-            ? "Error al guardar preferencias"
-            : "Could not save preferences",
+        title: sp.preferencesSaveErrorTitle,
       });
     } finally {
       setIsSaving(false);
@@ -304,12 +279,13 @@ export function SetupPreferencesView() {
             isAuthenticated={isAuthenticated}
             onboarding={onboarding}
             stepsLabels={t.auth.stepper.steps}
+            ariaLabel={t.meta.stepperAriaLabel}
           />
           <div className="flex items-center justify-between gap-2 px-1">
-            <Badge variant="outline">
-              {locale === "es" ? "PASO 04 / 04" : "STEP 04 / 04"}
+            <Badge variant="outline">{sp.stepBadge}</Badge>
+            <Badge variant="secondary">
+              {sp.planBadgePrefix} {tierLabel}
             </Badge>
-            <Badge variant="secondary">Plan: {tierLabel}</Badge>
           </div>
         </div>
       }
@@ -319,11 +295,7 @@ export function SetupPreferencesView() {
         {formError && (
           <Alert
             variant="error"
-            title={
-              locale === "es"
-                ? "Configuración incompleta"
-                : "Incomplete preferences"
-            }
+            title={sp.incompleteAlertTitle}
             onDismiss={() => setFormError(null)}
           >
             {formError}
@@ -371,7 +343,7 @@ export function SetupPreferencesView() {
                       onClick={() => handleToggleLanguage(lang.id)}
                       className="min-h-12 justify-between px-3"
                     >
-                      {locale === "es" ? lang.nameEs : lang.nameEn}
+                      {t.languages[lang.id]}
                     </ChoiceChip>
                   );
                 })}
@@ -393,7 +365,9 @@ export function SetupPreferencesView() {
               <span className="font-mono text-xs font-semibold text-heading">
                 {sp.categoriesCounterPrefix} {effectiveCategories.length}/
                 {MIN_USER_CATEGORIES}
-                {maxCategories !== null ? ` (máx. ${maxCategories})` : ""}
+                {maxCategories !== null
+                  ? ` ${formatMessage(sp.maxSuffix, { max: maxCategories })}`
+                  : ""}
               </span>
             </div>
           </div>

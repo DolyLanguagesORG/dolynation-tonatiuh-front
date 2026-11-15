@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, ChoiceChip, Eyebrow, Input, Text } from "@/components/ui";
-import { type Locale } from "@/i18n";
+import { getDictionary, type Locale, resolveBilingualText } from "@/i18n";
 import { type CatalogCategory } from "@/lib";
 
 export interface CategorySelectorSectionProps {
@@ -46,6 +46,8 @@ export function CategorySelectorSection({
   onConfirmAddCustom,
   onSelectCategory,
 }: CategorySelectorSectionProps) {
+  const t = getDictionary(locale);
+
   return (
     <fieldset className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -101,7 +103,7 @@ export function CategorySelectorSection({
                 size="sm"
                 onClick={onCancelAddCustom}
               >
-                {locale === "es" ? "Cancelar" : "Cancel"}
+                {t.study.cancelButton}
               </Button>
             </div>
           </div>
@@ -120,10 +122,10 @@ export function CategorySelectorSection({
         >
           {categories.map((cat) => {
             const isSelected = selectedCategory === cat.id;
-            const displayName =
-              locale === "es"
-                ? (cat.nameEs ?? cat.name)
-                : (cat.nameEn ?? cat.name);
+            const displayName = resolveBilingualText(
+              { es: cat.nameEs, en: cat.nameEn, fallback: cat.name },
+              locale,
+            );
 
             return (
               <ChoiceChip

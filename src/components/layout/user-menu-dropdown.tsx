@@ -3,28 +3,17 @@
 import Link from "next/link";
 import { useEffect, useId, useRef, useState } from "react";
 
+import { getUserAccountSummary } from "@/components/layout/user-display";
 import { Icon } from "@/components/ui";
 import { useAuth } from "@/context";
-import { useLocale } from "@/i18n";
-
-function getUserInitials(nameOrEmail: string): string {
-  const clean = nameOrEmail.trim();
-  if (!clean) {
-    return "ER";
-  }
-  const parts = clean.split(/\s+/).filter(Boolean);
-  if (parts.length >= 2) {
-    return `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`.toUpperCase();
-  }
-  return clean.slice(0, 2).toUpperCase();
-}
+import { formatMessage, useLocale } from "@/i18n";
 
 /**
  * Tarjeta desplegable del usuario autenticado en la esquina superior derecha del header.
  * Agrupa identidad del estudiante y acciones rápidas de Perfil y Cierre de sesión.
  */
 export function UserMenuDropdown({ pathname }: { pathname: string }) {
-  const { locale, t } = useLocale();
+  const { t } = useLocale();
   const { user, isAuthenticated, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
@@ -62,11 +51,10 @@ export function UserMenuDropdown({ pathname }: { pathname: string }) {
     return null;
   }
 
-  const displayName =
-    user?.fullName?.trim() || user?.email || t.nav.studentRole;
-  const email = user?.email ?? "";
-  const initials = getUserInitials(displayName);
-  const isVerified = Boolean(user?.emailVerifiedAt);
+  const { displayName, email, initials, isVerified } = getUserAccountSummary(
+    user,
+    t.nav.studentRole,
+  );
   const isProfileActive = pathname.startsWith("/profile");
 
   const handleLogout = async (): Promise<void> => {
@@ -80,7 +68,7 @@ export function UserMenuDropdown({ pathname }: { pathname: string }) {
   };
 
   return (
-    <div ref={containerRef} className="relative">
+    <div ref={containerRef} className="relative shrink-0">
       <button
         ref={triggerRef}
         type="button"
@@ -88,14 +76,10 @@ export function UserMenuDropdown({ pathname }: { pathname: string }) {
         aria-haspopup="menu"
         aria-expanded={isOpen}
         aria-controls={menuId}
-        aria-label={
-          locale === "es"
-            ? `Menú de cuenta de ${displayName}`
-            : `Account menu for ${displayName}`
-        }
-        className="flex h-10 max-w-56 items-center gap-2 rounded-base border border-default bg-neutral-primary-soft px-2 py-1 text-left transition-colors hover:border-strong hover:bg-neutral-secondary-soft focus:outline-none focus:ring-2 focus:ring-brand/20 sm:max-w-72 sm:gap-2.5 sm:px-2.5"
+        aria-label={formatMessage(t.meta.userMenuAria, { name: displayName })}
+        className="flex h-8 shrink-0 items-center gap-1 rounded-base border border-default bg-neutral-primary-soft px-1.5 py-1 text-left transition-colors hover:border-strong hover:bg-neutral-secondary-soft focus:outline-none focus:ring-2 focus:ring-brand/20 sm:h-10 sm:max-w-72 sm:gap-2.5 sm:px-2.5"
       >
-        <div className="relative flex size-7 shrink-0 items-center justify-center rounded-full border border-default bg-surface text-[11px] font-semibold tracking-tight text-heading">
+        <div className="relative flex size-6 shrink-0 items-center justify-center rounded-full border border-default bg-surface text-[10px] font-semibold tracking-tight text-heading sm:size-7 sm:text-[11px]">
           {initials}
           {isVerified && (
             <span
@@ -114,9 +98,7 @@ export function UserMenuDropdown({ pathname }: { pathname: string }) {
               <Icon
                 name="badge-check"
                 size="xs"
-                aria-label={
-                  locale === "es" ? "Cuenta verificada" : "Verified account"
-                }
+                aria-label={t.meta.verifiedAccountAria}
                 className="shrink-0 text-heading"
               />
             )}
@@ -142,8 +124,8 @@ export function UserMenuDropdown({ pathname }: { pathname: string }) {
         <div
           id={menuId}
           role="menu"
-          aria-label={locale === "es" ? "Opciones de cuenta" : "Account options"}
-          className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-64 rounded-base border border-default bg-surface shadow-lg"
+          aria-label={t.meta.accountOptionsAria}
+          className="absolute right-0 top-[calc(100%+0.5rem)] z-50 w-64 max-w-[calc(100vw-1rem)] rounded-base border border-default bg-surface shadow-lg"
         >
           <div className="border-b border-default bg-neutral-primary-soft px-3.5 py-2.5">
             <div className="flex items-center gap-1.5">

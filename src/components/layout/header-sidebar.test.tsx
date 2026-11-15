@@ -64,7 +64,7 @@ describe("Header & Sidebar layout", () => {
     mockPathname = "/";
   });
 
-  it("renders abbreviated ES/EN locale toggle and user dropdown menu in Header top-right", async () => {
+  it("renders ES/EN/FR/IT LocaleSelector dropdown and user dropdown menu in Header top-right", async () => {
     const user = userEvent.setup();
     render(
       <LocaleProvider initialLocale="es">
@@ -72,13 +72,59 @@ describe("Header & Sidebar layout", () => {
       </LocaleProvider>,
     );
 
-    const localeBtn = screen.getByRole("button", { name: /ES/i });
+    const localeBtn = screen.getByRole("button", {
+      name: /Idioma de interfaz: Español \(ES\)/i,
+    });
     expect(localeBtn).toHaveTextContent("ES");
-    await user.click(localeBtn);
-    expect(localeBtn).toHaveTextContent("EN");
 
     await user.click(localeBtn);
-    expect(localeBtn).toHaveTextContent("ES");
+    const menu = screen.getByRole("menu", { name: /Idioma de interfaz/i });
+    expect(menu).toBeInTheDocument();
+    expect(
+      screen.getByRole("menuitemradio", { name: /ES\s*Español/i }),
+    ).toHaveAttribute("aria-checked", "true");
+    expect(
+      screen.getByRole("menuitemradio", { name: /EN\s*English/i }),
+    ).toHaveAttribute("aria-checked", "false");
+    expect(
+      screen.getByRole("menuitemradio", { name: /FR\s*Français/i }),
+    ).toHaveAttribute("aria-checked", "false");
+    expect(
+      screen.getByRole("menuitemradio", { name: /IT\s*Italiano/i }),
+    ).toHaveAttribute("aria-checked", "false");
+
+    await user.click(
+      screen.getByRole("menuitemradio", { name: /FR\s*Français/i }),
+    );
+    expect(
+      screen.getByRole("button", {
+        name: /Langue de l'interface: Français \(FR\)/i,
+      }),
+    ).toHaveTextContent("FR");
+
+    await user.click(screen.getByRole("button", { name: /Français \(FR\)/i }));
+    await user.click(
+      screen.getByRole("menuitemradio", { name: /IT\s*Italiano/i }),
+    );
+    expect(
+      screen.getByRole("button", {
+        name: /Lingua dell'interfaccia: Italiano \(IT\)/i,
+      }),
+    ).toHaveTextContent("IT");
+
+    await user.click(screen.getByRole("button", { name: /Italiano \(IT\)/i }));
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("menu")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: /Italiano \(IT\)/i }));
+    await user.click(
+      screen.getByRole("menuitemradio", { name: /ES\s*Español/i }),
+    );
+    expect(
+      screen.getByRole("button", {
+        name: /Idioma de interfaz: Español \(ES\)/i,
+      }),
+    ).toHaveTextContent("ES");
 
     // No standalone sign out button visible before opening dropdown
     expect(
@@ -227,7 +273,9 @@ describe("Header & Sidebar layout", () => {
       expect(
         container.querySelector("#doly-sidebar-desktop"),
       ).not.toBeInTheDocument();
-      expect(screen.queryByRole("button", { name: /ES/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", { name: /Español \(ES\)/i }),
+      ).not.toBeInTheDocument();
       expect(screen.queryByText(/Racha:/i)).not.toBeInTheDocument();
       unmount();
     }
@@ -248,5 +296,60 @@ describe("Header & Sidebar layout", () => {
     expect(container.querySelector("footer")).toBeInTheDocument();
     expect(container.querySelector("#doly-sidebar-desktop")).toBeInTheDocument();
     expect(screen.getByText(/3 días/i)).toBeInTheDocument();
+  });
+
+  it("isolates mobile hamburger and desktop collapse buttons cleanly without inline-flex overriding hidden", () => {
+    render(
+      <LocaleProvider initialLocale="es">
+        <Header
+          isMobileMenuOpen={false}
+          onToggleMobileMenu={() => {}}
+          isDesktopSidebarOpen
+          onToggleDesktopSidebar={() => {}}
+        />
+      </LocaleProvider>,
+    );
+
+    const mobileBtn = screen.getByRole("button", { name: /Abrir menú/i });
+    const desktopBtn = screen.getByRole("button", {
+      name: /Ocultar barra lateral/i,
+    });
+
+    expect(mobileBtn).toHaveClass("lg:hidden");
+    expect(desktopBtn).toHaveClass("hidden", "lg:inline-flex");
+    expect(desktopBtn.className.split(/\s+/)).not.toContain("inline-flex");
+    expect(desktopBtn.parentElement).toHaveClass("hidden", "lg:inline-flex");
+  });
+
+  it("renders full-height mobile/tablet drawer with close header, account card, profile link, and logout", async () => {
+    const user = userEvent.setup();
+    const onClose = jest.fn();
+
+    render(
+      <LocaleProvider initialLocale="es">
+        <Sidebar isOpen onClose={onClose} />
+      </LocaleProvider>,
+    );
+
+    const drawer = screen.getByRole("dialog", { name: /Principal/i });
+    expect(drawer).toHaveClass("h-dvh");
+    expect(drawer).not.toHaveClass("mt-14");
+
+    expect(drawer).toHaveTextContent("sebastian rodriguez");
+    expect(drawer).toHaveTextContent("sebastianrdzc04@gmail.com");
+
+    const profileLink = screen.getByRole("link", {
+      name: /Perfil y Progreso/i,
+    });
+    expect(profileLink).toHaveAttribute("href", "/profile");
+
+    const closeBtn = screen.getByRole("button", { name: /Cerrar menú/i });
+    await user.click(closeBtn);
+    expect(onClose).toHaveBeenCalledTimes(1);
+
+    const logoutBtn = screen.getByRole("button", { name: /Cerrar sesión/i });
+    await user.click(logoutBtn);
+    expect(mockLogout).toHaveBeenCalledTimes(1);
+    expect(onClose).toHaveBeenCalledTimes(2);
   });
 });

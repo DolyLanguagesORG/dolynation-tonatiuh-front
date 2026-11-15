@@ -57,7 +57,7 @@ export function StepPlanSelection({
       {planError && (
         <Alert
           variant="error"
-          title="Plan requerido"
+          title={t.plans.ui.requiredTitle}
           onDismiss={onDismissError}
         >
           {planError}
@@ -65,14 +65,7 @@ export function StepPlanSelection({
       )}
 
       {plansLoadError && (
-        <Alert
-          variant="error"
-          title={
-            locale === "es"
-              ? "No se pudieron cargar los planes"
-              : "Could not load subscription plans"
-          }
-        >
+        <Alert variant="error" title={t.plans.ui.loadErrorTitle}>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <span>{plansLoadError}</span>
             <Button
@@ -81,7 +74,7 @@ export function StepPlanSelection({
               size="xs"
               onClick={() => void loadedPlans.reload()}
             >
-              {locale === "es" ? "Reintentar" : "Retry"}
+              {t.plans.ui.retryButton}
             </Button>
           </div>
         </Alert>
@@ -97,9 +90,7 @@ export function StepPlanSelection({
               <SkeletonCard
                 key={slot}
                 lines={4}
-                label={
-                  locale === "es" ? "Cargando planes..." : "Loading plans..."
-                }
+                label={t.plans.ui.loadingPlans}
               />
             ))
           : planDefinitions.map((plan) => {
@@ -155,7 +146,7 @@ export function StepPlanSelection({
             leftIcon={<Icon name="arrow-left" size="xs" />}
             onClick={onBack}
           >
-            Volver a correo
+            {t.plans.ui.backToEmailButton}
           </Button>
         )}
 

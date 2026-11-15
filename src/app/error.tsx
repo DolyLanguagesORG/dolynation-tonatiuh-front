@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 
 import {
+  ActionLink,
   Alert,
   Button,
   Card,
@@ -11,6 +12,7 @@ import {
   Heading,
   Icon,
 } from "@/components/ui";
+import { useLocale } from "@/i18n";
 
 export default function GlobalError({
   error,
@@ -19,6 +21,8 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const { t } = useLocale();
+
   useEffect(() => {
     console.error("[DolyNation Error Boundary]:", error);
   }, [error]);
@@ -27,19 +31,18 @@ export default function GlobalError({
     <Container size="md" className="py-10">
       <Card padding="lg" className="flex flex-col gap-5">
         <div className="flex flex-col gap-1.5">
-          <Eyebrow tone="muted">[EXCEPCIÓN DE APLICACIÓN]</Eyebrow>
+          <Eyebrow tone="muted">[{t.errors.unexpectedEyebrow}]</Eyebrow>
           <Heading as="h1" variant="title" mainHeading>
-            No fue posible procesar esta vista académica
+            {t.errors.unexpectedTitle}
           </Heading>
         </div>
 
         <Alert
           variant="error"
-          title="Interrupción inesperada en la sesión"
+          title={t.errors.unexpectedBadge}
           code={error.digest ?? "UI_RUNTIME_ERROR"}
         >
-          Ocurrió un inconveniente al renderizar el módulo actual. Puedes
-          reintentar la carga sin perder tu progreso sincronizado.
+          {t.errors.unexpectedDescription}
         </Alert>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -48,8 +51,11 @@ export default function GlobalError({
             leftIcon={<Icon name="arrow-left" size="sm" />}
             onClick={() => reset()}
           >
-            Reintentar carga
+            {t.errors.unexpectedRetry}
           </Button>
+          <ActionLink href="/" variant="secondary" size="md">
+            {t.errors.unexpectedHome}
+          </ActionLink>
         </div>
       </Card>
     </Container>

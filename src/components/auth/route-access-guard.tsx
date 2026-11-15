@@ -3,11 +3,18 @@
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, type ReactNode } from "react";
 
-import { Container, SkeletonCard } from "@/components/ui";
+import {
+  Container,
+  LocalizedSkeletonCard,
+  SkeletonCard,
+} from "@/components/ui";
 import { useAuth } from "@/context";
 import { useLocale } from "@/i18n";
 import {
   type AccountAccessPhase,
+  normalizeRoutePath,
+  ROUTE_SELECT_PLAN,
+  ROUTE_SETUP_PREFERENCES,
   ROUTE_VERIFY_EMAIL,
   routeAccessService,
 } from "@/lib";
@@ -19,16 +26,18 @@ export interface RouteAccessGuardProps {
 function InnerRouteAccessGuard({
   pathname,
   accessPhase,
+  canGenerateReadings,
   hasVerifyToken,
   children,
 }: {
   pathname: string;
   accessPhase: AccountAccessPhase;
+  canGenerateReadings: boolean;
   hasVerifyToken: boolean;
   children: ReactNode;
 }) {
   const router = useRouter();
-  const { locale } = useLocale();
+  const { t } = useLocale();
 
   const decision = routeAccessService.evaluate({
     pathname,
@@ -38,27 +47,32 @@ function InnerRouteAccessGuard({
 
   useEffect(() => {
     if (!decision.allowed && decision.redirectTo) {
+      const normalized = normalizeRoutePath(pathname);
       const target =
         decision.reason === "authentication_required" && pathname !== "/"
           ? `${decision.redirectTo}?redirect=${encodeURIComponent(pathname)}`
-          : decision.redirectTo;
+          : decision.reason === "already_authenticated" &&
+              normalized === ROUTE_SELECT_PLAN &&
+              !canGenerateReadings
+            ? ROUTE_SETUP_PREFERENCES
+            : decision.redirectTo;
       router.replace(target);
     }
-  }, [decision.allowed, decision.reason, decision.redirectTo, pathname, router]);
+  }, [
+    canGenerateReadings,
+    decision.allowed,
+    decision.reason,
+    decision.redirectTo,
+    pathname,
+    router,
+  ]);
 
   if (!decision.allowed) {
     const label =
-      decision.reason === "email_verification_required"
-        ? locale === "es"
-          ? "Redirigiendo a confirmación de correo..."
-          : "Redirecting to email verification..."
-        : decision.reason === "subscription_plan_required"
-          ? locale === "es"
-            ? "Redirigiendo a selección de plan..."
-            : "Redirecting to plan selection..."
-          : locale === "es"
-            ? "Verificando acceso de cuenta..."
-            : "Checking account access...";
+      decision.reason === "email_verification_required" ||
+      decision.reason === "subscription_plan_required"
+        ? t.guards.preparingStep
+        : t.guards.validatingSession;
 
     return (
       <Container size="md" className="py-10">
@@ -73,10 +87,12 @@ function InnerRouteAccessGuard({
 function VerifyTokenRouteGuard({
   pathname,
   accessPhase,
+  canGenerateReadings,
   children,
 }: {
   pathname: string;
   accessPhase: AccountAccessPhase;
+  canGenerateReadings: boolean;
   children: ReactNode;
 }) {
   const searchParams = useSearchParams();
@@ -86,6 +102,7 @@ function VerifyTokenRouteGuard({
     <InnerRouteAccessGuard
       pathname={pathname}
       accessPhase={accessPhase}
+      canGenerateReadings={canGenerateReadings}
       hasVerifyToken={hasVerifyToken}
     >
       {children}
@@ -103,18 +120,23 @@ function VerifyTokenRouteGuard({
  */
 export function RouteAccessGuard({ children }: RouteAccessGuardProps) {
   const pathname = usePathname();
-  const { accessPhase } = useAuth();
+  const { accessPhase, onboarding } = useAuth();
+  const canGenerateReadings = onboarding?.canGenerateReadings ?? true;
 
   if (pathname === ROUTE_VERIFY_EMAIL) {
     return (
       <Suspense
         fallback={
           <Container size="md" className="py-10">
-            <SkeletonCard lines={4} label="Cargando verificación..." />
+            <LocalizedSkeletonCard lines={4} labelKey="loadingVerification" />
           </Container>
         }
       >
-        <VerifyTokenRouteGuard pathname={pathname} accessPhase={accessPhase}>
+        <VerifyTokenRouteGuard
+          pathname={pathname}
+          accessPhase={accessPhase}
+          canGenerateReadings={canGenerateReadings}
+        >
           {children}
         </VerifyTokenRouteGuard>
       </Suspense>
@@ -125,6 +147,7 @@ export function RouteAccessGuard({ children }: RouteAccessGuardProps) {
     <InnerRouteAccessGuard
       pathname={pathname}
       accessPhase={accessPhase}
+      canGenerateReadings={canGenerateReadings}
       hasVerifyToken={false}
     >
       {children}

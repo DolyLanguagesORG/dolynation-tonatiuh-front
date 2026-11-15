@@ -11,7 +11,7 @@ export type VerifyEmailTokenState =
 
 export interface StepVerifyEmailProps {
   t: Dictionary;
-  locale: Locale;
+  locale?: Locale;
   registeredEmail: string;
   allowEmailInput?: boolean;
   onEmailChange?: (value: string) => void;
@@ -30,7 +30,6 @@ export interface StepVerifyEmailProps {
  */
 export function StepVerifyEmail({
   t,
-  locale,
   registeredEmail,
   allowEmailInput = false,
   onEmailChange,
@@ -54,7 +53,7 @@ export function StepVerifyEmail({
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-2 rounded-base border border-default-medium bg-neutral-secondary-medium p-4 text-center sm:p-5">
         <Eyebrow tone="muted" className="text-[10px]">
-          {locale === "es" ? "EXPEDIENTE ASOCIADO" : "ASSOCIATED ACCOUNT"}
+          {s2.associatedAccountEyebrow}
         </Eyebrow>
         {registeredEmail && !allowEmailInput ? (
           <span className="font-mono text-sm font-bold text-ink sm:text-base">
@@ -81,12 +80,8 @@ export function StepVerifyEmail({
           variant={statusNotice.variant}
           title={
             statusNotice.variant === "error"
-              ? locale === "es"
-                ? "Error de verificación"
-                : "Verification error"
-              : locale === "es"
-                ? "Estado de verificación"
-                : "Verification status"
+              ? s2.alertErrorTitle
+              : s2.alertStatusTitle
           }
           onDismiss={tokenState === "verifying" ? undefined : onDismissNotice}
         >
