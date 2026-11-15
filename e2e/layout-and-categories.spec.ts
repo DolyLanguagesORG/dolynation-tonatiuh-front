@@ -82,4 +82,67 @@ test.describe("Auth layout, responsive onboarding, streak & configured categorie
     await expect(page.getByText("7 días consecutivos")).toHaveCount(0);
     await expect(page.getByText("Racha: 0 días")).toBeVisible();
   });
+
+  test("responsive shell separates mobile/desktop sidebar toggles and exposes profile & logout in mobile drawer and header", async ({
+    page,
+    context,
+    baseURL,
+  }) => {
+    await attachMockBackend(page, context, baseURL!, {
+      initialAuthenticated: true,
+      initialUser: {
+        email: "sebastianrdzc04@gmail.com",
+        fullName: "sebastian rodriguez",
+        subscriptionTier: "dolly_pro",
+        currentStreak: 1,
+      },
+      initialSelectedLanguages: ["en"],
+      initialSelectedCategories: ["technology", "history", "education"],
+    });
+
+    await page.setViewportSize({ width: 393, height: 852 });
+    await page.goto("/");
+
+    const mobileToggle = page.getByRole("button", { name: /Abrir menú/i });
+    const desktopToggle = page.locator(
+      'button[aria-controls="doly-sidebar-desktop"]',
+    );
+    const userMenuBtn = page.getByRole("button", {
+      name: /Menú de cuenta de sebastian rodriguez/i,
+    });
+
+    await expect(mobileToggle).toBeVisible();
+    await expect(mobileToggle).toHaveClass(/\blg:hidden\b/);
+    await expect(desktopToggle).toHaveCount(1);
+    await expect(desktopToggle).toHaveClass(/\bhidden\b/);
+    await expect(desktopToggle).toHaveClass(/\blg:inline-flex\b/);
+    await expect(userMenuBtn).toBeVisible();
+
+    // Open user menu on phone and confirm profile + logout actions
+    await userMenuBtn.click();
+    await expect(
+      page.getByRole("menuitem", { name: /Perfil y Progreso/i }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("menuitem", { name: /Cerrar sesión/i }),
+    ).toBeVisible();
+    await page.keyboard.press("Escape");
+
+    // Open mobile drawer and verify full-height drawer header, close button, user card & sign out
+    await mobileToggle.click();
+    const drawer = page.locator("#doly-sidebar-drawer");
+    await expect(drawer).toBeVisible();
+    await expect(drawer.getByText("DolyNation")).toBeVisible();
+    await expect(drawer.getByText("sebastian rodriguez")).toBeVisible();
+    await expect(drawer.getByText("sebastianrdzc04@gmail.com")).toBeVisible();
+    await expect(
+      drawer.getByRole("link", { name: /Perfil y Progreso/i }),
+    ).toBeVisible();
+    await expect(
+      drawer.getByRole("button", { name: /Cerrar sesión/i }),
+    ).toBeVisible();
+
+    await drawer.getByRole("button", { name: /Cerrar menú/i }).click();
+    await expect(drawer).toHaveCount(0);
+  });
 });

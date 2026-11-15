@@ -2,6 +2,7 @@
 
 import { type ButtonHTMLAttributes, forwardRef } from "react";
 
+import { hasExplicitDisplayClass } from "@/components/ui/button-styles";
 import { Icon, type IconName, type IconSize } from "@/components/ui/icon";
 
 export type IconButtonVariant = "ghost" | "secondary" | "outline" | "primary";
@@ -63,6 +64,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
     ref,
   ) {
     const resolvedIconSize = iconSize ?? ICON_SIZE_BY_BUTTON[size];
+    const displayClass = hasExplicitDisplayClass(className) ? "" : "inline-flex";
 
     return (
       <button
@@ -70,7 +72,8 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
         type={type}
         disabled={disabled}
         className={[
-          "inline-flex shrink-0 items-center justify-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:cursor-not-allowed disabled:opacity-50",
+          displayClass,
+          "shrink-0 items-center justify-center transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:cursor-not-allowed disabled:opacity-50",
           shape === "circle" ? "rounded-full" : "rounded-base",
           VARIANT_CLASSES[variant],
           SIZE_CLASSES[size],

@@ -9,12 +9,25 @@ export type ButtonVariant =
 
 export type ButtonSize = "xs" | "sm" | "md" | "lg";
 
+const BASE_DISPLAY_TOKEN_REGEX =
+  /(?:^|\s)(?:hidden|block|inline-block|flex|inline-flex|grid|inline-grid|table)\b/;
+
+/**
+ * Detecta si `className` ya define una utilidad de `display` sin prefijo de breakpoint
+ * (por ejemplo `hidden lg:inline-flex`), para no emitir `inline-flex` encima y anularla.
+ */
+export function hasExplicitDisplayClass(className = ""): boolean {
+  return BASE_DISPLAY_TOKEN_REGEX.test(className);
+}
+
 /**
  * Clases editoriales sincronizadas con `dolyFlowbiteTheme.button` para compartir
  * exactamente la misma apariencia en botones reales (`Button`) y enlaces de acción (`ActionLink`).
  */
-export const BUTTON_BASE_CLASSES =
-  "relative inline-flex items-center justify-center gap-2 rounded-base font-semibold transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
+export const BUTTON_COMMON_BASE_CLASSES =
+  "relative items-center justify-center gap-2 rounded-base font-semibold transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring";
+
+export const BUTTON_BASE_CLASSES = `inline-flex ${BUTTON_COMMON_BASE_CLASSES}`;
 
 export const BUTTON_VARIANT_CLASSES: Record<ButtonVariant, string> = {
   primary:
@@ -54,8 +67,11 @@ export function getButtonClasses({
   fullWidth?: boolean;
   className?: string;
 }): string {
+  const displayClass = hasExplicitDisplayClass(className) ? "" : "inline-flex";
+
   return [
-    BUTTON_BASE_CLASSES,
+    displayClass,
+    BUTTON_COMMON_BASE_CLASSES,
     BUTTON_VARIANT_CLASSES[variant],
     BUTTON_SIZE_CLASSES[size],
     fullWidth ? "w-full" : "",
