@@ -56,7 +56,7 @@ Ubicadas junto al código fuente (`src/**/*.test.{ts,tsx}`):
 
 ### Pruebas End-to-End en Navegador (`npm run test:e2e` — Playwright)
 
-- [`e2e/support/mock-api.ts`](../../e2e/support/mock-api.ts): simulador stateful determinista de `/api/v1/*` con sincronización real de cookie `doly_session` para validar `middleware.ts`, guardias SSR/CSR y reglas T1–T9 / Q1.
+- [`e2e/support/mock-api.ts`](../../e2e/support/mock-api.ts): simulador stateful determinista de `/api/v1/*` con sincronización real de cookie `doly_session` para validar `proxy.ts`, guardias SSR/CSR y reglas T1–T9 / Q1.
 - [`e2e/onboarding-gating.spec.ts`](../../e2e/onboarding-gating.spec.ts): flujos obligatorios F1, F2, F3 y T4-A (`dolly_plus` 1 vs 2 idiomas).
 - [`e2e/subscription-language-flows.spec.ts`](../../e2e/subscription-language-flows.spec.ts): flujos T2, T2-A, T3, T4, T5, T7-A, T7-B, T8 y T9.
 - [`e2e/auth-readings-q1.spec.ts`](../../e2e/auth-readings-q1.spec.ts): T6 (`logout-all`), forgot/reset password y circuito completo Q1.

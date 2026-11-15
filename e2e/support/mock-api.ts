@@ -179,7 +179,7 @@ export interface MockBackendHandle {
 
 /**
  * Instala un simulador stateful completo de `/api/v1/*` sobre `page` y `context`,
- * manteniendo sincronizada la cookie `doly_session` para que `middleware.ts`,
+ * manteniendo sincronizada la cookie `doly_session` para que `proxy.ts`,
  * `RouteAccessGuard`, `RequireAuth` y `AuthProvider` se comporten como en producción.
  */
 export async function attachMockBackend(
