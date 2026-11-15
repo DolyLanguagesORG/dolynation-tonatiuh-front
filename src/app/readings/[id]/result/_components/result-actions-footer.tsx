@@ -1,8 +1,8 @@
-import { ActionLink, Divider, Icon, Text } from "@/components/ui";
-import { type Dictionary } from "@/i18n";
+import { ActionLink, Divider, Icon } from "@/components/ui";
+import { type ReadingFlowDictionary } from "@/i18n";
 
 export interface ResultActionsFooterProps {
-  t: Dictionary;
+  t: ReadingFlowDictionary;
   readingId: number;
 }
 
@@ -39,14 +39,6 @@ export function ResultActionsFooter({
           {t.readings.result.generateNewButton}
         </ActionLink>
       </div>
-
-      <Text
-        variant="caption"
-        tone="muted"
-        className="font-mono tracking-wider uppercase"
-      >
-        {t.readings.result.sessionFooterStandard}
-      </Text>
     </div>
   );
 }

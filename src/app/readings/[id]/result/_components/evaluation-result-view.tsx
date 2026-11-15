@@ -14,7 +14,7 @@ import {
   PageHeader,
   SkeletonCard,
 } from "@/components/ui";
-import { useLocale } from "@/i18n";
+import { useImmersionDocumentLanguage } from "@/i18n";
 
 export interface EvaluationResultViewProps {
   readingId: string;
@@ -26,8 +26,9 @@ export interface EvaluationResultViewProps {
 export function EvaluationResultView({
   readingId,
 }: EvaluationResultViewProps) {
-  const { locale, t } = useLocale();
   const result = useEvaluationResult(readingId);
+
+  useImmersionDocumentLanguage(result.reading?.language);
 
   return (
     <RequireAuth>
@@ -35,88 +36,71 @@ export function EvaluationResultView({
         {!result.isValidId ? (
           <EmptyState
             icon="alert-triangle"
-            title={
-              locale === "es"
-                ? "Resultado de lectura no válido"
-                : "Invalid reading result"
-            }
-            description={
-              locale === "es"
-                ? "Regresa al historial y selecciona una lectura válida."
-                : "Go back to history and pick a valid reading."
-            }
+            title={result.flowT.readings.invalidIdTitle}
+            description={result.flowT.readings.invalidIdDescription}
             actions={
               <ActionLink href="/readings" variant="primary" size="md">
-                {t.readings.backToReadings}
+                {result.flowT.readings.backToReadings}
               </ActionLink>
             }
           />
         ) : result.isLoading ? (
           <SkeletonCard
             lines={5}
-            label={
-              locale === "es"
-                ? "Cargando resultados de evaluación"
-                : "Loading evaluation results"
-            }
+            label={result.flowT.readings.result.loadingTitle}
           />
         ) : result.errorMessage || !result.reading ? (
           <Alert
             variant="error"
-            title={
-              locale === "es"
-                ? "Error al cargar resultados"
-                : "Failed to load results"
-            }
+            title={result.flowT.readings.result.loadErrorTitle}
           >
-            {result.errorMessage ??
-              (locale === "es"
-                ? "No encontramos los resultados de esta lectura."
-                : "Could not find evaluation results for this reading.")}
+            {result.errorMessage ?? result.flowT.readings.result.loadErrorFallback}
           </Alert>
         ) : !result.isEvaluated ? (
-          <EmptyState
-            icon="pencil"
-            badge={locale === "es" ? "PENDIENTE" : "PENDING"}
-            title={result.reading.title}
-            description={
-              locale === "es"
-                ? "Esta lectura aún no cuenta con una evaluación enviada. Redacta tu resumen para recibir retroalimentación e índice de comprensión."
-                : "This reading has not been evaluated yet. Submit your comprehension summary to receive AI feedback and your score."
-            }
-            actions={
-              <>
-                <ActionLink
-                  href={`/readings/${result.reading.id}/evaluate`}
-                  variant="primary"
-                  size="md"
-                >
-                  {t.readings.continueEvaluationButton}
-                </ActionLink>
-                <ActionLink
-                  href={`/readings/${result.reading.id}`}
-                  variant="secondary"
-                  size="md"
-                >
-                  {t.readings.rereadAction}
-                </ActionLink>
-              </>
-            }
-          />
+          <div lang={result.readingLanguage}>
+            <EmptyState
+              icon="pencil"
+              badge={result.flowT.readings.result.pendingBadge}
+              title={result.reading.title}
+              description={result.flowT.readings.result.pendingDescription}
+              actions={
+                <>
+                  <ActionLink
+                    href={`/readings/${result.reading.id}/evaluate`}
+                    variant="primary"
+                    size="md"
+                  >
+                    {result.flowT.readings.result.pendingActionButton}
+                  </ActionLink>
+                  <ActionLink
+                    href={`/readings/${result.reading.id}`}
+                    variant="secondary"
+                    size="md"
+                  >
+                    {result.flowT.readings.rereadAction}
+                  </ActionLink>
+                </>
+              }
+            />
+          </div>
         ) : (
-          <>
+          <div lang={result.readingLanguage} className="flex flex-col gap-6">
             <PageHeader
               backHref="/readings"
-              backLabel={t.readings.backToReadings}
+              backLabel={result.flowT.readings.backToReadings}
               titleVariant="title"
               title={result.reading.title}
-              subtitle={t.readings.result.subtitle}
-              badges={<Badge variant="primary">{t.readings.result.completedBadge}</Badge>}
+              subtitle={result.flowT.readings.result.subtitle}
+              badges={
+                <Badge variant="primary">
+                  {result.flowT.readings.result.completedBadge}
+                </Badge>
+              }
             />
 
             <ResultScoreHero
-              t={t}
-              locale={locale}
+              t={result.flowT}
+              displayLanguage={result.readingLanguage}
               reading={result.reading}
               score={result.score}
               passed={result.passed}
@@ -128,16 +112,15 @@ export function EvaluationResultView({
             />
 
             <ResultAnalysisSections
-              t={t}
-              locale={locale}
+              t={result.flowT}
               feedback={result.reading.feedback}
               userResponse={result.reading.userResponse}
               passed={result.passed}
               keyTerms={result.keyTerms}
             />
 
-            <ResultActionsFooter t={t} readingId={result.reading.id} />
-          </>
+            <ResultActionsFooter t={result.flowT} readingId={result.reading.id} />
+          </div>
         )}
       </Container>
     </RequireAuth>

@@ -1,10 +1,10 @@
 "use client";
 
 import { Badge, Card, ChoiceChip, Eyebrow, Text } from "@/components/ui";
-import { type Dictionary } from "@/i18n";
+import { type ReadingFlowDictionary } from "@/i18n";
 
 export interface EvaluationCriteriaCardProps {
-  t: Dictionary;
+  t: ReadingFlowDictionary;
   suggestedTerms: readonly string[];
   onInsertTerm: (term: string) => void;
 }

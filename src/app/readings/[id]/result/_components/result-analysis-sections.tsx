@@ -1,9 +1,8 @@
 import { Badge, Card, Divider, Eyebrow, Icon, Text } from "@/components/ui";
-import { type Dictionary, type Locale } from "@/i18n";
+import { type ReadingFlowDictionary } from "@/i18n";
 
 export interface ResultAnalysisSectionsProps {
-  t: Dictionary;
-  locale: Locale;
+  t: ReadingFlowDictionary;
   feedback: string | null;
   userResponse: string | null;
   passed: boolean;
@@ -16,7 +15,6 @@ export interface ResultAnalysisSectionsProps {
  */
 export function ResultAnalysisSections({
   t,
-  locale,
   feedback,
   userResponse,
   passed,
@@ -38,10 +36,7 @@ export function ResultAnalysisSections({
           <Divider />
 
           <Text variant="body" tone="heading" className="leading-relaxed">
-            {feedback?.trim() ||
-              (locale === "es"
-                ? "Evaluación registrada por el sistema sin comentarios adicionales."
-                : "Evaluation recorded by the system without additional comments.")}
+            {feedback?.trim() || t.readings.result.emptyFeedbackFallback}
           </Text>
         </Card>
 
@@ -58,10 +53,7 @@ export function ResultAnalysisSections({
           </Text>
 
           <blockquote className="border-l-2 border-brand bg-neutral-secondary-soft px-4 py-3 font-serif text-base leading-relaxed text-heading italic">
-            {userResponse?.trim() ||
-              (locale === "es"
-                ? "Sin texto de resumen disponible."
-                : "No submitted summary text available.")}
+            {userResponse?.trim() || t.readings.result.emptyResponseFallback}
           </blockquote>
         </Card>
       </div>

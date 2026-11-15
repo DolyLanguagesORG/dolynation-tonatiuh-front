@@ -13,7 +13,7 @@ import {
   EmptyState,
   SkeletonCard,
 } from "@/components/ui";
-import { useLocale } from "@/i18n";
+import { useImmersionDocumentLanguage } from "@/i18n";
 
 export interface ReadingDetailViewProps {
   readingId: string;
@@ -23,8 +23,9 @@ export interface ReadingDetailViewProps {
  * Vista interactiva de lectura enfocada y consulta léxica IA (`/readings/[id]` - Figma #06).
  */
 export function ReadingDetailView({ readingId }: ReadingDetailViewProps) {
-  const { locale, t } = useLocale();
   const detail = useReadingDetail(readingId);
+
+  useImmersionDocumentLanguage(detail.reading?.language);
 
   return (
     <RequireAuth>
@@ -32,48 +33,31 @@ export function ReadingDetailView({ readingId }: ReadingDetailViewProps) {
         {!detail.isValidId ? (
           <EmptyState
             icon="alert-triangle"
-            title={
-              locale === "es"
-                ? "Identificador de lectura inválido"
-                : "Invalid reading identifier"
-            }
-            description={
-              locale === "es"
-                ? "Verifica el enlace o selecciona una lectura válida desde tu historial."
-                : "Check the link or choose a valid reading from your history."
-            }
+            title={detail.flowT.readings.invalidIdTitle}
+            description={detail.flowT.readings.invalidIdDescription}
             actions={
               <ActionLink href="/readings" variant="primary" size="md">
-                {t.readings.backToReadings}
+                {detail.flowT.readings.backToReadings}
               </ActionLink>
             }
           />
         ) : detail.isLoading ? (
           <SkeletonCard
             lines={6}
-            label={
-              locale === "es" ? "Cargando texto de lectura" : "Loading reading text"
-            }
+            label={detail.flowT.readings.loadingReadingText}
           />
         ) : detail.errorMessage || !detail.reading ? (
           <Alert
             variant="error"
-            title={
-              locale === "es"
-                ? "Error al cargar lectura"
-                : "Failed to load reading"
-            }
+            title={detail.flowT.readings.loadErrorTitle}
           >
-            {detail.errorMessage ??
-              (locale === "es"
-                ? "No se encontró la lectura solicitada."
-                : "Requested reading was not found.")}
+            {detail.errorMessage ?? detail.flowT.readings.notFoundFallback}
           </Alert>
         ) : (
-          <>
+          <div lang={detail.readingLanguage} className="flex flex-col gap-6">
             <ReadingToolbar
-              t={t}
-              locale={locale}
+              t={detail.flowT}
+              displayLanguage={detail.readingLanguage}
               reading={detail.reading}
               fontScale={detail.fontScale}
               onDecreaseFont={detail.decreaseFontScale}
@@ -94,7 +78,18 @@ export function ReadingDetailView({ readingId }: ReadingDetailViewProps) {
                   language={detail.reading.language}
                   fontScale={detail.fontScale}
                   selectedWord={detail.selectedWord}
-                  selectionActionLabel={t.readings.selectionActionLabel}
+                  selectionActionLabel={
+                    detail.flowT.readings.selectionActionLabel
+                  }
+                  clearSelectionLabel={
+                    detail.flowT.readings.clearSelectionLabel
+                  }
+                  selectionTooLongNotice={
+                    detail.flowT.readings.selectionTooLongNotice
+                  }
+                  selectionCrossParagraphNotice={
+                    detail.flowT.readings.selectionCrossParagraphNotice
+                  }
                   onSelectWord={(word, ctx) => void detail.selectWord(word, ctx)}
                 />
               </div>
@@ -102,8 +97,8 @@ export function ReadingDetailView({ readingId }: ReadingDetailViewProps) {
               {detail.selectedWord && (
                 <div className="lg:sticky lg:top-6 lg:col-span-5">
                   <ContextTranslationPopover
-                    t={t}
-                    locale={locale}
+                    t={detail.flowT}
+                    displayLanguage={detail.readingLanguage}
                     word={detail.selectedWord}
                     contextSentence={detail.selectedContext}
                     explanationData={detail.activeExplanation}
@@ -127,7 +122,7 @@ export function ReadingDetailView({ readingId }: ReadingDetailViewProps) {
             </div>
 
             <ReadingCompletionFooter
-              t={t}
+              t={detail.flowT}
               reading={detail.reading}
               vocabularyTerms={detail.vocabularyTerms}
               consultedEntries={detail.consultedEntries}
@@ -135,7 +130,7 @@ export function ReadingDetailView({ readingId }: ReadingDetailViewProps) {
               onSelectTerm={(term) => void detail.selectWord(term)}
               onOpenCachedEntry={detail.openCachedEntry}
             />
-          </>
+          </div>
         )}
       </Container>
     </RequireAuth>

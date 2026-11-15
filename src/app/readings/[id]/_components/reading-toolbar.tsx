@@ -8,17 +8,18 @@ import {
   IconButton,
   PageHeader,
 } from "@/components/ui";
-import { type Dictionary, type Locale } from "@/i18n";
+import { type ReadingFlowDictionary } from "@/i18n";
 import {
   estimateReadingMinutes,
   formatReadingLanguageBadge,
   getDifficultyMeta,
   type ReadingDto,
+  type TargetLanguageCode,
 } from "@/lib";
 
 export interface ReadingToolbarProps {
-  t: Dictionary;
-  locale: Locale;
+  t: ReadingFlowDictionary;
+  displayLanguage: TargetLanguageCode;
   reading: ReadingDto;
   fontScale: 0 | 1 | 2;
   onDecreaseFont: () => void;
@@ -32,14 +33,14 @@ export interface ReadingToolbarProps {
  */
 export function ReadingToolbar({
   t,
-  locale,
+  displayLanguage,
   reading,
   fontScale,
   onDecreaseFont,
   onIncreaseFont,
   onPronounceTitle,
 }: ReadingToolbarProps) {
-  const diffMeta = getDifficultyMeta(reading.difficulty, locale);
+  const diffMeta = getDifficultyMeta(reading.difficulty, displayLanguage);
   const estMinutes = estimateReadingMinutes(reading.wordCount, reading.content);
 
   return (
@@ -53,7 +54,7 @@ export function ReadingToolbar({
         badges={
           <>
             <Badge variant="primary">
-              {formatReadingLanguageBadge(reading.language, locale)}
+              {formatReadingLanguageBadge(reading.language, displayLanguage)}
             </Badge>
             <Badge variant="outline">
               {diffMeta.label} · {diffMeta.cefrBadge}
@@ -73,11 +74,7 @@ export function ReadingToolbar({
               size="xs"
               disabled={fontScale <= 0}
               onClick={onDecreaseFont}
-              aria-label={
-                locale === "es"
-                  ? "Reducir tamaño de lectura"
-                  : "Decrease reading text size"
-              }
+              aria-label={t.readings.decreaseFontLabel}
             >
               A-
             </Button>
@@ -86,11 +83,7 @@ export function ReadingToolbar({
               size="xs"
               disabled={fontScale >= 2}
               onClick={onIncreaseFont}
-              aria-label={
-                locale === "es"
-                  ? "Aumentar tamaño de lectura"
-                  : "Increase reading text size"
-              }
+              aria-label={t.readings.increaseFontLabel}
             >
               A+
             </Button>

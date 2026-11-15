@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { type ReactNode } from "react";
+import { type ReactNode, useState } from "react";
 
 import { RouteAccessGuard } from "@/components/auth";
 import { Footer } from "@/components/layout/footer";
@@ -30,6 +30,7 @@ export function AppShell({
 }: AppShellProps) {
   const pathname = usePathname();
   const { isOpen, close, toggle } = useDisclosure();
+  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
   const { t } = useLocale();
   const { accessPhase } = useAuth();
 
@@ -46,6 +47,8 @@ export function AppShell({
     pathname === "/terms" ||
     pathname === "/privacy" ||
     pathname === "/support";
+  const isImmersiveReadingRoute =
+    routeAccessService.isImmersiveReadingRoute(pathname);
 
   return (
     <div className="flex min-h-dvh w-full flex-col bg-background text-foreground">
@@ -56,15 +59,25 @@ export function AppShell({
         {t.meta.skipToContent}
       </a>
 
-      {!isHeaderlessAuthRoute && (
+      {!isHeaderlessAuthRoute && !isImmersiveReadingRoute && (
         <Header
           isMobileMenuOpen={isOpen}
           onToggleMobileMenu={toggle}
+          isDesktopSidebarOpen={isDesktopSidebarOpen}
+          onToggleDesktopSidebar={() =>
+            setIsDesktopSidebarOpen((prev) => !prev)
+          }
           isAuthRoute={isAuthRoute}
         />
       )}
 
-      {isAuthRoute ? (
+      {isImmersiveReadingRoute ? (
+        <div className="flex min-w-0 flex-1 flex-col">
+          <main id="main-content" className="flex-1 py-6 sm:py-8 lg:py-10">
+            <RouteAccessGuard>{children}</RouteAccessGuard>
+          </main>
+        </div>
+      ) : isAuthRoute ? (
         isDesignSystemRoute || isInformationalRoute ? (
           <div className="flex min-w-0 flex-1 flex-col">
             <main id="main-content" className="flex-1 py-6 sm:py-8 lg:py-10">
@@ -84,7 +97,11 @@ export function AppShell({
         )
       ) : (
         <div className="flex min-w-0 flex-1">
-          <Sidebar isOpen={isOpen} onClose={close} />
+          <Sidebar
+            isOpen={isOpen}
+            onClose={close}
+            isDesktopOpen={isDesktopSidebarOpen}
+          />
 
           <div className="flex min-w-0 flex-1 flex-col">
             <main id="main-content" className="flex-1 py-6 sm:py-8 lg:py-10">

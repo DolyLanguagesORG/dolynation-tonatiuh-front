@@ -9,11 +9,11 @@ import {
   Icon,
   Text,
 } from "@/components/ui";
-import { type Dictionary } from "@/i18n";
+import { type ReadingFlowDictionary } from "@/i18n";
 import { type GlossaryEntryDto, type ReadingDto } from "@/lib";
 
 export interface ReadingCompletionFooterProps {
-  t: Dictionary;
+  t: ReadingFlowDictionary;
   reading: ReadingDto;
   vocabularyTerms: readonly string[];
   consultedEntries: readonly GlossaryEntryDto[];

@@ -11,12 +11,17 @@ import {
   IconButton,
   Text,
 } from "@/components/ui";
-import { type Dictionary, type Locale } from "@/i18n";
-import { type ExplanationResultDto } from "@/lib";
+import { type ReadingFlowDictionary } from "@/i18n";
+import {
+  formatReadingLanguageBadge,
+  getDifficultyMeta,
+  type ExplanationResultDto,
+  type TargetLanguageCode,
+} from "@/lib";
 
 export interface ContextTranslationPopoverProps {
-  t: Dictionary;
-  locale: Locale;
+  t: ReadingFlowDictionary;
+  displayLanguage: TargetLanguageCode;
   word: string;
   contextSentence: string | null;
   explanationData: ExplanationResultDto | null;
@@ -39,7 +44,7 @@ export interface ContextTranslationPopoverProps {
  */
 export function ContextTranslationPopover({
   t,
-  locale,
+  displayLanguage,
   word,
   contextSentence,
   explanationData,
@@ -77,8 +82,17 @@ export function ContextTranslationPopover({
             {explanationData && (
               <>
                 <Badge variant="secondary">
-                  {explanationData.language.toUpperCase()} ·{" "}
-                  {explanationData.difficulty.toUpperCase()}
+                  {formatReadingLanguageBadge(
+                    explanationData.language,
+                    displayLanguage,
+                  )}{" "}
+                  ·{" "}
+                  {
+                    getDifficultyMeta(
+                      explanationData.difficulty,
+                      displayLanguage,
+                    ).label
+                  }
                 </Badge>
                 {explanationData.cached && (
                   <Badge variant="secondary">{t.readings.cachedBadge}</Badge>
@@ -95,7 +109,7 @@ export function ContextTranslationPopover({
           icon="close"
           size="xs"
           variant="ghost"
-          aria-label={locale === "es" ? "Cerrar ayuda" : "Close help"}
+          aria-label={t.readings.closeHelpLabel}
           onClick={onClose}
         />
       </div>
@@ -103,7 +117,7 @@ export function ContextTranslationPopover({
       {contextSentence && (
         <div className="rounded-base border border-default bg-neutral-secondary-soft px-3 py-2">
           <Text variant="caption" tone="muted" className="font-mono uppercase">
-            {locale === "es" ? "FRAGMENTO" : "EXCERPT"}
+            {t.readings.excerptBadge}
           </Text>
           <Text variant="small" tone="body" className="mt-0.5 italic">
             “{contextSentence}”
@@ -113,7 +127,7 @@ export function ContextTranslationPopover({
 
       {isLoading ? (
         <div className="flex items-center gap-2 py-3 text-xs text-muted">
-          <Badge variant="outline">IA</Badge>
+          <Badge variant="outline">{t.readings.aiBadge}</Badge>
           <span>{t.readings.loadingContextNotice}</span>
         </div>
       ) : errorMessage ? (

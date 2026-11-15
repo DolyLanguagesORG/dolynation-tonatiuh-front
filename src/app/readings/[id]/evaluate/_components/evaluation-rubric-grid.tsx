@@ -1,8 +1,8 @@
 import { Card, Eyebrow, Heading, Text } from "@/components/ui";
-import { type Dictionary } from "@/i18n";
+import { type ReadingFlowDictionary } from "@/i18n";
 
 export interface EvaluationRubricGridProps {
-  t: Dictionary;
+  t: ReadingFlowDictionary;
 }
 
 /**

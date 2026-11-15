@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "@/context";
-import { useLocale } from "@/i18n";
+import {
+  getReadingFlowDictionary,
+  resolveReadingLanguage,
+  useLocale,
+} from "@/i18n";
 import {
   ApiClientError,
   cleanLookupSelection,
@@ -103,6 +107,12 @@ export function useReadingDetail(rawId: string) {
   const [isDeepExplaining, setIsDeepExplaining] = useState(false);
   const [explainError, setExplainError] = useState<string | null>(null);
 
+  const readingLanguage = resolveReadingLanguage(reading?.language, locale);
+  const flowT = useMemo(
+    () => getReadingFlowDictionary(readingLanguage),
+    [readingLanguage],
+  );
+
   const fetchKey =
     isAuthenticated && isValidId
       ? `${user?.id ?? "me"}-reading-${readingId}`
@@ -133,9 +143,7 @@ export function useReadingDetail(rawId: string) {
         setErrorMessage(
           err instanceof ApiClientError
             ? err.getUserMessage(locale)
-            : locale === "es"
-              ? "No fue posible cargar esta lectura."
-              : "Could not load this reading.",
+            : getReadingFlowDictionary(locale).readings.errors.loadReadingFailed,
         );
       })
       .finally(() => {
@@ -227,16 +235,21 @@ export function useReadingDetail(rawId: string) {
       } catch (err: unknown) {
         setExplainError(
           err instanceof ApiClientError
-            ? err.getUserMessage(locale)
-            : locale === "es"
-              ? "No se pudo consultar la explicación contextual en este momento."
-              : "Could not retrieve contextual explanation right now.",
+            ? err.getUserMessage(readingLanguage)
+            : flowT.readings.errors.explainFailed,
         );
       } finally {
         setIsExplaining(false);
       }
     },
-    [consultedEntries, isValidId, locale, reading, readingId],
+    [
+      consultedEntries,
+      flowT.readings.errors.explainFailed,
+      isValidId,
+      reading,
+      readingId,
+      readingLanguage,
+    ],
   );
 
   const openCachedEntry = useCallback(
@@ -278,15 +291,19 @@ export function useReadingDetail(rawId: string) {
     } catch (err: unknown) {
       setExplainError(
         err instanceof ApiClientError
-          ? err.getUserMessage(locale)
-          : locale === "es"
-            ? "No se pudo ampliar la explicación con el tutor IA."
-            : "Could not load detailed tutor explanation.",
+          ? err.getUserMessage(readingLanguage)
+          : flowT.readings.errors.deepExplainFailed,
       );
     } finally {
       setIsDeepExplaining(false);
     }
-  }, [locale, reading, selectedContext, selectedWord]);
+  }, [
+    flowT.readings.errors.deepExplainFailed,
+    reading,
+    readingLanguage,
+    selectedContext,
+    selectedWord,
+  ]);
 
   const clearSelection = useCallback(() => {
     setSelectedWord(null);
@@ -325,15 +342,18 @@ export function useReadingDetail(rawId: string) {
     } catch (err: unknown) {
       setExplainError(
         err instanceof ApiClientError
-          ? err.getUserMessage(locale)
-          : locale === "es"
-            ? "No se pudo actualizar tu glosario en este momento."
-            : "Could not update your glossary right now.",
+          ? err.getUserMessage(readingLanguage)
+          : flowT.readings.errors.glossaryUpdateFailed,
       );
     } finally {
       setIsSavingGlossary(false);
     }
-  }, [activeExplanation, isSavingGlossary, locale]);
+  }, [
+    activeExplanation,
+    flowT.readings.errors.glossaryUpdateFailed,
+    isSavingGlossary,
+    readingLanguage,
+  ]);
 
   const pronounceText = useCallback(
     (textToSpeak: string) => {
@@ -364,6 +384,8 @@ export function useReadingDetail(rawId: string) {
     isValidId,
     isLoading,
     reading,
+    readingLanguage,
+    flowT,
     paragraphs,
     vocabularyTerms,
     consultedEntries,

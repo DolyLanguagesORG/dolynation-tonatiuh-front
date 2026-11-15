@@ -12,11 +12,12 @@ import {
   Text,
   Textarea,
 } from "@/components/ui";
-import { type Dictionary, type Locale } from "@/i18n";
+import { type ReadingFlowDictionary } from "@/i18n";
+import { type TargetLanguageCode } from "@/lib";
 
 export interface EvaluationEditorCardProps {
-  t: Dictionary;
-  locale: Locale;
+  t: ReadingFlowDictionary;
+  readingLanguage: TargetLanguageCode;
   responseText: string;
   wordCount: number;
   charCount: number;
@@ -36,7 +37,7 @@ export interface EvaluationEditorCardProps {
  */
 export function EvaluationEditorCard({
   t,
-  locale,
+  readingLanguage,
   responseText,
   wordCount,
   charCount,
@@ -70,19 +71,13 @@ export function EvaluationEditorCard({
       </div>
 
       {submitError && (
-        <Alert
-          variant="error"
-          title={
-            locale === "es"
-              ? "Error al enviar evaluación"
-              : "Failed to submit evaluation"
-          }
-        >
+        <Alert variant="error" title={t.readings.eval.submitErrorTitle}>
           {submitError}
         </Alert>
       )}
 
       <Textarea
+        lang={readingLanguage}
         label={t.readings.eval.textareaLabel}
         placeholder={t.readings.eval.textareaPlaceholder}
         rows={8}
@@ -124,9 +119,7 @@ export function EvaluationEditorCard({
 
       {isSubmitting && (
         <Text variant="caption" tone="muted" className="font-mono">
-          {locale === "es"
-            ? "Analizando retención temática, léxico contextual y claridad sintáctica..."
-            : "Analyzing thematic retention, contextual lexicon, and syntactic clarity..."}
+          {t.readings.eval.submittingAnalysisNotice}
         </Text>
       )}
     </Card>

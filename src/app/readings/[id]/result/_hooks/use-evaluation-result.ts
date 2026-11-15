@@ -3,7 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "@/context";
-import { useLocale } from "@/i18n";
+import {
+  getReadingFlowDictionary,
+  resolveReadingLanguage,
+  useLocale,
+} from "@/i18n";
 import {
   ApiClientError,
   countWords,
@@ -25,6 +29,12 @@ export function useEvaluationResult(rawId: string) {
   const [reading, setReading] = useState<ReadingDto | null>(null);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  const readingLanguage = resolveReadingLanguage(reading?.language, locale);
+  const flowT = useMemo(
+    () => getReadingFlowDictionary(readingLanguage),
+    [readingLanguage],
+  );
 
   const fetchKey =
     isAuthenticated && isValidId
@@ -50,9 +60,7 @@ export function useEvaluationResult(rawId: string) {
         setErrorMessage(
           err instanceof ApiClientError
             ? err.getUserMessage(locale)
-            : locale === "es"
-              ? "No pudimos recuperar los resultados de esta evaluación."
-              : "Could not load evaluation results.",
+            : getReadingFlowDictionary(locale).readings.errors.loadResultFailed,
         );
       })
       .finally(() => {
@@ -120,6 +128,8 @@ export function useEvaluationResult(rawId: string) {
     isValidId,
     isLoading,
     reading,
+    readingLanguage,
+    flowT,
     errorMessage,
     ...metrics,
   };

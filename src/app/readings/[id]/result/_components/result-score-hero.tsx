@@ -1,15 +1,16 @@
 import { Badge, Card, Eyebrow, StatCard, Text } from "@/components/ui";
-import { type Dictionary, type Locale } from "@/i18n";
+import { type ReadingFlowDictionary } from "@/i18n";
 import {
   formatReadingDate,
   formatReadingLanguageBadge,
   getDifficultyMeta,
   type ReadingDto,
+  type TargetLanguageCode,
 } from "@/lib";
 
 export interface ResultScoreHeroProps {
-  t: Dictionary;
-  locale: Locale;
+  t: ReadingFlowDictionary;
+  displayLanguage: TargetLanguageCode;
   reading: ReadingDto;
   score: number;
   passed: boolean;
@@ -26,7 +27,7 @@ export interface ResultScoreHeroProps {
  */
 export function ResultScoreHero({
   t,
-  locale,
+  displayLanguage,
   reading,
   score,
   passed,
@@ -36,7 +37,7 @@ export function ResultScoreHero({
   totalTermsCount,
   lexicalCoveragePct,
 }: ResultScoreHeroProps) {
-  const diffMeta = getDifficultyMeta(reading.difficulty, locale);
+  const diffMeta = getDifficultyMeta(reading.difficulty, displayLanguage);
 
   return (
     <div className="flex flex-col gap-6">
@@ -49,7 +50,7 @@ export function ResultScoreHero({
                 {score}
               </span>
               <span className="font-mono text-xl font-semibold text-muted">
-                / 100
+                {t.readings.result.scoreMetricUnit}
               </span>
             </div>
           </div>
@@ -61,11 +62,13 @@ export function ResultScoreHero({
                 : t.readings.result.reviewBadge}
             </Badge>
             <Text variant="caption" tone="muted" className="font-mono uppercase">
+              {t.readings.result.evaluatedOnPrefix}{" "}
               {formatReadingDate(
                 reading.updatedAt ?? reading.createdAt,
-                locale,
+                displayLanguage,
               )}{" "}
-              • {formatReadingLanguageBadge(reading.language, locale)} •{" "}
+              •{" "}
+              {formatReadingLanguageBadge(reading.language, displayLanguage)} •{" "}
               {diffMeta.cefrBadge}
             </Text>
           </div>
@@ -80,46 +83,30 @@ export function ResultScoreHero({
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
           <StatCard
-            label={
-              locale === "es" ? "CALIFICACIÓN IA" : "AI COMPREHENSION SCORE"
-            }
+            label={t.readings.result.scoreMetricLabel}
             topMeta={`${score}%`}
             progress={score}
             value={score}
-            unit="/ 100"
-            description={
-              locale === "es"
-                ? `Nivel evaluado: ${diffMeta.label} (${diffMeta.cefrBadge}).`
-                : `Evaluated level: ${diffMeta.label} (${diffMeta.cefrBadge}).`
-            }
+            unit={t.readings.result.scoreMetricUnit}
+            description={`${t.readings.result.scoreMetricLevelPrefix} ${diffMeta.label} (${diffMeta.cefrBadge}).`}
           />
 
           <StatCard
-            label={locale === "es" ? "EXTENSIÓN DE SÍNTESIS" : "SUMMARY LENGTH"}
+            label={t.readings.result.lengthMetricLabel}
             topMeta={`${responseTargetPct}%`}
             progress={responseTargetPct}
             value={responseWordCount}
-            unit={locale === "es" ? "palabras" : "words"}
-            description={
-              locale === "es"
-                ? "Objetivo de referencia académica: 100 palabras."
-                : "Academic reference target: 100 words."
-            }
+            unit={t.readings.result.lengthMetricUnit}
+            description={t.readings.result.lengthMetricDesc}
           />
 
           <StatCard
-            label={
-              locale === "es" ? "LÉXICO REUTILIZADO" : "CONTEXTUAL LEXICON"
-            }
+            label={t.readings.result.lexiconMetricLabel}
             topMeta={`${lexicalCoveragePct}%`}
             progress={lexicalCoveragePct}
             value={`${matchedTermsCount}/${Math.max(1, totalTermsCount)}`}
-            unit={locale === "es" ? "términos" : "terms"}
-            description={
-              locale === "es"
-                ? "Coincidencia de vocabulario clave en tu resumen."
-                : "Key reading vocabulary integrated into your summary."
-            }
+            unit={t.readings.result.lexiconMetricUnit}
+            description={t.readings.result.lexiconMetricDesc}
           />
         </div>
       </section>

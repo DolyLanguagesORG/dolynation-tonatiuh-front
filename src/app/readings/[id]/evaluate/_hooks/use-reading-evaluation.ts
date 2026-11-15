@@ -4,7 +4,11 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "@/context";
-import { useLocale } from "@/i18n";
+import {
+  getReadingFlowDictionary,
+  resolveReadingLanguage,
+  useLocale,
+} from "@/i18n";
 import {
   ApiClientError,
   countWords,
@@ -55,7 +59,7 @@ function formatDuration(totalSeconds: number): string {
  */
 export function useReadingEvaluation(rawId: string) {
   const router = useRouter();
-  const { locale, t } = useLocale();
+  const { locale } = useLocale();
   const { user, isAuthenticated } = useAuth();
 
   const readingId = Number(rawId);
@@ -64,6 +68,12 @@ export function useReadingEvaluation(rawId: string) {
   const [reading, setReading] = useState<ReadingDto | null>(null);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
+
+  const readingLanguage = resolveReadingLanguage(reading?.language, locale);
+  const flowT = useMemo(
+    () => getReadingFlowDictionary(readingLanguage),
+    [readingLanguage],
+  );
 
   const [responseText, setResponseText] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -103,9 +113,8 @@ export function useReadingEvaluation(rawId: string) {
         setLoadError(
           err instanceof ApiClientError
             ? err.getUserMessage(locale)
-            : locale === "es"
-              ? "No pudimos cargar los datos de la lectura para evaluar."
-              : "Could not load reading details for evaluation.",
+            : getReadingFlowDictionary(locale).readings.errors
+                .loadEvaluationFailed,
         );
       })
       .finally(() => {
@@ -163,15 +172,15 @@ export function useReadingEvaluation(rawId: string) {
   const saveDraftNow = useCallback(() => {
     if (!isValidId) return;
     writeDraft(readingId, responseText);
-    setDraftNotice(t.readings.eval.draftSavedNotice);
-  }, [isValidId, readingId, responseText, t.readings.eval.draftSavedNotice]);
+    setDraftNotice(flowT.readings.eval.draftSavedNotice);
+  }, [flowT.readings.eval.draftSavedNotice, isValidId, readingId, responseText]);
 
   const handleSubmit = useCallback(async () => {
     if (!isValidId || isSubmitting) return;
 
     const trimmed = responseText.trim();
     if (countWords(trimmed) < MIN_SUBMIT_WORDS) {
-      setValidationError(t.readings.eval.minWordsError);
+      setValidationError(flowT.readings.eval.minWordsError);
       return;
     }
 
@@ -186,21 +195,20 @@ export function useReadingEvaluation(rawId: string) {
     } catch (err: unknown) {
       setSubmitError(
         err instanceof ApiClientError
-          ? err.getUserMessage(locale)
-          : locale === "es"
-            ? "No se pudo completar la evaluación por IA. Intenta de nuevo."
-            : "Could not complete AI evaluation. Please try again.",
+          ? err.getUserMessage(readingLanguage)
+          : flowT.readings.errors.submitEvaluationFailed,
       );
       setIsSubmitting(false);
     }
   }, [
+    flowT.readings.errors.submitEvaluationFailed,
+    flowT.readings.eval.minWordsError,
     isSubmitting,
     isValidId,
-    locale,
     readingId,
+    readingLanguage,
     responseText,
     router,
-    t.readings.eval.minWordsError,
   ]);
 
   return {
@@ -208,6 +216,8 @@ export function useReadingEvaluation(rawId: string) {
     isValidId,
     isLoading,
     reading,
+    readingLanguage,
+    flowT,
     loadError,
     responseText,
     wordCount,

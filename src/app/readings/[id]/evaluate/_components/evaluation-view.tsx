@@ -14,7 +14,7 @@ import {
   PageHeader,
   SkeletonCard,
 } from "@/components/ui";
-import { useLocale } from "@/i18n";
+import { useImmersionDocumentLanguage } from "@/i18n";
 import { formatReadingLanguageBadge, getDifficultyMeta } from "@/lib";
 
 export interface EvaluationViewProps {
@@ -25,8 +25,9 @@ export interface EvaluationViewProps {
  * Vista completa de evaluación de comprensión contextual (`/readings/[id]/evaluate` - Figma #07).
  */
 export function EvaluationView({ readingId }: EvaluationViewProps) {
-  const { locale, t } = useLocale();
   const evaluation = useReadingEvaluation(readingId);
+
+  useImmersionDocumentLanguage(evaluation.reading?.language);
 
   return (
     <RequireAuth>
@@ -34,86 +35,74 @@ export function EvaluationView({ readingId }: EvaluationViewProps) {
         {!evaluation.isValidId ? (
           <EmptyState
             icon="alert-triangle"
-            title={
-              locale === "es"
-                ? "Lectura no válida para evaluación"
-                : "Invalid reading for evaluation"
-            }
-            description={
-              locale === "es"
-                ? "Regresa al historial y selecciona una lectura válida."
-                : "Go back to history and select a valid reading."
-            }
+            title={evaluation.flowT.readings.invalidIdTitle}
+            description={evaluation.flowT.readings.invalidIdDescription}
             actions={
               <ActionLink href="/readings" variant="primary" size="md">
-                {t.readings.backToReadings}
+                {evaluation.flowT.readings.backToReadings}
               </ActionLink>
             }
           />
         ) : evaluation.isLoading ? (
           <SkeletonCard
             lines={5}
-            label={
-              locale === "es"
-                ? "Preparando módulo de evaluación"
-                : "Preparing evaluation module"
-            }
+            label={evaluation.flowT.readings.eval.loadingTitle}
           />
         ) : evaluation.loadError || !evaluation.reading ? (
           <Alert
             variant="error"
-            title={
-              locale === "es"
-                ? "Error al cargar evaluación"
-                : "Failed to load evaluation"
-            }
+            title={evaluation.flowT.readings.eval.loadErrorTitle}
           >
             {evaluation.loadError ??
-              (locale === "es"
-                ? "No se pudo abrir la lectura para evaluación."
-                : "Could not open reading for evaluation.")}
+              evaluation.flowT.readings.eval.loadErrorFallback}
           </Alert>
         ) : (
-          <>
+          <div
+            lang={evaluation.readingLanguage}
+            className="flex flex-col gap-6"
+          >
             <PageHeader
               backHref={`/readings/${evaluation.reading.id}`}
-              backLabel={t.readings.eval.backToReading}
-              eyebrow={t.readings.eval.eyebrow}
+              backLabel={evaluation.flowT.readings.eval.backToReading}
+              eyebrow={evaluation.flowT.readings.eval.eyebrow}
               titleVariant="title"
-              title={t.readings.eval.title}
-              subtitle={`${t.readings.eval.readingPrefix} ${evaluation.reading.title}`}
+              title={evaluation.flowT.readings.eval.title}
+              subtitle={`${evaluation.flowT.readings.eval.readingPrefix} ${evaluation.reading.title}`}
               badges={
                 <>
                   <Badge variant="primary">
                     {formatReadingLanguageBadge(
                       evaluation.reading.language,
-                      locale,
+                      evaluation.readingLanguage,
                     )}
                   </Badge>
                   <Badge variant="outline">
                     {
-                      getDifficultyMeta(evaluation.reading.difficulty, locale)
-                        .cefrBadge
+                      getDifficultyMeta(
+                        evaluation.reading.difficulty,
+                        evaluation.readingLanguage,
+                      ).cefrBadge
                     }
                   </Badge>
                 </>
               }
               actions={
                 <Badge variant="secondary" className="font-mono">
-                  {t.readings.eval.activeSessionBadge} • {evaluation.elapsedLabel}
+                  {evaluation.flowT.readings.eval.activeSessionBadge} •{" "}
+                  {evaluation.elapsedLabel}
                 </Badge>
               }
             />
 
             <EvaluationCriteriaCard
-              t={t}
+              t={evaluation.flowT}
               suggestedTerms={evaluation.suggestedTerms}
               onInsertTerm={evaluation.insertSuggestedTerm}
             />
 
             <EvaluationEditorCard
-              t={t}
-              locale={locale}
+              t={evaluation.flowT}
+              readingLanguage={evaluation.readingLanguage}
               responseText={evaluation.responseText}
               wordCount={evaluation.wordCount}
               charCount={evaluation.charCount}
@@ -127,8 +116,8 @@ export function EvaluationView({ readingId }: EvaluationViewProps) {
               onSubmit={evaluation.handleSubmit}
             />
 
-            <EvaluationRubricGrid t={t} />
-          </>
+            <EvaluationRubricGrid t={evaluation.flowT} />
+          </div>
         )}
       </Container>
     </RequireAuth>
