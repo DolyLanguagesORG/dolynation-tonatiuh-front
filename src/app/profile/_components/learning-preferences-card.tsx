@@ -63,6 +63,7 @@ export function LearningPreferencesCard({
   onAddCustomCategory,
 }: LearningPreferencesCardProps) {
   const [customName, setCustomName] = useState("");
+  const [isAddingCustom, setIsAddingCustom] = useState(false);
   const [draftLanguages, setDraftLanguages] = useState<
     TargetLanguageCode[] | null
   >(null);
@@ -147,10 +148,15 @@ export function LearningPreferencesCard({
   };
 
   const handleAddCustom = async (): Promise<void> => {
-    if (!onAddCustomCategory || !customName.trim()) return;
-    const ok = await onAddCustomCategory(customName);
-    if (ok) {
-      setCustomName("");
+    if (!onAddCustomCategory || isAddingCustom || isSaving) return;
+    setIsAddingCustom(true);
+    try {
+      const ok = await onAddCustomCategory(customName);
+      if (ok) {
+        setCustomName("");
+      }
+    } finally {
+      setIsAddingCustom(false);
     }
   };
 
@@ -449,22 +455,28 @@ export function LearningPreferencesCard({
             </div>
           </div>
 
-          <div className="flex flex-wrap gap-2">
-            {categories.map((cat) => (
-              <ChoiceChip
-                key={cat.id}
-                selected={selectedCategoryIds.some(
-                  (id) => id.toLowerCase() === cat.id.toLowerCase(),
-                )}
-                indicator="plus-check"
-                size="sm"
-                disabled={isSaving}
-                onClick={() => onToggleCategory(cat.id)}
-              >
-                {cat.name}
-              </ChoiceChip>
-            ))}
-          </div>
+          {categories.length === 0 ? (
+            <Text variant="caption" tone="muted">
+              {t.profile.minCategoriesNotice}
+            </Text>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {categories.map((cat) => (
+                <ChoiceChip
+                  key={cat.id}
+                  selected={selectedCategoryIds.some(
+                    (id) => id.toLowerCase() === cat.id.toLowerCase(),
+                  )}
+                  indicator="plus-check"
+                  size="sm"
+                  disabled={isSaving}
+                  onClick={() => onToggleCategory(cat.id)}
+                >
+                  {cat.name}
+                </ChoiceChip>
+              ))}
+            </div>
+          )}
 
           {onAddCustomCategory && (
             <div className="flex flex-col gap-2 pt-1 sm:flex-row sm:items-end">
@@ -474,7 +486,14 @@ export function LearningPreferencesCard({
                   label={t.profile.addCustomCategoryPrompt}
                   placeholder={t.profile.addCustomCategoryPlaceholder}
                   value={customName}
+                  disabled={isSaving || isAddingCustom}
                   onChange={(event) => setCustomName(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      void handleAddCustom();
+                    }
+                  }}
                 />
               </div>
               <Button
@@ -482,6 +501,7 @@ export function LearningPreferencesCard({
                 variant="secondary"
                 size="sm"
                 disabled={isSaving}
+                isLoading={isAddingCustom}
                 onClick={() => {
                   void handleAddCustom();
                 }}

@@ -12,18 +12,6 @@ export type SubscriptionTier = (typeof SUBSCRIPTION_TIERS)[number];
 export const SUPPORTED_LANGUAGE_IDS = ["es", "en", "fr", "it"] as const;
 export type TargetLanguageCode = (typeof SUPPORTED_LANGUAGE_IDS)[number];
 
-/**
- * Catálogo base de categorías predefinidas en `dolynation-atl-back`.
- */
-export const PREDEFINED_READING_CATEGORIES = [
-  "technology",
-  "history",
-  "education",
-  "programming",
-  "culture",
-  "pop_culture",
-] as const;
-
 export const READING_DIFFICULTIES = ["easy", "medium", "hard"] as const;
 export type ReadingDifficulty = (typeof READING_DIFFICULTIES)[number];
 

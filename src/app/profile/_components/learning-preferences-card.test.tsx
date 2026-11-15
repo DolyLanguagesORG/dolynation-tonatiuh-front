@@ -194,4 +194,34 @@ describe("LearningPreferencesCard", () => {
     await waitFor(() => expect(onAddCustomCategory).toHaveBeenCalledTimes(2));
     expect(input.value).toBe("");
   });
+
+  it("shows empty categories warning with no predefined fallback categories when user has none", () => {
+    render(
+      <LearningPreferencesCard
+        t={dictionaries.es}
+        locale="es"
+        activeLanguages={[{ code: "en", name: "Inglés", isPrimary: true }]}
+        languagesSettings={createLanguagesSettings({
+          maxLanguages: 1,
+          selected: ["en"],
+          active: ["en"],
+        })}
+        categories={[]}
+        selectedCategoryIds={[]}
+        isSaving={false}
+        isUnlockingLanguage={false}
+        onPromoteLanguage={jest.fn()}
+        onUpdateLanguages={jest.fn(async () => true)}
+        onUnlockLanguageChange={jest.fn(async () => true)}
+        onToggleCategory={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.getAllByText(dictionaries.es.profile.minCategoriesNotice).length,
+    ).toBeGreaterThanOrEqual(1);
+    expect(
+      screen.queryByRole("button", { name: /Tecnología|Historia|Educación/i }),
+    ).not.toBeInTheDocument();
+  });
 });

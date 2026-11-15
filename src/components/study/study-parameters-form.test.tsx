@@ -62,11 +62,7 @@ describe("StudyParametersForm", () => {
     jest.spyOn(readingsService, "getOptions").mockResolvedValue({
       message: "OK",
       data: {
-        categories: [
-          { id: "technology", name: "Tecnología", subcategories: [] },
-          { id: "history", name: "Historia", subcategories: [] },
-          { id: "education", name: "Educación", subcategories: [] },
-        ],
+        categories: [],
         difficulties: ["easy", "medium", "hard"],
         sizes: [
           {
@@ -477,5 +473,146 @@ describe("StudyParametersForm", () => {
       ),
     ).toBeInTheDocument();
     expect(generateSpy).not.toHaveBeenCalled();
+  });
+
+  it("renders visible generation progress feedback while reading generation is in flight", async () => {
+    const user = userEvent.setup();
+    const oneLangSettings = {
+      catalog: [],
+      selected: ["en" as const],
+      active: ["en" as const],
+      maxLanguages: 2,
+      canChangeFree: true,
+      nextFreeChangeAt: null,
+      lastLanguageChangeAt: null,
+      languageChangeCredits: 0,
+    };
+
+    mockAuthValue = {
+      user: { id: 1, email: "u@test.com", subscriptionTier: "dolly_plus" },
+      categoriesSettings: {
+        catalog: [],
+        selected: ["technology", "history", "education"],
+      },
+      languagesSettings: oneLangSettings,
+      onboarding: {
+        emailVerified: true,
+        hasSelectedPlan: true,
+        subscriptionPlan: "dolly_plus",
+        selectedLanguages: ["en"],
+        selectedCategories: ["technology", "history", "education"],
+        hasConfiguredLanguages: true,
+        hasConfiguredCategories: true,
+        canGenerateReadings: true,
+        isOnboardingComplete: true,
+      },
+      refreshPreferences: mockRefreshPreferences,
+    };
+    jest.spyOn(settingsService, "getLanguages").mockResolvedValue({
+      message: "OK",
+      data: oneLangSettings,
+    });
+
+    let resolveGenerate!: (val: { message: string; data: ReadingDto }) => void;
+    jest.spyOn(readingsService, "generate").mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveGenerate = resolve;
+        }),
+    );
+
+    render(<StudyParametersForm variant="standalone" />, { wrapper: Wrapper });
+
+    const submitBtn = await screen.findByRole("button", {
+      name: dictionaries.es.study.generateButton,
+    });
+    await user.click(submitBtn);
+
+    expect(
+      await screen.findByRole("status", {
+        name: dictionaries.es.study.generatingTitle,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(dictionaries.es.study.generatingSubtitle),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(dictionaries.es.study.generatingStages[0]),
+    ).toBeInTheDocument();
+    expect(dictionaries.es.study.generatingSubtitle).not.toMatch(
+      /comprensi[oó]n|evaluaci[oó]n/i,
+    );
+    expect(dictionaries.es.study.generatingStages.join(" ")).not.toMatch(
+      /comprensi[oó]n|evaluaci[oó]n/i,
+    );
+    expect(
+      screen.getByRole("button", { name: dictionaries.es.study.generatingButton }),
+    ).toHaveAttribute("aria-busy", "true");
+    expect(
+      screen.getByRole("button", {
+        name: dictionaries.es.study.savePreferencesButton,
+      }),
+    ).toBeDisabled();
+
+    resolveGenerate({ message: "Created", data: makeReadingDto(101) });
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/readings/101"));
+  });
+
+  it("renders zero predefined categories and blocks generation when user has no saved categories", async () => {
+    const dollyLangSettings = {
+      catalog: [],
+      selected: ["en" as const],
+      active: ["en" as const],
+      maxLanguages: 1,
+      canChangeFree: false,
+      nextFreeChangeAt: null,
+      lastLanguageChangeAt: null,
+      languageChangeCredits: 0,
+    };
+
+    mockAuthValue = {
+      user: { id: 1, email: "u@test.com", subscriptionTier: "dolly" },
+      categoriesSettings: {
+        catalog: [],
+        selected: [],
+      },
+      languagesSettings: dollyLangSettings,
+      onboarding: {
+        emailVerified: true,
+        hasSelectedPlan: true,
+        subscriptionPlan: "dolly",
+        selectedLanguages: ["en"],
+        selectedCategories: [],
+        hasConfiguredLanguages: true,
+        hasConfiguredCategories: false,
+        canGenerateReadings: false,
+        isOnboardingComplete: false,
+      },
+      refreshPreferences: mockRefreshPreferences,
+    };
+    jest.spyOn(settingsService, "getCategories").mockResolvedValue({
+      message: "OK",
+      data: { catalog: [], selected: [] },
+    });
+    jest.spyOn(settingsService, "getLanguages").mockResolvedValue({
+      message: "OK",
+      data: dollyLangSettings,
+    });
+
+    render(<StudyParametersForm variant="standalone" />, { wrapper: Wrapper });
+
+    const submitBtn = await screen.findByRole("button", {
+      name: dictionaries.es.study.generateButton,
+    });
+    expect(submitBtn).toBeDisabled();
+    expect(
+      screen.queryByRole("radio", { name: /Tecnología|Historia|Educación|Technology/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText(dictionaries.es.study.emptyCategoriesNotice),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: dictionaries.es.study.addCategoryPrompt }),
+    ).toBeInTheDocument();
   });
 });

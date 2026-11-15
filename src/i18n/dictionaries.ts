@@ -166,6 +166,7 @@ export interface Dictionary {
         proLanguagesDesc: string;
         categoriesSectionTitle: string;
         categoriesSubtitle: string;
+        categoriesEmptyHint: string;
         categoriesCounterPrefix: string;
         categoriesMinBadgeMissing: string;
         categoriesMinBadgeReady: string;
@@ -238,6 +239,10 @@ export interface Dictionary {
     estimatedMinutes: string;
     savePreferencesButton: string;
     generateButton: string;
+    generatingButton: string;
+    generatingTitle: string;
+    generatingSubtitle: string;
+    generatingStages: readonly [string, string, string];
     savingNotice: string;
     savedSuccessNotice: string;
     generationReadyNotice: string;
@@ -332,6 +337,9 @@ export interface Dictionary {
     otherWaysTitle: string;
     otherContextsTitle: string;
     selectionActionLabel: string;
+    clearSelectionLabel: string;
+    selectionTooLongNotice: string;
+    selectionCrossParagraphNotice: string;
     entryTypeWord: string;
     entryTypePhrase: string;
     cachedBadge: string;
@@ -428,7 +436,7 @@ export interface Dictionary {
 export const dictionaries: Record<Locale, Dictionary> = {
   es: {
     meta: {
-      editionBadge: "[ESPAÑOL] ACADÉMICO",
+      editionBadge: "ES",
       skipToContent: "Saltar al contenido principal",
       openMenu: "Abrir menú de navegación",
       closeMenu: "Cerrar menú de navegación",
@@ -619,7 +627,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
             "Tu suscripción Dolly Pro incluye Español, Inglés, Francés e Italiano listos para practicar. Solo falta registrar tus categorías temáticas.",
           categoriesSectionTitle: "02. CATEGORÍAS TEMÁTICAS (MÍNIMO 3)",
           categoriesSubtitle:
-            "Selecciona al menos 3 intereses o agrega los tuyos para habilitar el generador de lecturas con IA.",
+            "Escribe y agrega al menos 3 categorías o temas de interés propios para habilitar el generador de lecturas con IA.",
+          categoriesEmptyHint:
+            "Aún no agregas categorías. Escribe tu primer tema abajo y presiona Agregar.",
           categoriesCounterPrefix: "Mínimo requerido:",
           categoriesMinBadgeMissing: "Faltan categorías para generar lecturas",
           categoriesMinBadgeReady: "Mínimo completo",
@@ -702,6 +712,15 @@ export const dictionaries: Record<Locale, Dictionary> = {
       estimatedMinutes: " minutos",
       savePreferencesButton: "Guardar preferencias",
       generateButton: "GENERAR Y COMENZAR LECTURA",
+      generatingButton: "Generando lectura...",
+      generatingTitle: "GENERANDO TU LECTURA CON IA",
+      generatingSubtitle:
+        "Estamos eligiendo un enfoque original y redactando el texto adaptado a tu nivel CEFR.",
+      generatingStages: [
+        "1/3 · Seleccionando enfoque único y verificando historial anti-repetición...",
+        "2/3 · Redactando lectura editorial calibrada a tu nivel...",
+        "3/3 · Guardando la lectura en tu biblioteca y preparando el visor...",
+      ],
       savingNotice: "Guardando preferencias...",
       savedSuccessNotice:
         "Preferencias de estudio guardadas y sincronizadas exitosamente.",
@@ -806,6 +825,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
       otherWaysTitle: "Otras formas de decirlo",
       otherContextsTitle: "Otros contextos de uso",
       selectionActionLabel: "Pedir ayuda / Explicar",
+      clearSelectionLabel: "Limpiar selección",
+      selectionTooLongNotice: "Máx. 500 caracteres por consulta",
+      selectionCrossParagraphNotice: "Selecciona dentro de un solo párrafo",
       entryTypeWord: "PALABRA",
       entryTypePhrase: "ORACIÓN · EXPRESIÓN",
       cachedBadge: "EN CACHÉ",
@@ -815,7 +837,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       saveTermButton: "Guardar en glosario",
       savedTermButton: "Guardado en glosario",
       clickWordHint:
-        "Haz clic en una palabra o selecciona una frase u oración para ver su desglose y explicación contextual.",
+        "Haz clic en una palabra para seleccionarla, suma más palabras en el mismo párrafo (clic a clic o inicio–fin) o arrastra el texto, y pulsa «Pedir ayuda / Explicar».",
       loadingContextNotice:
         "Generando explicación en el idioma de la lectura...",
       eval: {
@@ -925,7 +947,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
   },
   en: {
     meta: {
-      editionBadge: "[ENGLISH] ACADEMIC",
+      editionBadge: "EN",
       skipToContent: "Skip to main content",
       openMenu: "Open navigation menu",
       closeMenu: "Close navigation menu",
@@ -1113,7 +1135,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
             "Your Dolly Pro plan already includes Spanish, English, French, and Italian ready to practice. You only need to pick your categories.",
           categoriesSectionTitle: "02. THEMATIC CATEGORIES (MINIMUM 3)",
           categoriesSubtitle:
-            "Choose at least 3 interests or add your own custom topics to unlock the AI reading generator.",
+            "Write and add at least 3 of your own thematic categories or interests to unlock the AI reading generator.",
+          categoriesEmptyHint:
+            "No categories added yet. Write your first topic below and click Add.",
           categoriesCounterPrefix: "Minimum required:",
           categoriesMinBadgeMissing: "More categories needed to generate readings",
           categoriesMinBadgeReady: "Minimum reached",
@@ -1196,6 +1220,15 @@ export const dictionaries: Record<Locale, Dictionary> = {
       estimatedMinutes: " minutes",
       savePreferencesButton: "Save preferences",
       generateButton: "GENERATE & START READING",
+      generatingButton: "Generating reading...",
+      generatingTitle: "GENERATING YOUR AI READING",
+      generatingSubtitle:
+        "We are choosing a fresh angle and composing a text calibrated to your CEFR level.",
+      generatingStages: [
+        "1/3 · Selecting a unique angle and checking anti-repetition history...",
+        "2/3 · Writing editorial passage tailored to your level...",
+        "3/3 · Saving your reading to the library and opening the reader...",
+      ],
       savingNotice: "Saving preferences...",
       savedSuccessNotice:
         "Study preferences saved and synced successfully.",
@@ -1300,6 +1333,9 @@ export const dictionaries: Record<Locale, Dictionary> = {
       otherWaysTitle: "Other ways to say it",
       otherContextsTitle: "Used in other contexts",
       selectionActionLabel: "Ask help / Explain",
+      clearSelectionLabel: "Clear selection",
+      selectionTooLongNotice: "Max. 500 characters per lookup",
+      selectionCrossParagraphNotice: "Select within a single paragraph",
       entryTypeWord: "WORD",
       entryTypePhrase: "PHRASE · SENTENCE",
       cachedBadge: "CACHED",
@@ -1309,7 +1345,7 @@ export const dictionaries: Record<Locale, Dictionary> = {
       saveTermButton: "Save to glossary",
       savedTermButton: "Saved in glossary",
       clickWordHint:
-        "Click any word or highlight a phrase or sentence to inspect its word-by-word breakdown and contextual explanation.",
+        "Click a word to select it, click more words in the same paragraph to extend the range (or drag to highlight), then press «Ask help / Explain».",
       loadingContextNotice:
         "Generating contextual help in the reading language...",
       eval: {

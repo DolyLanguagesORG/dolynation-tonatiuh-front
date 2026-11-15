@@ -191,12 +191,17 @@ test.describe("Onboarding & Gating Flows (Frontend Core)", () => {
       page.getByRole("button", { name: "GENERAR Y COMENZAR LECTURA" }),
     ).toBeDisabled();
 
-    // User selects ONLY 1 language (Inglés) + 3 categories on dolly_plus -> generation works!
+    // User selects ONLY 1 language (Inglés) + writes 3 custom categories on dolly_plus -> generation works!
     await page.goto("/setup-preferences");
     await page.getByRole("button", { name: /\[EN\]/i }).click();
-    await page.getByRole("button", { name: "Tecnología" }).click();
-    await page.getByRole("button", { name: "Historia" }).click();
-    await page.getByRole("button", { name: "Educación" }).click();
+    const customCatInput = page.getByPlaceholder(/Neurociencia/i);
+    const addCatBtn = page.getByRole("button", { name: /\+ Agregar/i });
+    await customCatInput.fill("Astronomía");
+    await addCatBtn.click();
+    await customCatInput.fill("Filosofía");
+    await addCatBtn.click();
+    await customCatInput.fill("Bioética");
+    await addCatBtn.click();
     await page
       .getByRole("button", { name: /Guardar preferencias y comenzar/i })
       .click();

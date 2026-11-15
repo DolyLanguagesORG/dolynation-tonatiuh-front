@@ -4,11 +4,11 @@ import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 
 import { useAuth } from "@/context";
+import { useToast } from "@/context/toast-context";
 import { useLocale } from "@/i18n";
 import {
   ApiClientError,
   type CatalogCategory,
-  DEFAULT_CATEGORIES,
   DEFAULT_DIFFICULTIES,
   DEFAULT_SIZES,
   type DifficultyOption,
@@ -33,24 +33,18 @@ function buildCategoryCatalogLookup(
       ? catCatalog
       : optionsCategories && optionsCategories.length > 0
         ? optionsCategories
-        : [...DEFAULT_CATEGORIES];
+        : [];
 
   const lookupMap = new Map<string, CatalogCategory>();
   for (const item of catalogList) {
-    const def = DEFAULT_CATEGORIES.find((d) => d.id === item.id);
-    lookupMap.set(item.id.toLowerCase(), {
-      ...item,
-      ...(def ? { nameEs: def.nameEs, nameEn: def.nameEn } : {}),
-    });
+    lookupMap.set(item.id.toLowerCase(), { ...item });
   }
   for (const optCat of optionsCategories ?? []) {
     if (!lookupMap.has(optCat.id.toLowerCase())) {
-      const def = DEFAULT_CATEGORIES.find((d) => d.id === optCat.id);
       lookupMap.set(optCat.id.toLowerCase(), {
         id: optCat.id,
         name: optCat.name,
         isCustom: optCat.isCustom,
-        ...(def ? { nameEs: def.nameEs, nameEn: def.nameEn } : {}),
       });
     }
   }
@@ -92,6 +86,7 @@ export function useStudyParameters(
 ) {
   const router = useRouter();
   const { locale, t } = useLocale();
+  const toast = useToast();
   const {
     user,
     languagesSettings,
@@ -127,22 +122,17 @@ export function useStudyParameters(
 
   const [selectedLanguage, setSelectedLanguage] =
     useState<TargetLanguageCode>("en");
-  const [selectedCategory, setSelectedCategory] = useState<string>("technology");
+  const [selectedCategory, setSelectedCategory] = useState<string>("");
   const [selectedDifficulty, setSelectedDifficulty] =
     useState<ReadingDifficulty>("medium");
   const [selectedSize, setSelectedSize] = useState<ReadingSize>("medium");
 
   const [categories, setCategories] = useState<CatalogCategory[]>(() =>
     user
-      ? resolveConfiguredCategories(
-          categoriesSettings?.selected ?? [],
-          DEFAULT_CATEGORIES,
-        )
-      : [...DEFAULT_CATEGORIES],
+      ? resolveConfiguredCategories(categoriesSettings?.selected ?? [], [])
+      : [],
   );
-  const [catalogLookup, setCatalogLookup] = useState<CatalogCategory[]>([
-    ...DEFAULT_CATEGORIES,
-  ]);
+  const [catalogLookup, setCatalogLookup] = useState<CatalogCategory[]>([]);
   const [difficulties, setDifficulties] = useState<DifficultyOption[]>([
     ...DEFAULT_DIFFICULTIES,
   ]);
@@ -325,17 +315,26 @@ export function useStudyParameters(
       await studyClient.saveStudyPreferences(currentParams, user?.id);
       await refreshPreferences();
       setSaveNotice(t.study.savedSuccessNotice);
+      toast.success(t.study.savedSuccessNotice);
     } catch (error) {
       if (error instanceof ApiClientError) {
+        const msg = error.getUserMessage(locale);
         setValidationErrorCode(error.code);
-        setValidationError(error.getUserMessage(locale));
+        setValidationError(msg);
+        toast.error(msg, {
+          title:
+            locale === "es"
+              ? "No se pudo guardar"
+              : "Could not save",
+        });
       } else {
-        setValidationErrorCode(null);
-        setValidationError(
+        const fallbackMsg =
           locale === "es"
             ? "No se pudieron sincronizar las preferencias con el servidor."
-            : "Could not sync preferences with server.",
-        );
+            : "Could not sync preferences with server.";
+        setValidationErrorCode(null);
+        setValidationError(fallbackMsg);
+        toast.error(fallbackMsg);
       }
     } finally {
       setIsSaving(false);
@@ -345,20 +344,22 @@ export function useStudyParameters(
   const handleAddCustomCategory = (): void => {
     const cleanName = customCategoryName.trim();
     if (!cleanName) {
-      setCustomCategoryError(
+      const msg =
         locale === "es"
           ? "Ingresa un nombre para la temática."
-          : "Enter a name for the topic.",
-      );
+          : "Enter a name for the topic.";
+      setCustomCategoryError(msg);
+      toast.warning(msg);
       return;
     }
 
     if (cleanName.length < 2 || cleanName.length > 50) {
-      setCustomCategoryError(
+      const msg =
         locale === "es"
           ? "La categoría debe tener entre 2 y 50 caracteres."
-          : "Category name must be between 2 and 50 characters.",
-      );
+          : "Category name must be between 2 and 50 characters.";
+      setCustomCategoryError(msg);
+      toast.warning(msg);
       return;
     }
 
@@ -463,24 +464,33 @@ export function useStudyParameters(
         onGenerate(finalParams);
       } else {
         const generated = await studyClient.generateReading(finalParams);
-        setGenerationNotice(
+        const readyMsg =
           locale === "es"
             ? `Lectura generada con éxito: "${generated.title}". Abriendo visor...`
-            : `Reading generated successfully: "${generated.title}". Opening reader...`,
-        );
+            : `Reading generated successfully: "${generated.title}". Opening reader...`;
+        setGenerationNotice(readyMsg);
+        toast.success(readyMsg);
         router.push(`/readings/${generated.id}`);
       }
     } catch (error) {
       if (error instanceof ApiClientError) {
+        const msg = error.getUserMessage(locale);
         setValidationErrorCode(error.code);
-        setValidationError(error.getUserMessage(locale));
+        setValidationError(msg);
+        toast.error(msg, {
+          title:
+            locale === "es"
+              ? "No se pudo generar la lectura"
+              : "Could not generate reading",
+        });
       } else {
-        setValidationErrorCode(null);
-        setValidationError(
+        const fallbackMsg =
           locale === "es"
             ? "Ocurrió un error al preparar la generación de la lectura."
-            : "An error occurred while generating the reading.",
-        );
+            : "An error occurred while generating the reading.";
+        setValidationErrorCode(null);
+        setValidationError(fallbackMsg);
+        toast.error(fallbackMsg);
       }
     } finally {
       setIsSubmitting(false);

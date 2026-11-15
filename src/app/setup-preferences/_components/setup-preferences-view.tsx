@@ -18,11 +18,11 @@ import {
   Text,
 } from "@/components/ui";
 import { useAuth } from "@/context";
+import { useToast } from "@/context/toast-context";
 import { useLocale } from "@/i18n";
 import {
   ApiClientError,
   type CatalogItem,
-  DEFAULT_CATEGORIES,
   DEFAULT_LANGUAGES,
   MIN_USER_CATEGORIES,
   type TargetLanguageCode,
@@ -37,6 +37,7 @@ import {
 export function SetupPreferencesView() {
   const router = useRouter();
   const { locale, t } = useLocale();
+  const toast = useToast();
   const {
     isLoading,
     accessPhase,
@@ -105,22 +106,14 @@ export function SetupPreferencesView() {
       Boolean(languagesSettings?.canChangeFree) ||
       (languagesSettings?.languageChangeCredits ?? 0) > 0);
 
-  // Construimos catálogo unificado: catálogo del servidor + predeterminados + propios.
-  const baseCatalog =
-    categoriesSettings?.catalog && categoriesSettings.catalog.length > 0
-      ? categoriesSettings.catalog
-      : DEFAULT_CATEGORIES.map((item) => ({ id: item.id, name: item.name }));
+  // Construimos catálogo unificado únicamente con las categorías del usuario y catálogo remoto (si existe).
+  const baseCatalog = categoriesSettings?.catalog ?? [];
 
   const catalogMap = new Map<string, CatalogItem>();
   for (const item of baseCatalog) {
-    const localized = DEFAULT_CATEGORIES.find((def) => def.id === item.id);
     catalogMap.set(item.id.toLowerCase(), {
       id: item.id,
-      name: localized
-        ? locale === "es"
-          ? localized.nameEs ?? item.name
-          : localized.nameEn ?? item.name
-        : item.name,
+      name: item.name,
     });
   }
   for (const item of [...customCategories, ...effectiveCategories.map((id) => ({ id, name: id }))]) {
@@ -187,11 +180,12 @@ export function SetupPreferencesView() {
   const handleAddCustomCategory = (): void => {
     const cleanName = customInput.trim();
     if (cleanName.length < 2 || cleanName.length > 50) {
-      setCustomError(
+      const msg =
         locale === "es"
           ? "La categoría debe tener entre 2 y 50 caracteres."
-          : "Category name must be between 2 and 50 characters.",
-      );
+          : "Category name must be between 2 and 50 characters.";
+      setCustomError(msg);
+      toast.warning(msg);
       return;
     }
 
@@ -210,11 +204,11 @@ export function SetupPreferencesView() {
           maxCategories !== null &&
           effectiveCategories.length >= maxCategories
         ) {
-          setCustomError(
-            `${sp.categoriesMaxAlertPrefix} ${maxCategories} ${
-              locale === "es" ? "categorías." : "categories."
-            }`,
-          );
+          const msg = `${sp.categoriesMaxAlertPrefix} ${maxCategories} ${
+            locale === "es" ? "categorías." : "categories."
+          }`;
+          setCustomError(msg);
+          toast.warning(msg);
           return;
         }
         setDraftCategories([...effectiveCategories, existingItem.id]);
@@ -225,11 +219,11 @@ export function SetupPreferencesView() {
     }
 
     if (maxCategories !== null && effectiveCategories.length >= maxCategories) {
-      setCustomError(
-        `${sp.categoriesMaxAlertPrefix} ${maxCategories} ${
-          locale === "es" ? "categorías." : "categories."
-        }`,
-      );
+      const msg = `${sp.categoriesMaxAlertPrefix} ${maxCategories} ${
+        locale === "es" ? "categorías." : "categories."
+      }`;
+      setCustomError(msg);
+      toast.warning(msg);
       return;
     }
 
@@ -249,11 +243,13 @@ export function SetupPreferencesView() {
 
     if (!isProTier && effectiveLanguages.length === 0) {
       setFormError(s4.atLeastOneAlert);
+      toast.warning(s4.atLeastOneAlert);
       return;
     }
 
     if (effectiveCategories.length < MIN_USER_CATEGORIES) {
       setFormError(sp.categoriesMinAlert);
+      toast.warning(sp.categoriesMinAlert);
       return;
     }
 
@@ -263,17 +259,26 @@ export function SetupPreferencesView() {
         ...(canChangeLanguages ? { languages: effectiveLanguages } : {}),
         categories: effectiveCategories,
       });
+      toast.success(
+        locale === "es"
+          ? "Preferencias guardadas correctamente."
+          : "Preferences saved successfully.",
+      );
       router.replace("/");
     } catch (error) {
-      if (error instanceof ApiClientError) {
-        setFormError(error.getUserMessage(locale));
-      } else {
-        setFormError(
-          locale === "es"
+      const msg =
+        error instanceof ApiClientError
+          ? error.getUserMessage(locale)
+          : locale === "es"
             ? "No fue posible guardar tus preferencias. Inténtalo de nuevo."
-            : "Could not save your preferences. Please try again.",
-        );
-      }
+            : "Could not save your preferences. Please try again.";
+      setFormError(msg);
+      toast.error(msg, {
+        title:
+          locale === "es"
+            ? "Error al guardar preferencias"
+            : "Could not save preferences",
+      });
     } finally {
       setIsSaving(false);
     }
@@ -397,25 +402,31 @@ export function SetupPreferencesView() {
             {sp.categoriesSubtitle}
           </Text>
 
-          <div className="flex flex-wrap gap-2">
-            {unifiedCategories.map((cat) => {
-              const isSelected = effectiveCategories.some(
-                (id) => id.toLowerCase() === cat.id.toLowerCase(),
-              );
-              return (
-                <ChoiceChip
-                  key={cat.id}
-                  selected={isSelected}
-                  indicator="plus-check"
-                  size="sm"
-                  disabled={isSaving}
-                  onClick={() => handleToggleCategory(cat.id)}
-                >
-                  {cat.name}
-                </ChoiceChip>
-              );
-            })}
-          </div>
+          {unifiedCategories.length === 0 ? (
+            <Text variant="caption" tone="muted">
+              {sp.categoriesEmptyHint}
+            </Text>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {unifiedCategories.map((cat) => {
+                const isSelected = effectiveCategories.some(
+                  (id) => id.toLowerCase() === cat.id.toLowerCase(),
+                );
+                return (
+                  <ChoiceChip
+                    key={cat.id}
+                    selected={isSelected}
+                    indicator="plus-check"
+                    size="sm"
+                    disabled={isSaving}
+                    onClick={() => handleToggleCategory(cat.id)}
+                  >
+                    {cat.name}
+                  </ChoiceChip>
+                );
+              })}
+            </div>
+          )}
 
           <div className="flex flex-col gap-2 rounded-base border border-default-medium bg-neutral-secondary-soft p-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
@@ -429,6 +440,12 @@ export function SetupPreferencesView() {
                   onChange={(event) => {
                     setCustomInput(event.target.value);
                     setCustomError(null);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      handleAddCustomCategory();
+                    }
                   }}
                 />
               </div>

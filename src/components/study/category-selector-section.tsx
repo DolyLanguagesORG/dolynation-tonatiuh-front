@@ -78,6 +78,12 @@ export function CategorySelectorSection({
                 value={customCategoryName}
                 error={customCategoryError ?? undefined}
                 onChange={(event) => onCustomNameChange(event.target.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    onConfirmAddCustom();
+                  }
+                }}
               />
             </div>
             <div className="flex items-center gap-2 pb-1">

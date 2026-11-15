@@ -113,15 +113,6 @@ export const PLAN_CATALOG = [
   },
 ] as const;
 
-const PREDEFINED_CATEGORIES = [
-  { id: "technology", name: "Tecnología" },
-  { id: "history", name: "Historia" },
-  { id: "education", name: "Educación" },
-  { id: "programming", name: "Programación" },
-  { id: "culture", name: "Cultura" },
-  { id: "pop_culture", name: "Cultura Pop" },
-];
-
 const LANGUAGE_CATALOG: { id: TargetLanguageCode; name: string }[] = [
   { id: "es", name: "Español" },
   { id: "en", name: "Inglés" },
@@ -648,7 +639,7 @@ export async function attachMockBackend(
 
     if (apiPath === "/settings/categories" && method === "GET") {
       return okResponse(route, {
-        catalog: PREDEFINED_CATEGORIES,
+        catalog: [],
         selected: [...state.selectedCategories],
       });
     }
@@ -665,9 +656,11 @@ export async function attachMockBackend(
         );
       }
 
-      const predefinedIds = new Set(PREDEFINED_CATEGORIES.map((c) => c.id));
+      const existingKeys = new Set(
+        state.selectedCategories.map((c) => c.trim().toLowerCase()),
+      );
       for (const category of requested) {
-        if (predefinedIds.has(category)) continue;
+        if (existingKeys.has(category.toLowerCase())) continue;
         if (
           BLOCKED_CATEGORY_PATTERNS.some((pattern) => pattern.test(category))
         ) {
@@ -694,20 +687,14 @@ export async function attachMockBackend(
 
       state.selectedCategories = requested;
       return okResponse(route, {
-        catalog: PREDEFINED_CATEGORIES,
+        catalog: [],
         selected: [...state.selectedCategories],
       });
     }
 
     if (apiPath === "/readings/options" && method === "GET") {
-      const dynamicCats = state.selectedCategories
-        .filter((c) => !PREDEFINED_CATEGORIES.some((p) => p.id === c))
-        .map((c) => ({ id: c, name: c, subcategories: [], isCustom: true }));
       return okResponse(route, {
-        categories: [
-          ...dynamicCats,
-          ...PREDEFINED_CATEGORIES.map((c) => ({ ...c, subcategories: [] })),
-        ],
+        categories: [],
         difficulties: ["easy", "medium", "hard"],
         sizes: [
           {

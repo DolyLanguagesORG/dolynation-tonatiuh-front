@@ -1,7 +1,9 @@
-import { type Locale } from "@/i18n";
 import { type ReadingDifficulty, type TargetLanguageCode } from "@/lib/api-contracts";
 
-const LANGUAGE_LABELS: Record<Locale, Record<TargetLanguageCode, string>> = {
+const LANGUAGE_LABELS: Record<
+  TargetLanguageCode,
+  Record<TargetLanguageCode, string>
+> = {
   es: {
     es: "[ES] ESPAÑOL",
     en: "[EN] INGLÉS",
@@ -14,6 +16,25 @@ const LANGUAGE_LABELS: Record<Locale, Record<TargetLanguageCode, string>> = {
     fr: "[FR] FRENCH",
     it: "[IT] ITALIAN",
   },
+  fr: {
+    es: "[ES] ESPAGNOL",
+    en: "[EN] ANGLAIS",
+    fr: "[FR] FRANÇAIS",
+    it: "[IT] ITALIEN",
+  },
+  it: {
+    es: "[ES] SPAGNOLO",
+    en: "[EN] INGLESE",
+    fr: "[FR] FRANCESE",
+    it: "[IT] ITALIANO",
+  },
+};
+
+const DATE_LOCALES: Record<TargetLanguageCode, string> = {
+  es: "es-MX",
+  en: "en-US",
+  fr: "fr-FR",
+  it: "it-IT",
 };
 
 const SPEECH_LOCALES: Record<TargetLanguageCode, string> = {
@@ -28,6 +49,8 @@ const DIFFICULTY_META: Record<
   {
     es: string;
     en: string;
+    fr: string;
+    it: string;
     cefrBadge: string;
     badgeVariant: "primary" | "secondary";
   }
@@ -35,18 +58,24 @@ const DIFFICULTY_META: Record<
   easy: {
     es: "BÁSICO",
     en: "EASY",
+    fr: "DÉBUTANT",
+    it: "BASE",
     cefrBadge: "A1–A2",
     badgeVariant: "secondary",
   },
   medium: {
     es: "MEDIO",
     en: "MEDIUM",
+    fr: "INTERMÉDIAIRE",
+    it: "INTERMEDIO",
     cefrBadge: "B1–B2",
     badgeVariant: "primary",
   },
   hard: {
     es: "AVANZADO",
     en: "ADVANCED",
+    fr: "AVANCÉ",
+    it: "AVANZATO",
     cefrBadge: "C1–C2",
     badgeVariant: "primary",
   },
@@ -170,13 +199,15 @@ const MULTILINGUAL_STOPWORDS = new Set([
 ]);
 
 /**
- * Formatea el código y nombre del idioma meta según el locale activo.
+ * Formatea el código y nombre del idioma meta según el idioma de presentación activo.
  */
 export function formatReadingLanguageBadge(
   language: TargetLanguageCode,
-  locale: Locale,
+  displayLanguage: TargetLanguageCode,
 ): string {
-  return LANGUAGE_LABELS[locale][language] ?? `[${language.toUpperCase()}]`;
+  return (
+    LANGUAGE_LABELS[displayLanguage]?.[language] ?? `[${language.toUpperCase()}]`
+  );
 }
 
 /**
@@ -184,7 +215,7 @@ export function formatReadingLanguageBadge(
  */
 export function getDifficultyMeta(
   difficulty: ReadingDifficulty | null | undefined,
-  locale: Locale,
+  displayLanguage: TargetLanguageCode,
 ): {
   label: string;
   cefrBadge: string;
@@ -193,7 +224,7 @@ export function getDifficultyMeta(
   const key: ReadingDifficulty = difficulty ?? "medium";
   const item = DIFFICULTY_META[key];
   return {
-    label: item[locale],
+    label: item[displayLanguage] ?? item.en,
     cefrBadge: item.cefrBadge,
     badgeVariant: item.badgeVariant,
   };
@@ -227,13 +258,14 @@ export function estimateReadingMinutes(
  */
 export function formatReadingDate(
   isoDate: string | null | undefined,
-  locale: Locale,
+  displayLanguage: TargetLanguageCode,
 ): string {
   if (!isoDate) return "—";
   const parsed = new Date(isoDate);
   if (Number.isNaN(parsed.getTime())) return "—";
 
-  return new Intl.DateTimeFormat(locale === "es" ? "es-MX" : "en-US", {
+  const dateLocale = DATE_LOCALES[displayLanguage] ?? "en-US";
+  return new Intl.DateTimeFormat(dateLocale, {
     day: "2-digit",
     month: "short",
     year: "numeric",
@@ -286,6 +318,155 @@ export function extractSalientVocabulary(
   }
 
   return results;
+}
+
+/** Longitud máxima aceptada por el backend (`CreateExplanationDto.word`) en caracteres. */
+export const MAX_LOOKUP_SELECTION_CHARS = 500;
+
+/**
+ * Rango contiguo de tokens seleccionados dentro de un único párrafo de lectura.
+ */
+export interface ParagraphTokenSpan {
+  paragraphIndex: number;
+  startTokenIndex: number;
+  endTokenIndex: number;
+}
+
+/**
+ * Divide un párrafo en tokens alternando palabras/signos y secuencias de espacios.
+ */
+export function tokenizeReadingParagraph(paragraph: string): string[] {
+  return paragraph.split(/(\s+)/);
+}
+
+/**
+ * Calcula el siguiente rango contiguo dentro de un párrafo al hacer clic en un token:
+ * - Si no hay selección o cambia de párrafo, inicia en el token clicado.
+ * - Si solo ese mismo token estaba seleccionado, limpia la selección (`null`).
+ * - Si el clic está antes o después del rango actual del mismo párrafo, lo extiende.
+ * - Si el clic cae dentro de un rango multipalabra existente, enfoca ese único token.
+ */
+export function computeNextTokenSpan(
+  current: ParagraphTokenSpan | null,
+  paragraphIndex: number,
+  tokenIndex: number,
+): ParagraphTokenSpan | null {
+  if (!current || current.paragraphIndex !== paragraphIndex) {
+    return {
+      paragraphIndex,
+      startTokenIndex: tokenIndex,
+      endTokenIndex: tokenIndex,
+    };
+  }
+
+  if (
+    current.startTokenIndex === current.endTokenIndex &&
+    current.startTokenIndex === tokenIndex
+  ) {
+    return null;
+  }
+
+  if (tokenIndex < current.startTokenIndex) {
+    return {
+      paragraphIndex,
+      startTokenIndex: tokenIndex,
+      endTokenIndex: current.endTokenIndex,
+    };
+  }
+
+  if (tokenIndex > current.endTokenIndex) {
+    return {
+      paragraphIndex,
+      startTokenIndex: current.startTokenIndex,
+      endTokenIndex: tokenIndex,
+    };
+  }
+
+  return {
+    paragraphIndex,
+    startTokenIndex: tokenIndex,
+    endTokenIndex: tokenIndex,
+  };
+}
+
+/**
+ * Obtiene y limpia el texto correspondiente a un rango contiguo de tokens en un párrafo.
+ */
+export function resolveSpanSelectionText(
+  paragraphs: readonly string[],
+  span: ParagraphTokenSpan,
+): string {
+  const paragraph = paragraphs[span.paragraphIndex];
+  if (!paragraph) return "";
+  const tokens = tokenizeReadingParagraph(paragraph);
+  const start = Math.max(0, span.startTokenIndex);
+  const end = Math.min(tokens.length - 1, span.endTokenIndex);
+  if (start > end) return "";
+  const raw = tokens.slice(start, end + 1).join("");
+  return start === end ? cleanLookupWord(raw) : cleanLookupSelection(raw);
+}
+
+/**
+ * Localiza el primer rango contiguo de tokens que coincide con un término o frase consultada.
+ */
+export function findTokenSpanInParagraphs(
+  paragraphs: readonly string[],
+  targetSelection: string,
+): ParagraphTokenSpan | null {
+  const normalizedTarget = cleanLookupSelection(targetSelection)
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+  if (!normalizedTarget) return null;
+
+  const isSingleWord = !normalizedTarget.includes(" ");
+
+  for (let pIndex = 0; pIndex < paragraphs.length; pIndex += 1) {
+    const tokens = tokenizeReadingParagraph(paragraphs[pIndex]);
+
+    if (isSingleWord) {
+      for (let tIndex = 0; tIndex < tokens.length; tIndex += 1) {
+        if (cleanLookupWord(tokens[tIndex]).toLowerCase() === normalizedTarget) {
+          return {
+            paragraphIndex: pIndex,
+            startTokenIndex: tIndex,
+            endTokenIndex: tIndex,
+          };
+        }
+      }
+      continue;
+    }
+
+    const clickableIndices: number[] = [];
+    for (let tIndex = 0; tIndex < tokens.length; tIndex += 1) {
+      if (!/^\s+$/.test(tokens[tIndex]) && cleanLookupWord(tokens[tIndex])) {
+        clickableIndices.push(tIndex);
+      }
+    }
+
+    for (let i = 0; i < clickableIndices.length; i += 1) {
+      const startTokenIndex = clickableIndices[i];
+      for (let j = i; j < clickableIndices.length; j += 1) {
+        const endTokenIndex = clickableIndices[j];
+        const candidate = cleanLookupSelection(
+          tokens.slice(startTokenIndex, endTokenIndex + 1).join(""),
+        )
+          .replace(/\s+/g, " ")
+          .toLowerCase();
+        if (candidate === normalizedTarget) {
+          return {
+            paragraphIndex: pIndex,
+            startTokenIndex,
+            endTokenIndex,
+          };
+        }
+        if (candidate.length > normalizedTarget.length + 12) {
+          break;
+        }
+      }
+    }
+  }
+
+  return null;
 }
 
 /**

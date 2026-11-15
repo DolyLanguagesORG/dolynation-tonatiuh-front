@@ -4,11 +4,11 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { useAuth } from "@/context";
+import { useToast } from "@/context/toast-context";
 import { useLocale } from "@/i18n";
 import {
   ApiClientError,
   type CategoriesSettings,
-  DEFAULT_CATEGORIES,
   DEFAULT_LANGUAGES,
   historyService,
   type HistorySummary,
@@ -35,6 +35,7 @@ const EMPTY_28_DAYS: readonly boolean[] = Array.from(
 export function useProfileData() {
   const router = useRouter();
   const { locale, t } = useLocale();
+  const toast = useToast();
   const {
     user,
     isAuthenticated,
@@ -78,6 +79,24 @@ export function useProfileData() {
 
   const fetchKey = isAuthenticated ? `${user?.id ?? "me"}-${locale}` : null;
   const isLoading = Boolean(fetchKey && loadedKey !== fetchKey);
+
+  const reportSuccess = (message: string, title?: string): void => {
+    setErrorMessage(null);
+    setNotice(message);
+    toast.success(message, title ? { title } : undefined);
+  };
+
+  const reportError = (err: unknown, fallbackMessage: string): void => {
+    const message =
+      err instanceof ApiClientError
+        ? err.getUserMessage(locale)
+        : fallbackMessage;
+    setNotice(null);
+    setErrorMessage(message);
+    toast.error(message, {
+      title: locale === "es" ? "Error al guardar" : "Save error",
+    });
+  };
 
   useEffect(() => {
     if (!fetchKey) return;
@@ -160,15 +179,17 @@ export function useProfileData() {
       const updated = await usersService.updateProfile({ fullName: clean });
       setProfile(updated.data);
       await reloadAccountState();
-      setNotice(t.profile.savedProfileNotice);
+      reportSuccess(
+        t.profile.savedProfileNotice,
+        locale === "es" ? "Cambios guardados" : "Changes saved",
+      );
       return true;
     } catch (err) {
-      setErrorMessage(
-        err instanceof ApiClientError
-          ? err.getUserMessage(locale)
-          : locale === "es"
-            ? "No fue posible actualizar el perfil."
-            : "Could not update profile.",
+      reportError(
+        err,
+        locale === "es"
+          ? "No fue posible actualizar el perfil."
+          : "Could not update profile.",
       );
       return false;
     } finally {
@@ -187,15 +208,17 @@ export function useProfileData() {
       setCategoriesSettings(res.data);
       setDraftCategoryIds(null);
       await refreshPreferences();
-      setNotice(t.profile.savedPreferencesNotice);
+      reportSuccess(
+        t.profile.savedPreferencesNotice,
+        locale === "es" ? "Preferencias guardadas" : "Preferences saved",
+      );
       return true;
     } catch (err) {
-      setErrorMessage(
-        err instanceof ApiClientError
-          ? err.getUserMessage(locale)
-          : locale === "es"
-            ? "No fue posible actualizar tus categorías."
-            : "Could not update favorite categories.",
+      reportError(
+        err,
+        locale === "es"
+          ? "No fue posible actualizar tus categorías."
+          : "Could not update favorite categories.",
       );
       return false;
     } finally {
@@ -224,6 +247,7 @@ export function useProfileData() {
       nextCategories.length < MIN_USER_CATEGORIES
     ) {
       setErrorMessage(t.profile.minCategoriesNotice);
+      toast.warning(t.profile.minCategoriesNotice);
       return;
     }
 
@@ -232,6 +256,11 @@ export function useProfileData() {
     if (nextCategories.length < MIN_USER_CATEGORIES) {
       setErrorMessage(null);
       setDraftCategoryIds(nextCategories);
+      toast.info(
+        locale === "es"
+          ? `Selecciona al menos ${MIN_USER_CATEGORIES} categorías (${nextCategories.length}/${MIN_USER_CATEGORIES}) para guardar.`
+          : `Select at least ${MIN_USER_CATEGORIES} categories (${nextCategories.length}/${MIN_USER_CATEGORIES}) to save.`,
+      );
       return;
     }
 
@@ -241,11 +270,12 @@ export function useProfileData() {
   const handleAddCustomCategory = async (name: string): Promise<boolean> => {
     const clean = name.trim();
     if (clean.length < 2 || clean.length > 50) {
-      setErrorMessage(
+      const msg =
         locale === "es"
           ? "La categoría debe tener entre 2 y 50 caracteres."
-          : "Category name must be between 2 and 50 characters.",
-      );
+          : "Category name must be between 2 and 50 characters.";
+      setErrorMessage(msg);
+      toast.warning(msg);
       return false;
     }
 
@@ -254,6 +284,11 @@ export function useProfileData() {
       (id) => id.toLowerCase() === clean.toLowerCase(),
     );
     if (alreadyExists) {
+      toast.info(
+        locale === "es"
+          ? `La categoría "${clean}" ya está en tus preferencias.`
+          : `Category "${clean}" is already in your preferences.`,
+      );
       return true;
     }
 
@@ -266,6 +301,11 @@ export function useProfileData() {
       );
       setErrorMessage(null);
       setDraftCategoryIds(nextCategories);
+      toast.info(
+        locale === "es"
+          ? `Categoría "${clean}" añadida al borrador (${nextCategories.length}/${MIN_USER_CATEGORIES}).`
+          : `Category "${clean}" added to draft (${nextCategories.length}/${MIN_USER_CATEGORIES}).`,
+      );
       return true;
     }
 
@@ -320,14 +360,16 @@ export function useProfileData() {
         const updated = await selectLanguages(nextSelection);
         setLanguagesSettings(updated);
       }
-      setNotice(t.profile.savedPreferencesNotice);
+      reportSuccess(
+        t.profile.savedPreferencesNotice,
+        locale === "es" ? "Preferencias guardadas" : "Preferences saved",
+      );
     } catch (err) {
-      setErrorMessage(
-        err instanceof ApiClientError
-          ? err.getUserMessage(locale)
-          : locale === "es"
-            ? "No fue posible reordenar los idiomas."
-            : "Could not reorder languages.",
+      reportError(
+        err,
+        locale === "es"
+          ? "No fue posible reordenar los idiomas."
+          : "Could not reorder languages.",
       );
     } finally {
       setIsSavingPreferences(false);
@@ -347,15 +389,17 @@ export function useProfileData() {
       setLanguagesSettings(updated);
       const subRes = await subscriptionsService.getCurrentSubscription();
       setCurrentSubscription(subRes.data);
-      setNotice(t.profile.savedPreferencesNotice);
+      reportSuccess(
+        t.profile.savedPreferencesNotice,
+        locale === "es" ? "Preferencias guardadas" : "Preferences saved",
+      );
       return true;
     } catch (err) {
-      setErrorMessage(
-        err instanceof ApiClientError
-          ? err.getUserMessage(locale)
-          : locale === "es"
-            ? "No fue posible actualizar tus idiomas de estudio."
-            : "Could not update study languages.",
+      reportError(
+        err,
+        locale === "es"
+          ? "No fue posible actualizar tus idiomas de estudio."
+          : "Could not update study languages.",
       );
       return false;
     } finally {
@@ -373,19 +417,18 @@ export function useProfileData() {
       const res = await settingsService.unlockLanguageChange();
       setLanguagesSettings(res.data);
       await refreshPreferences();
-      setNotice(
+      reportSuccess(
         locale === "es"
           ? "Cambio de idioma desbloqueado (+1 crédito disponible)."
           : "Language change unlocked (+1 credit available).",
       );
       return true;
     } catch (err) {
-      setErrorMessage(
-        err instanceof ApiClientError
-          ? err.getUserMessage(locale)
-          : locale === "es"
-            ? "No fue posible desbloquear el cambio de idioma."
-            : "Could not unlock language change.",
+      reportError(
+        err,
+        locale === "es"
+          ? "No fue posible desbloquear el cambio de idioma."
+          : "Could not unlock language change.",
       );
       return false;
     } finally {
@@ -427,19 +470,18 @@ export function useProfileData() {
       }
 
       const planDisplayName = updatedSub.plan?.name ?? tier;
-      setNotice(
+      reportSuccess(
         locale === "es"
           ? `Plan actualizado a ${planDisplayName}.`
           : `Plan switched to ${planDisplayName}.`,
       );
       return true;
     } catch (err) {
-      setErrorMessage(
-        err instanceof ApiClientError
-          ? err.getUserMessage(locale)
-          : locale === "es"
-            ? "No se pudo cambiar el plan de suscripción."
-            : "Could not switch subscription plan.",
+      reportError(
+        err,
+        locale === "es"
+          ? "No se pudo cambiar el plan de suscripción."
+          : "Could not switch subscription plan.",
       );
       return false;
     } finally {
@@ -460,25 +502,14 @@ export function useProfileData() {
 
   const resolvedUser = profile ?? user;
   const resolvedStreakCount = streakCount ?? resolvedUser?.currentStreak ?? 0;
-  const baseCatalog =
-    categoriesSettings?.catalog && categoriesSettings.catalog.length > 0
-      ? categoriesSettings.catalog
-      : DEFAULT_CATEGORIES.map((c) => ({
-          id: c.id,
-          name: locale === "es" ? c.nameEs ?? c.name : c.nameEn ?? c.name,
-        }));
+  const baseCatalog = categoriesSettings?.catalog ?? [];
 
   const selectedCategoryIds = draftCategoryIds ?? (categoriesSettings?.selected ?? []);
   const catalogMap = new Map<string, { id: string; name: string }>();
   for (const item of baseCatalog) {
-    const def = DEFAULT_CATEGORIES.find((d) => d.id === item.id);
     catalogMap.set(item.id.toLowerCase(), {
       id: item.id,
-      name: def
-        ? locale === "es"
-          ? def.nameEs ?? item.name
-          : def.nameEn ?? item.name
-        : item.name,
+      name: item.name,
     });
   }
   for (const item of [

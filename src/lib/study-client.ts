@@ -64,45 +64,6 @@ export const DEFAULT_LANGUAGES: readonly LanguageOption[] = [
   { id: "es", nameEs: "Español", nameEn: "Spanish" },
 ];
 
-export const DEFAULT_CATEGORIES: readonly CatalogCategory[] = [
-  {
-    id: "technology",
-    name: "Technology",
-    nameEs: "Tecnología",
-    nameEn: "Technology",
-  },
-  {
-    id: "history",
-    name: "History",
-    nameEs: "Historia",
-    nameEn: "History",
-  },
-  {
-    id: "education",
-    name: "Education",
-    nameEs: "Educación",
-    nameEn: "Education",
-  },
-  {
-    id: "programming",
-    name: "Programming",
-    nameEs: "Programación",
-    nameEn: "Programming",
-  },
-  {
-    id: "culture",
-    name: "Culture",
-    nameEs: "Cultura",
-    nameEn: "Culture",
-  },
-  {
-    id: "pop_culture",
-    name: "Pop Culture",
-    nameEs: "Cultura Pop",
-    nameEn: "Pop Culture",
-  },
-];
-
 export const DEFAULT_DIFFICULTIES: readonly DifficultyOption[] = [
   {
     id: "easy",
@@ -164,7 +125,7 @@ export const DEFAULT_SIZES: readonly ReadingSizeOption[] = [
 
 export const DEFAULT_STUDY_PARAMETERS: StudyParameters = {
   language: "en",
-  category: "technology",
+  category: "",
   difficulty: "medium",
   size: "medium",
 };

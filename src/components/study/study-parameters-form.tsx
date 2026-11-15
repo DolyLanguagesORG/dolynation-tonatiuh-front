@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useState } from "react";
+
 import { CategorySelectorSection } from "@/components/study/category-selector-section";
 import { DifficultySelectorSection } from "@/components/study/difficulty-selector-section";
 import { LanguageSelectorSection } from "@/components/study/language-selector-section";
@@ -30,6 +32,77 @@ export interface StudyParametersFormProps {
    * Callback opcional disparado cuando el usuario hace submit para generar la lectura.
    */
   onGenerate?: (parameters: StudyParameters) => void;
+}
+
+function ReadingGenerationProgress({
+  title,
+  subtitle,
+  stages,
+  locale,
+}: {
+  title: string;
+  subtitle: string;
+  stages: readonly [string, string, string];
+  locale: "es" | "en";
+}) {
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setElapsedSeconds((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const stageIndex = elapsedSeconds < 2 ? 0 : elapsedSeconds < 5 ? 1 : 2;
+  const progressWidth =
+    stageIndex === 0 ? "32%" : stageIndex === 1 ? "68%" : "90%";
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-label={title}
+      className="flex flex-col gap-3 rounded-base border border-strong bg-neutral-primary-soft p-4 shadow-xs"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5">
+          <span
+            aria-hidden="true"
+            className="flex size-7 shrink-0 items-center justify-center rounded-base bg-ink text-ink-contrast"
+          >
+            <Icon name="loader" size="sm" className="animate-spin" />
+          </span>
+          <span className="font-mono text-xs font-bold tracking-wider text-ink uppercase">
+            {title}
+          </span>
+        </div>
+
+        <span className="rounded-xxs border border-default bg-surface px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-muted">
+          {elapsedSeconds}s ·{" "}
+          {locale === "es" ? "IA EN CURSO" : "AI IN PROGRESS"}
+        </span>
+      </div>
+
+      <Text variant="small" tone="muted">
+        {subtitle}
+      </Text>
+
+      <div
+        aria-hidden="true"
+        className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-secondary-medium"
+      >
+        <div
+          className="h-full rounded-full bg-brand transition-all duration-700 ease-out"
+          style={{ width: progressWidth }}
+        />
+      </div>
+
+      <p className="font-mono text-[11px] font-medium text-heading">
+        {stages[stageIndex]}
+      </p>
+    </div>
+  );
 }
 
 /**
@@ -268,6 +341,15 @@ export function StudyParametersForm({
           }}
         />
 
+        {study.isSubmitting && (
+          <ReadingGenerationProgress
+            title={t.study.generatingTitle}
+            subtitle={t.study.generatingSubtitle}
+            stages={t.study.generatingStages}
+            locale={locale}
+          />
+        )}
+
         <div className="flex flex-col justify-between gap-4 border-t border-border pt-5 sm:flex-row sm:items-center">
           <div className="flex items-center gap-2 text-xs font-medium text-muted">
             <Icon name="clock" size="md" className="text-ink" />
@@ -285,6 +367,7 @@ export function StudyParametersForm({
               type="button"
               variant="outline"
               size="md"
+              disabled={study.isSubmitting}
               isLoading={study.isSaving}
               onClick={study.handleSavePreferences}
             >
@@ -297,10 +380,13 @@ export function StudyParametersForm({
               size="md"
               disabled={study.isPreferencesBlocked}
               isLoading={study.isSubmitting}
+              aria-busy={study.isSubmitting}
               leftIcon={<Icon name="sparkles" size="sm" />}
               className="normal-case tracking-normal"
             >
-              {t.study.generateButton}
+              {study.isSubmitting
+                ? t.study.generatingButton
+                : t.study.generateButton}
             </Button>
           </div>
         </div>
