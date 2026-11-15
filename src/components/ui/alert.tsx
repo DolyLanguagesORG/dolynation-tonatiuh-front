@@ -4,6 +4,8 @@ import { Alert as FlowbiteAlert } from "flowbite-react";
 import { type HTMLAttributes, type ReactNode } from "react";
 
 import { dolyFlowbiteTheme } from "@/components/ui/flowbite-theme";
+import { Icon, type IconName } from "@/components/ui/icon";
+import { IconButton } from "@/components/ui/icon-button";
 
 export type AlertVariant = "info" | "success" | "warning" | "error";
 
@@ -54,55 +56,15 @@ const VARIANT_TO_FLOWBITE: Record<
   },
 };
 
+const VARIANT_ICON: Record<AlertVariant, IconName> = {
+  info: "info",
+  success: "check-circle",
+  warning: "alert-triangle",
+  error: "alert-circle",
+};
+
 function AlertIcon({ variant }: { variant: AlertVariant }) {
-  switch (variant) {
-    case "error":
-    case "warning":
-      return (
-        <svg
-          aria-hidden="true"
-          className="h-4 w-4 shrink-0"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-        >
-          <path
-            fillRule="evenodd"
-            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"
-            clipRule="evenodd"
-          />
-        </svg>
-      );
-    case "success":
-      return (
-        <svg
-          aria-hidden="true"
-          className="h-4 w-4 shrink-0"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-        >
-          <path
-            fillRule="evenodd"
-            d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z"
-            clipRule="evenodd"
-          />
-        </svg>
-      );
-    default:
-      return (
-        <svg
-          aria-hidden="true"
-          className="h-4 w-4 shrink-0"
-          viewBox="0 0 20 20"
-          fill="currentColor"
-        >
-          <path
-            fillRule="evenodd"
-            d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z"
-            clipRule="evenodd"
-          />
-        </svg>
-      );
-  }
+  return <Icon name={VARIANT_ICON[variant]} size="md" />;
 }
 
 /**
@@ -174,21 +136,14 @@ export function Alert({
         </div>
 
         {onDismiss && (
-          <button
-            type="button"
+          <IconButton
+            icon="close"
+            size="xs"
+            variant="ghost"
             onClick={onDismiss}
             aria-label={dismissLabel}
-            className="inline-flex min-h-7 min-w-7 items-center justify-center rounded-base p-1 text-body transition-colors enabled:hover:bg-neutral-primary-soft enabled:hover:text-heading"
-          >
-            <svg
-              aria-hidden="true"
-              className="h-4 w-4"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
-            </svg>
-          </button>
+            className="text-body enabled:hover:bg-neutral-primary-soft enabled:hover:text-heading"
+          />
         )}
       </div>
     </FlowbiteAlert>

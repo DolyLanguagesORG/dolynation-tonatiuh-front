@@ -2,7 +2,15 @@
 
 import { useEffect } from "react";
 
-import { Alert, Button, Card, Container } from "@/components/ui";
+import {
+  Alert,
+  Button,
+  Card,
+  Container,
+  Eyebrow,
+  Heading,
+  Icon,
+} from "@/components/ui";
 
 export default function GlobalError({
   error,
@@ -18,17 +26,11 @@ export default function GlobalError({
   return (
     <Container size="md" className="py-10">
       <Card padding="lg" className="flex flex-col gap-5">
-        <div className="flex flex-col gap-1">
-          <p className="font-mono text-xs font-semibold tracking-wider text-muted uppercase">
-            [EXCEPCIÓN DE APLICACIÓN]
-          </p>
-          <h1
-            id="main-heading"
-            tabIndex={-1}
-            className="font-serif text-2xl font-semibold text-ink sm:text-3xl"
-          >
+        <div className="flex flex-col gap-1.5">
+          <Eyebrow tone="muted">[EXCEPCIÓN DE APLICACIÓN]</Eyebrow>
+          <Heading as="h1" variant="title" mainHeading>
             No fue posible procesar esta vista académica
-          </h1>
+          </Heading>
         </div>
 
         <Alert
@@ -41,7 +43,11 @@ export default function GlobalError({
         </Alert>
 
         <div className="flex flex-wrap items-center gap-3">
-          <Button variant="primary" onClick={() => reset()}>
+          <Button
+            variant="primary"
+            leftIcon={<Icon name="arrow-left" size="sm" />}
+            onClick={() => reset()}
+          >
             Reintentar carga
           </Button>
         </div>

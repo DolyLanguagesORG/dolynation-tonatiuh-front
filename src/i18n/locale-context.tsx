@@ -30,6 +30,15 @@ export interface LocaleProviderProps {
   initialLocale?: Locale;
 }
 
+const LOCALE_COOKIE_NAME = "doly_ui_locale";
+
+function persistLocalePreference(next: Locale): void {
+  if (typeof document !== "undefined") {
+    document.cookie = `${LOCALE_COOKIE_NAME}=${next}; Path=/; SameSite=Lax; Max-Age=31536000`;
+    document.documentElement.lang = next;
+  }
+}
+
 export function LocaleProvider({
   children,
   initialLocale = "es",
@@ -38,10 +47,15 @@ export function LocaleProvider({
 
   const setLocale = useCallback((next: Locale) => {
     setLocaleState(next);
+    persistLocalePreference(next);
   }, []);
 
   const toggleLocale = useCallback(() => {
-    setLocaleState((current) => (current === "es" ? "en" : "es"));
+    setLocaleState((current) => {
+      const next: Locale = current === "es" ? "en" : "es";
+      persistLocalePreference(next);
+      return next;
+    });
   }, []);
 
   useEffect(() => {

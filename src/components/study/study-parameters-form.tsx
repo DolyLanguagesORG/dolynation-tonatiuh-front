@@ -1,24 +1,23 @@
 "use client";
 
-import { type FormEvent, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
-import { Alert, Badge, Button, Card, Input } from "@/components/ui";
-import { useAuth } from "@/context";
-import { useLocale } from "@/i18n";
+import { CategorySelectorSection } from "@/components/study/category-selector-section";
+import { DifficultySelectorSection } from "@/components/study/difficulty-selector-section";
+import { LanguageSelectorSection } from "@/components/study/language-selector-section";
+import { SizeSelectorSection } from "@/components/study/size-selector-section";
+import { useStudyParameters } from "@/components/study/use-study-parameters";
 import {
-  DEFAULT_CATEGORIES,
-  DEFAULT_DIFFICULTIES,
-  DEFAULT_LANGUAGES,
-  DEFAULT_SIZES,
-  studyClient,
-  type CatalogCategory,
-  type DifficultyOption,
-  type ReadingDifficulty,
-  type ReadingSize,
-  type ReadingSizeOption,
-  type StudyParameters,
-  type TargetLanguageCode,
-} from "@/lib";
+  ActionLink,
+  Alert,
+  Badge,
+  Button,
+  Card,
+  Icon,
+  SkeletonCard,
+  Text,
+} from "@/components/ui";
+import { ErrorCode, type StudyParameters } from "@/lib";
 
 export interface StudyParametersFormProps {
   /**
@@ -26,7 +25,7 @@ export interface StudyParametersFormProps {
    */
   id?: string;
   /**
-   * Variante visual: 'standalone' (página dedicada /generate) o 'embedded' (dentro de la página de inicio).
+   * Variante visual: 'standalone' (página dedicada /generate) o 'embedded' (inicio).
    */
   variant?: "standalone" | "embedded";
   /**
@@ -35,220 +34,95 @@ export interface StudyParametersFormProps {
   onGenerate?: (parameters: StudyParameters) => void;
 }
 
+function ReadingGenerationProgress({
+  title,
+  subtitle,
+  stages,
+  locale,
+}: {
+  title: string;
+  subtitle: string;
+  stages: readonly [string, string, string];
+  locale: "es" | "en";
+}) {
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setElapsedSeconds((prev) => prev + 1);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const stageIndex = elapsedSeconds < 2 ? 0 : elapsedSeconds < 5 ? 1 : 2;
+  const progressWidth =
+    stageIndex === 0 ? "32%" : stageIndex === 1 ? "68%" : "90%";
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      aria-label={title}
+      className="flex flex-col gap-3 rounded-base border border-strong bg-neutral-primary-soft p-4 shadow-xs"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-2.5">
+          <span
+            aria-hidden="true"
+            className="flex size-7 shrink-0 items-center justify-center rounded-base bg-ink text-ink-contrast"
+          >
+            <Icon name="loader" size="sm" className="animate-spin" />
+          </span>
+          <span className="font-mono text-xs font-bold tracking-wider text-ink uppercase">
+            {title}
+          </span>
+        </div>
+
+        <span className="rounded-xxs border border-default bg-surface px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-muted">
+          {elapsedSeconds}s ·{" "}
+          {locale === "es" ? "IA EN CURSO" : "AI IN PROGRESS"}
+        </span>
+      </div>
+
+      <Text variant="small" tone="muted">
+        {subtitle}
+      </Text>
+
+      <div
+        aria-hidden="true"
+        className="h-1.5 w-full overflow-hidden rounded-full bg-neutral-secondary-medium"
+      >
+        <div
+          className="h-full rounded-full bg-brand transition-all duration-700 ease-out"
+          style={{ width: progressWidth }}
+        />
+      </div>
+
+      <p className="font-mono text-[11px] font-medium text-heading">
+        {stages[stageIndex]}
+      </p>
+    </div>
+  );
+}
+
+/**
+ * Formulario modular de configuración paramétrica y generación IA de lecturas.
+ */
 export function StudyParametersForm({
   id = "generar-lectura",
   variant = "standalone",
   onGenerate,
 }: StudyParametersFormProps) {
-  const { locale, t } = useLocale();
-  const { user } = useAuth();
+  const study = useStudyParameters(onGenerate);
+  const { locale, t } = study;
 
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Parámetros seleccionados
-  const [selectedLanguage, setSelectedLanguage] =
-    useState<TargetLanguageCode>("en");
-  const [selectedCategory, setSelectedCategory] = useState<string>("technology");
-  const [selectedDifficulty, setSelectedDifficulty] =
-    useState<ReadingDifficulty>("medium");
-  const [selectedSize, setSelectedSize] = useState<ReadingSize>("medium");
-
-  // Catálogos
-  const [categories, setCategories] =
-    useState<CatalogCategory[]>([...DEFAULT_CATEGORIES]);
-  const [difficulties] =
-    useState<DifficultyOption[]>([...DEFAULT_DIFFICULTIES]);
-  const [sizes] = useState<ReadingSizeOption[]>([...DEFAULT_SIZES]);
-
-  // Entrada para categoría personalizada
-  const [isAddingCustom, setIsAddingCustom] = useState(false);
-  const [customCategoryName, setCustomCategoryName] = useState("");
-  const [customCategoryError, setCustomCategoryError] = useState<string | null>(
-    null,
-  );
-
-  // Avisos y errores
-  const [validationError, setValidationError] = useState<string | null>(null);
-  const [saveNotice, setSaveNotice] = useState<string | null>(null);
-  const [generationNotice, setGenerationNotice] = useState<string | null>(null);
-
-  // Carga inicial de preferencias y catálogos
-  useEffect(() => {
-    let isMounted = true;
-
-    async function loadParameters(): Promise<void> {
-      try {
-        const [prefs, catSettings] = await Promise.all([
-          studyClient.getStudyPreferences(user?.id),
-          studyClient.getCategoriesSettings(),
-        ]);
-
-        if (!isMounted) return;
-
-        setSelectedLanguage(prefs.language);
-        setSelectedDifficulty(prefs.difficulty);
-        setSelectedSize(prefs.size);
-
-        if (catSettings.catalog && catSettings.catalog.length > 0) {
-          setCategories(catSettings.catalog);
-        }
-
-        if (prefs.category) {
-          setSelectedCategory(prefs.category);
-        }
-      } catch {
-        // En caso de fallo de red, los valores predeterminados ya están listos
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    }
-
-    void loadParameters();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [user?.id]);
-
-  const estimatedTime = studyClient.calculateEstimatedTime(
-    selectedDifficulty,
-    selectedSize,
-  );
-
-  // Manejo de guardar preferencias sin generar
-  const handleSavePreferences = async (): Promise<void> => {
-    setIsSaving(true);
-    setValidationError(null);
-    setGenerationNotice(null);
-    try {
-      const currentParams: StudyParameters = {
-        language: selectedLanguage,
-        category: selectedCategory,
-        difficulty: selectedDifficulty,
-        size: selectedSize,
-      };
-
-      await studyClient.saveStudyPreferences(currentParams, user?.id);
-      setSaveNotice(t.study.savedSuccessNotice);
-    } catch {
-      setValidationError(
-        locale === "es"
-          ? "No se pudieron sincronizar las preferencias con el servidor. Se guardaron localmente."
-          : "Could not sync preferences with server. Saved locally.",
-      );
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Manejo de agregar categoría personalizada
-  const handleAddCustomCategory = (e: React.FormEvent): void => {
-    e.preventDefault();
-    const cleanName = customCategoryName.trim();
-    if (!cleanName) {
-      setCustomCategoryError(
-        locale === "es"
-          ? "Ingresa un nombre para la temática."
-          : "Enter a name for the topic.",
-      );
-      return;
-    }
-
-    const generatedId = `custom_${cleanName
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "_")
-      .replace(/^_+|_+$/g, "")}`;
-
-    const newCategory: CatalogCategory = {
-      id: generatedId,
-      name: cleanName,
-      isCustom: true,
-    };
-
-    setCategories((prev) => [newCategory, ...prev]);
-    setSelectedCategory(generatedId);
-    setCustomCategoryName("");
-    setIsAddingCustom(false);
-    setCustomCategoryError(null);
-  };
-
-  // Envío del formulario de generación
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>): Promise<void> => {
-    event.preventDefault();
-    setValidationError(null);
-    setSaveNotice(null);
-
-    if (!selectedLanguage) {
-      setValidationError(t.study.errorRequiredLanguage);
-      return;
-    }
-    if (!selectedCategory) {
-      setValidationError(t.study.errorRequiredCategory);
-      return;
-    }
-    if (!selectedDifficulty) {
-      setValidationError(t.study.errorRequiredDifficulty);
-      return;
-    }
-    if (!selectedSize) {
-      setValidationError(t.study.errorRequiredLength);
-      return;
-    }
-
-    const finalParams: StudyParameters = {
-      language: selectedLanguage,
-      category: selectedCategory,
-      difficulty: selectedDifficulty,
-      size: selectedSize,
-    };
-
-    setIsSubmitting(true);
-    try {
-      // Persiste la selección
-      await studyClient.saveStudyPreferences(finalParams, user?.id);
-
-      if (onGenerate) {
-        onGenerate(finalParams);
-      } else {
-        try {
-          const generated = await studyClient.generateReading(finalParams);
-          setGenerationNotice(
-            locale === "es"
-              ? `Lectura generada con éxito: "${generated.title}". Estado: ${generated.status}.`
-              : `Reading generated successfully: "${generated.title}". Status: ${generated.status}.`,
-          );
-        } catch {
-          setGenerationNotice(t.study.generationReadyNotice);
-        }
-      }
-    } catch {
-      setValidationError(
-        locale === "es"
-          ? "Ocurrió un error al preparar la generación."
-          : "An error occurred while preparing generation.",
-      );
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  if (isLoading) {
+  if (study.isLoading) {
     return (
-      <Card id={id} padding="lg" as="section" className="w-full border-border bg-surface">
-        <div className="flex flex-col gap-6 animate-pulse" role="status" aria-live="polite">
-          <div className="h-6 w-48 rounded-xs bg-neutral-secondary-medium" />
-          <div className="h-10 w-full rounded-xs bg-neutral-secondary-medium" />
-          <div className="h-16 w-full rounded-xs bg-neutral-secondary-medium" />
-          <div className="h-28 w-full rounded-xs bg-neutral-secondary-medium" />
-          <p className="text-xs text-muted font-medium">
-            {t.study.loadingParametersNotice}
-          </p>
-        </div>
-      </Card>
+      <SkeletonCard
+        lines={4}
+        label={t.study.loadingParametersNotice}
+        className="w-full"
+      />
     );
   }
 
@@ -262,19 +136,18 @@ export function StudyParametersForm({
       }`}
     >
       <form
-        onSubmit={handleSubmit}
+        onSubmit={study.handleSubmit}
         noValidate
         aria-labelledby="study-parameters-heading"
         className="flex flex-col gap-8"
       >
-        {/* Cabecera del formulario editorial */}
         <div className="flex items-center justify-between gap-3 border-b border-border pb-4">
           <div className="flex items-center gap-2.5">
             <span
               aria-hidden="true"
-              className="flex h-6 w-6 items-center justify-center rounded-xs bg-ink text-xs font-bold text-ink-contrast"
+              className="flex h-6 w-6 items-center justify-center rounded-xs bg-ink text-ink-contrast"
             >
-              ☷
+              <Icon name="sliders" size="xs" />
             </span>
             <h2
               id="study-parameters-heading"
@@ -284,337 +157,209 @@ export function StudyParametersForm({
             </h2>
           </div>
 
-          <Badge variant="outline">
-            {selectedLanguage.toUpperCase()} • {selectedDifficulty.toUpperCase()}
-          </Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            {study.subscriptionUsage && (
+              <Badge
+                variant={
+                  study.subscriptionUsage.readingsRemainingToday === 0
+                    ? "warning"
+                    : "secondary"
+                }
+              >
+                {study.subscriptionUsage.readingsLimit != null
+                  ? locale === "es"
+                    ? `HOY: ${study.subscriptionUsage.readingsCreatedToday}/${study.subscriptionUsage.readingsLimit} LECTURAS`
+                    : `TODAY: ${study.subscriptionUsage.readingsCreatedToday}/${study.subscriptionUsage.readingsLimit} READINGS`
+                  : locale === "es"
+                    ? "LECTURAS ILIMITADAS"
+                    : "UNLIMITED READINGS"}
+              </Badge>
+            )}
+            <Badge variant="outline">
+              {study.effectiveLanguage.toUpperCase()} •{" "}
+              {study.selectedDifficulty.toUpperCase()}
+            </Badge>
+          </div>
         </div>
 
-        {/* Alertas dinámicas */}
-        {validationError && (
-          <Alert
-            variant="error"
-            title={locale === "es" ? "Parámetro incompleto" : "Missing parameter"}
-            onDismiss={() => setValidationError(null)}
-          >
-            {validationError}
+        {study.isPreferencesBlocked && (
+          <Alert variant="warning" title={t.study.generationBlockedTitle}>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <span>
+                {study.missingLanguagesForGeneration &&
+                study.missingCategoriesForGeneration
+                  ? locale === "es"
+                    ? "Debes seleccionar al menos un idioma meta de estudio y registrar 3 categorías favoritas en tu cuenta antes de generar nuevas lecturas."
+                    : "Select at least one target study language and 3 favorite categories before generating new readings."
+                  : study.missingLanguagesForGeneration
+                    ? t.study.generationBlockedLanguages
+                    : t.study.generationBlockedCategories}
+              </span>
+              <ActionLink
+                href="/setup-preferences"
+                variant="primary"
+                size="sm"
+                rightIcon={<Icon name="arrow-right" size="xs" />}
+                className="shrink-0 normal-case tracking-normal"
+              >
+                {t.study.goToPreferencesButton}
+              </ActionLink>
+            </div>
           </Alert>
         )}
 
-        {saveNotice && (
+        {study.validationError && (
+          <Alert
+            variant="error"
+            code={study.validationErrorCode ?? undefined}
+            title={
+              study.validationErrorCode
+                ? locale === "es"
+                  ? "No se pudo completar la acción"
+                  : "Action could not be completed"
+                : locale === "es"
+                  ? "Parámetro incompleto"
+                  : "Missing parameter"
+            }
+            onDismiss={() => study.setValidationError(null)}
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <span>{study.validationError}</span>
+              {study.validationErrorCode ===
+                ErrorCode.READING_PENDING_LIMIT_REACHED && (
+                <ActionLink
+                  href="/readings"
+                  variant="secondary"
+                  size="sm"
+                  rightIcon={<Icon name="arrow-right" size="xs" />}
+                  className="shrink-0 normal-case tracking-normal"
+                >
+                  {locale === "es"
+                    ? "Ver lecturas pendientes"
+                    : "View pending readings"}
+                </ActionLink>
+              )}
+              {(study.validationErrorCode ===
+                ErrorCode.READING_DAILY_LIMIT_REACHED ||
+                study.validationErrorCode ===
+                  ErrorCode.SUBSCRIPTION_CATEGORY_LIMIT_EXCEEDED ||
+                study.validationErrorCode ===
+                  ErrorCode.SUBSCRIPTION_LANGUAGE_LIMIT_EXCEEDED) && (
+                <ActionLink
+                  href="/profile#subscription"
+                  variant="secondary"
+                  size="sm"
+                  rightIcon={<Icon name="arrow-right" size="xs" />}
+                  className="shrink-0 normal-case tracking-normal"
+                >
+                  {locale === "es"
+                    ? "Ver plan y consumo"
+                    : "View plan & usage"}
+                </ActionLink>
+              )}
+            </div>
+          </Alert>
+        )}
+
+        {study.saveNotice && (
           <Alert
             variant="success"
             title={locale === "es" ? "Preferencias guardadas" : "Preferences saved"}
-            onDismiss={() => setSaveNotice(null)}
+            onDismiss={() => study.setSaveNotice(null)}
           >
-            {saveNotice}
+            {study.saveNotice}
           </Alert>
         )}
 
-        {generationNotice && (
+        {study.generationNotice && (
           <Alert
             variant="info"
             title={locale === "es" ? "Sesión de estudio configurada" : "Study session ready"}
             code="STUDY_READY"
-            onDismiss={() => setGenerationNotice(null)}
+            onDismiss={() => study.setGenerationNotice(null)}
           >
-            {generationNotice}
+            {study.generationNotice}
           </Alert>
         )}
 
-        {/* ======================================================== */}
-        {/* 01. IDIOMA META */}
-        {/* ======================================================== */}
-        <fieldset className="flex flex-col gap-3">
-          <legend className="text-[11px] font-bold tracking-wider text-muted uppercase">
-            {t.study.step1Language}
-          </legend>
+        <LanguageSelectorSection
+          title={t.study.step1Language}
+          locale={locale}
+          selectedLanguage={study.effectiveLanguage}
+          activePlanLanguages={study.activePlanLanguages}
+          onSelect={(lang) => {
+            study.setSelectedLanguage(lang);
+            study.setValidationError(null);
+          }}
+        />
 
-          <div
-            role="radiogroup"
-            aria-label={t.study.step1Language}
-            className="flex flex-wrap gap-2 sm:gap-2.5"
-          >
-            {DEFAULT_LANGUAGES.map((lang) => {
-              const isSelected = selectedLanguage === lang.id;
-              const label = locale === "es" ? lang.nameEs : lang.nameEn;
+        <CategorySelectorSection
+          title={t.study.step2Category}
+          locale={locale}
+          categories={study.categories}
+          selectedCategory={study.selectedCategory}
+          customCategoryBadge={t.study.customCategoryBadge}
+          addCategoryPrompt={t.study.addCategoryPrompt}
+          addCategoryPlaceholder={t.study.addCategoryPlaceholder}
+          addCategoryButton={t.study.addCategoryButton}
+          emptyNotice={t.study.emptyCategoriesNotice}
+          isAddingCustom={study.isAddingCustom}
+          customCategoryName={study.customCategoryName}
+          customCategoryError={study.customCategoryError}
+          onStartAddCustom={() => study.setIsAddingCustom(true)}
+          onCancelAddCustom={study.cancelCustomCategory}
+          onCustomNameChange={(value) => {
+            study.setCustomCategoryName(value);
+            study.setCustomCategoryError(null);
+          }}
+          onConfirmAddCustom={study.handleAddCustomCategory}
+          onSelectCategory={(categoryId) => {
+            study.setSelectedCategory(categoryId);
+            study.setValidationError(null);
+          }}
+        />
 
-              return (
-                <button
-                  key={lang.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={isSelected}
-                  onClick={() => {
-                    setSelectedLanguage(lang.id);
-                    setValidationError(null);
-                  }}
-                  className={[
-                    "min-h-9 rounded-xs border px-4 py-2 text-xs font-bold tracking-wider uppercase transition-all sm:text-xs",
-                    isSelected
-                      ? "border-brand bg-brand text-white shadow-xs ring-1 ring-brand"
-                      : "border-border-strong bg-surface text-heading hover:border-brand hover:bg-neutral-secondary-medium",
-                  ].join(" ")}
-                >
-                  {label}
-                </button>
-              );
-            })}
-          </div>
-        </fieldset>
+        <DifficultySelectorSection
+          title={t.study.step3Difficulty}
+          locale={locale}
+          difficulties={study.difficulties}
+          selectedDifficulty={study.selectedDifficulty}
+          onSelect={(difficulty) => {
+            study.setSelectedDifficulty(difficulty);
+            study.setValidationError(null);
+          }}
+        />
 
-        {/* ======================================================== */}
-        {/* 02. DOMINIO TEMÁTICO */}
-        {/* ======================================================== */}
-        <fieldset className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <legend className="text-[11px] font-bold tracking-wider text-muted uppercase">
-              {t.study.step2Category}
-            </legend>
+        <SizeSelectorSection
+          title={t.study.step4Length}
+          locale={locale}
+          sizes={study.sizes}
+          selectedSize={study.selectedSize}
+          onSelect={(size) => {
+            study.setSelectedSize(size);
+            study.setValidationError(null);
+          }}
+        />
 
-            {!isAddingCustom && (
-              <button
-                type="button"
-                onClick={() => setIsAddingCustom(true)}
-                className="text-[11px] font-bold tracking-wider text-muted uppercase underline underline-offset-2 hover:text-ink"
-              >
-                {t.study.addCategoryPrompt}
-              </button>
-            )}
-          </div>
+        {study.isSubmitting && (
+          <ReadingGenerationProgress
+            title={t.study.generatingTitle}
+            subtitle={t.study.generatingSubtitle}
+            stages={t.study.generatingStages}
+            locale={locale}
+          />
+        )}
 
-          {/* Formulario desplegable para categoría propia */}
-          {isAddingCustom && (
-            <div className="flex flex-col gap-2 rounded-xs border border-border-strong bg-neutral-secondary-soft p-3">
-              <span className="text-[10px] font-bold tracking-wider text-muted uppercase">
-                {t.study.addCategoryPrompt}
-              </span>
-              <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
-                <div className="flex-1">
-                  <Input
-                    type="text"
-                    label={t.study.addCategoryPrompt}
-                    placeholder={t.study.addCategoryPlaceholder}
-                    value={customCategoryName}
-                    error={customCategoryError ?? undefined}
-                    onChange={(e) => {
-                      setCustomCategoryName(e.target.value);
-                      setCustomCategoryError(null);
-                    }}
-                  />
-                </div>
-                <div className="flex items-center gap-2 pb-1">
-                  <Button
-                    type="button"
-                    variant="primary"
-                    size="sm"
-                    onClick={handleAddCustomCategory}
-                  >
-                    {t.study.addCategoryButton}
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setIsAddingCustom(false);
-                      setCustomCategoryName("");
-                      setCustomCategoryError(null);
-                    }}
-                  >
-                    {locale === "es" ? "Cancelar" : "Cancel"}
-                  </Button>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Píldoras de temáticas */}
-          {categories.length === 0 ? (
-            <p className="text-xs text-muted">{t.study.emptyCategoriesNotice}</p>
-          ) : (
-            <div
-              role="radiogroup"
-              aria-label={t.study.step2Category}
-              className="flex flex-wrap gap-2"
-            >
-              {categories.map((cat) => {
-                const isSelected = selectedCategory === cat.id;
-
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    role="radio"
-                    aria-checked={isSelected}
-                    onClick={() => {
-                      setSelectedCategory(cat.id);
-                      setValidationError(null);
-                    }}
-                    className={[
-                      "flex min-h-9 items-center gap-2 rounded-xs border px-3.5 py-1.5 text-xs font-bold tracking-wider uppercase transition-all",
-                      isSelected
-                        ? "border-brand bg-brand text-white shadow-xs ring-1 ring-brand"
-                        : "border-border-strong bg-surface text-heading hover:border-brand hover:bg-neutral-secondary-medium",
-                    ].join(" ")}
-                  >
-                    <span>{cat.name}</span>
-                    {cat.isCustom && (
-                      <span
-                        className={`text-[9px] font-mono px-1 rounded-[2px] ${
-                          isSelected ? "bg-white/20 text-white" : "bg-neutral-secondary-medium text-muted"
-                        }`}
-                      >
-                        {t.study.customCategoryBadge}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          )}
-        </fieldset>
-
-        {/* ======================================================== */}
-        {/* 03. NIVEL DE COMPLEJIDAD LINGÜÍSTICA */}
-        {/* ======================================================== */}
-        <fieldset className="flex flex-col gap-3">
-          <legend className="text-[11px] font-bold tracking-wider text-muted uppercase">
-            {t.study.step3Difficulty}
-          </legend>
-
-          <div
-            role="radiogroup"
-            aria-label={t.study.step3Difficulty}
-            className="grid grid-cols-1 gap-3.5 md:grid-cols-3"
-          >
-            {difficulties.map((level) => {
-              const isSelected = selectedDifficulty === level.id;
-
-              return (
-                <button
-                  key={level.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={isSelected}
-                  onClick={() => {
-                    setSelectedDifficulty(level.id);
-                    setValidationError(null);
-                  }}
-                  className={[
-                    "flex flex-col justify-between gap-3.5 rounded-xs border p-4 text-left transition-all sm:p-5",
-                    isSelected
-                      ? "border-brand bg-brand text-white shadow-xs ring-1 ring-brand"
-                      : "border-border-strong bg-surface text-heading hover:border-brand hover:bg-neutral-secondary-medium",
-                  ].join(" ")}
-                >
-                  <div className="flex w-full items-center justify-between gap-2 text-xs font-bold tracking-wider uppercase">
-                    <span className={isSelected ? "text-white" : "text-ink"}>
-                      {level.title}
-                    </span>
-                    <span
-                      className={`font-mono text-[11px] ${
-                        isSelected ? "text-white/80" : "text-muted"
-                      }`}
-                    >
-                      {level.cefr}
-                    </span>
-                  </div>
-
-                  <p
-                    className={`text-xs leading-relaxed ${
-                      isSelected ? "text-white/90" : "text-muted"
-                    }`}
-                  >
-                    {level.description}
-                  </p>
-                </button>
-              );
-            })}
-          </div>
-        </fieldset>
-
-        {/* ======================================================== */}
-        {/* 04. LONGITUD DEL TEXTO */}
-        {/* ======================================================== */}
-        <fieldset className="flex flex-col gap-3">
-          <legend className="text-[11px] font-bold tracking-wider text-muted uppercase">
-            {t.study.step4Length}
-          </legend>
-
-          <div
-            role="radiogroup"
-            aria-label={t.study.step4Length}
-            className="grid grid-cols-1 gap-3 sm:grid-cols-3"
-          >
-            {sizes.map((sizeOption) => {
-              const isSelected = selectedSize === sizeOption.id;
-
-              return (
-                <button
-                  key={sizeOption.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={isSelected}
-                  onClick={() => {
-                    setSelectedSize(sizeOption.id);
-                    setValidationError(null);
-                  }}
-                  className={[
-                    "flex flex-col gap-1.5 rounded-xs border p-3.5 text-left transition-all",
-                    isSelected
-                      ? "border-brand bg-brand text-white shadow-xs ring-1 ring-brand"
-                      : "border-border-strong bg-surface text-heading hover:border-brand hover:bg-neutral-secondary-medium",
-                  ].join(" ")}
-                >
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-bold tracking-wider uppercase">
-                      {sizeOption.label}
-                    </span>
-                    <span
-                      className={`font-mono text-[10px] ${
-                        isSelected ? "text-white/80" : "text-muted"
-                      }`}
-                    >
-                      {sizeOption.readingTime}
-                    </span>
-                  </div>
-                  <span
-                    className={`text-[11px] ${
-                      isSelected ? "text-white/90" : "text-muted"
-                    }`}
-                  >
-                    {sizeOption.wordRange}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </fieldset>
-
-        {/* ======================================================== */}
-        {/* BARRA DE ACCIÓN Y TIEMPO ESTIMADO */}
-        {/* ======================================================== */}
         <div className="flex flex-col justify-between gap-4 border-t border-border pt-5 sm:flex-row sm:items-center">
           <div className="flex items-center gap-2 text-xs font-medium text-muted">
-            <svg
-              aria-hidden="true"
-              className="h-4 w-4 shrink-0 text-ink"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-            >
-              <path
-                fillRule="evenodd"
-                d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z"
-                clipRule="evenodd"
-              />
-            </svg>
-            <span>
+            <Icon name="clock" size="md" className="text-ink" />
+            <Text as="span" variant="small" tone="muted">
               {t.study.estimatedTimePrefix}
               <strong className="font-mono font-bold text-ink">
-                {estimatedTime}
+                {study.estimatedTime}
               </strong>
               {t.study.estimatedMinutes}
-            </span>
+            </Text>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
@@ -622,8 +367,9 @@ export function StudyParametersForm({
               type="button"
               variant="outline"
               size="md"
-              isLoading={isSaving}
-              onClick={handleSavePreferences}
+              disabled={study.isSubmitting}
+              isLoading={study.isSaving}
+              onClick={study.handleSavePreferences}
             >
               {t.study.savePreferencesButton}
             </Button>
@@ -632,11 +378,15 @@ export function StudyParametersForm({
               type="submit"
               variant="primary"
               size="md"
-              isLoading={isSubmitting}
-              leftIcon={<span aria-hidden="true">⚡</span>}
+              disabled={study.isPreferencesBlocked}
+              isLoading={study.isSubmitting}
+              aria-busy={study.isSubmitting}
+              leftIcon={<Icon name="sparkles" size="sm" />}
               className="normal-case tracking-normal"
             >
-              {t.study.generateButton}
+              {study.isSubmitting
+                ? t.study.generatingButton
+                : t.study.generateButton}
             </Button>
           </div>
         </div>

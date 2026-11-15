@@ -30,15 +30,29 @@ Aplicación web de **DolyNation**, plataforma académica de adquisición lingü�
    cp .env.example .env.local
    ```
 
-2. **Configura `NEXT_PUBLIC_API_BASE_URL` en `.env.local`:**
+2. **Ajusta `BACKEND_INTERNAL_URL` en `.env.local`:**
 
    ```dotenv
-   NEXT_PUBLIC_API_BASE_URL=http://localhost:3333/api/v1
+   BACKEND_INTERNAL_URL=http://localhost:3333/api/v1
    ```
 
-   | Variable                   | Requerida | Ejemplo                        | Descripción                                            |
-   | -------------------------- | --------- | ------------------------------ | ------------------------------------------------------ |
-   | `NEXT_PUBLIC_API_BASE_URL` | Sí        | `http://localhost:3333/api/v1` | URL base del backend NestJS (`dolynation-atl-back`)    |
+   | Variable               | Requerida | Ejemplo                        | Descripción                                                          |
+   | ---------------------- | --------- | ------------------------------ | -------------------------------------------------------------------- |
+   | `BACKEND_INTERNAL_URL` | Sí        | `http://localhost:3333/api/v1` | URL del backend NestJS (`dolynation-atl-back`), solo para el servidor |
+
+   Esta variable la consume **únicamente** el proxy de Next.js
+   (`src/app/api/v1/[...path]/route.ts`): el navegador nunca ve la dirección
+   del backend, solo habla con `/api/v1/...` en su propio origen.
+
+   - **Fuera de Docker** (este README): `http://localhost:3333/api/v1`, que es
+     donde escucha el backend levantado con `npm run start:dev`.
+   - **Dentro de Docker Compose** (`dolynation-tlalli-infra`): el valor de
+     `.env.example`, `http://backend:3333/api/v1`, porque el backend es el
+     servicio `backend` de la red `doly-dev-net`.
+
+   Si dejas el valor de Docker y levantas el frontend en tu máquina, la
+   página carga pero el proxy responde `503 SERVICE_UNAVAILABLE`: el nombre
+   `backend` solo se resuelve dentro de la red de Compose.
 
 3. **Instala dependencias e inicia el servidor de desarrollo:**
 

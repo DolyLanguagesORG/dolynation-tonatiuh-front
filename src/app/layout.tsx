@@ -1,11 +1,14 @@
 import { ThemeProvider } from "flowbite-react";
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
 import { Geist, Geist_Mono, Newsreader } from "next/font/google";
 
 import { AppShell } from "@/components/layout";
+import { ToastViewport } from "@/components/ui";
 import { dolyFlowbiteTheme } from "@/components/ui/flowbite-theme";
-import { AuthProvider } from "@/context";
-import { LocaleProvider } from "@/i18n";
+import { AuthProvider, ToastProvider } from "@/context";
+import { LocaleProvider, type Locale } from "@/i18n";
+import { isDesignSystemEnabled } from "@/lib/feature-flags";
 
 import "./globals.css";
 
@@ -34,18 +37,28 @@ export const metadata: Metadata = {
     "Plataforma académica de adquisición lingüística mediante lectura contextual asistida por inteligencia artificial y evaluación CEFR.",
 };
 
-export default function RootLayout({ children }: LayoutProps<"/">) {
+export default async function RootLayout({ children }: LayoutProps<"/">) {
+  const cookieStore = await cookies();
+  const rawLocale = cookieStore.get("doly_ui_locale")?.value;
+  const initialLocale: Locale = rawLocale === "en" ? "en" : "es";
+  const designSystemEnabled = isDesignSystemEnabled();
+
   return (
     <html
-      lang="es"
+      lang={initialLocale}
       className={`${geistSans.variable} ${geistMono.variable} ${editorialSerif.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-neutral-secondary-soft text-heading font-sans">
         <ThemeProvider theme={dolyFlowbiteTheme}>
-          <LocaleProvider>
-            <AuthProvider>
-              <AppShell>{children}</AppShell>
-            </AuthProvider>
+          <LocaleProvider initialLocale={initialLocale}>
+            <ToastProvider>
+              <AuthProvider>
+                <AppShell designSystemEnabled={designSystemEnabled}>
+                  {children}
+                </AppShell>
+              </AuthProvider>
+              <ToastViewport />
+            </ToastProvider>
           </LocaleProvider>
         </ThemeProvider>
       </body>

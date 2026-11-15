@@ -1,0 +1,202 @@
+import { act, renderHook } from "@testing-library/react";
+import { beforeEach, describe, expect, it } from "@jest/globals";
+import type { ReactNode } from "react";
+
+const mockToastSuccess = jest.fn();
+const mockToastError = jest.fn();
+const mockToastWarning = jest.fn();
+const mockToastInfo = jest.fn();
+
+jest.mock("next/navigation", () => ({
+  useRouter: () => ({ replace: jest.fn(), push: jest.fn() }),
+}));
+
+jest.mock("@/context", () => ({
+  useAuth: () => ({
+    user: {
+      id: 1,
+      email: "student@example.com",
+      fullName: "Ada Lovelace",
+      subscriptionTier: "dolly_plus",
+      currentStreak: 0,
+      lastStreakDate: null,
+      emailVerifiedAt: "2026-11-10T00:00:00.000Z",
+      locale: "es",
+      createdAt: "2026-11-10T00:00:00.000Z",
+    },
+    isAuthenticated: true,
+    reloadAccountState: async () => {},
+    refreshPreferences: async () => {},
+    selectPlan: jest.fn(),
+    selectLanguages: jest.fn(),
+    logoutAll: async () => {},
+  }),
+}));
+
+jest.mock("@/context/toast-context", () => ({
+  useToast: () => ({
+    toasts: [],
+    showToast: jest.fn(),
+    success: mockToastSuccess,
+    error: mockToastError,
+    warning: mockToastWarning,
+    info: mockToastInfo,
+    dismiss: jest.fn(),
+    pause: jest.fn(),
+    resume: jest.fn(),
+    clear: jest.fn(),
+  }),
+}));
+
+jest.mock("@/lib/hooks/use-subscription-plans", () => ({
+  useSubscriptionPlans: () => ({ plans: [], isLoading: false, error: null }),
+}));
+
+import { useProfileData } from "@/app/profile/_hooks/use-profile-data";
+import { LocaleProvider } from "@/i18n";
+import {
+  ApiClientError,
+  ErrorCode,
+  historyService,
+  settingsService,
+  subscriptionsService,
+  usersService,
+} from "@/lib";
+
+function Wrapper({ children }: { children: ReactNode }) {
+  return <LocaleProvider initialLocale="es">{children}</LocaleProvider>;
+}
+
+describe("useProfileData toast notifications", () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    jest.spyOn(usersService, "getProfile").mockResolvedValue({
+      message: "OK",
+      data: {
+        id: 1,
+        email: "student@example.com",
+        fullName: "Ada Lovelace",
+        subscriptionTier: "dolly_plus",
+        currentStreak: 0,
+        lastStreakDate: null,
+        emailVerifiedAt: "2026-11-10T00:00:00.000Z",
+        locale: "es",
+        createdAt: "2026-11-10T00:00:00.000Z",
+        selectedLanguages: ["en"],
+      },
+    });
+    jest.spyOn(usersService, "getStreak").mockResolvedValue({
+      message: "OK",
+      data: {
+        days: [],
+        count: 0,
+      },
+    });
+    jest.spyOn(historyService, "getSummary").mockResolvedValue({
+      message: "OK",
+      data: {
+        readings: {
+          total: 0,
+          pending: 0,
+          completed: 0,
+          passed: 0,
+          averageScore: null,
+        },
+        recentScores: [],
+        wordsLookedUp: 0,
+      },
+    });
+    jest.spyOn(settingsService, "getLanguages").mockResolvedValue({
+      message: "OK",
+      data: {
+        catalog: [],
+        selected: ["en"],
+        active: ["en"],
+        maxLanguages: 2,
+        canChangeFree: true,
+        nextFreeChangeAt: null,
+        lastLanguageChangeAt: null,
+        languageChangeCredits: 0,
+      },
+    });
+    jest.spyOn(settingsService, "getCategories").mockResolvedValue({
+      message: "OK",
+      data: {
+        catalog: [],
+        selected: ["technology", "history", "science"],
+      },
+    });
+    jest.spyOn(subscriptionsService, "getCurrentSubscription").mockResolvedValue({
+      message: "OK",
+      data: {
+        hasSubscription: true,
+        tier: "dolly_plus",
+        plan: null,
+        usage: {
+          categoriesCount: 3,
+          categoriesLimit: 15,
+          languagesCount: 1,
+          languagesLimit: 2,
+          readingsCreatedToday: 0,
+          readingsLimit: 10,
+          readingsRemainingToday: 10,
+          questionsAskedToday: 0,
+          questionsLimit: 10,
+          questionsRemainingToday: 10,
+        },
+      },
+    });
+  });
+
+  it("emits detailed error toast when custom category is rejected by moderation", async () => {
+    jest.spyOn(settingsService, "updateCategories").mockRejectedValueOnce(
+      new ApiClientError({
+        code: ErrorCode.CATEGORY_MODERATION_REJECTED,
+        message: "Moderation rejected",
+        status: 400,
+        details: {
+          rejected: [{ category: "bad-topic", layer: "blacklist", reason: "unsafe" }],
+        },
+      }),
+    );
+
+    const { result } = renderHook(() => useProfileData(), { wrapper: Wrapper });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      const ok = await result.current.handleAddCustomCategory("bad-topic");
+      expect(ok).toBe(false);
+    });
+
+    expect(mockToastError).toHaveBeenCalledWith(
+      expect.stringContaining('"bad-topic"'),
+      expect.objectContaining({ title: "Error al guardar" }),
+    );
+  });
+
+  it("emits success toast when custom category is saved", async () => {
+    jest.spyOn(settingsService, "updateCategories").mockResolvedValueOnce({
+      message: "OK",
+      data: {
+        catalog: [],
+        selected: ["technology", "history", "science", "Astronomy"],
+      },
+    });
+
+    const { result } = renderHook(() => useProfileData(), { wrapper: Wrapper });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      const ok = await result.current.handleAddCustomCategory("Astronomy");
+      expect(ok).toBe(true);
+    });
+
+    expect(mockToastSuccess).toHaveBeenCalledTimes(1);
+  });
+});

@@ -1,6 +1,6 @@
 "use client";
 
-import { HelperText, Label, TextInput } from "flowbite-react";
+import { TextInput } from "flowbite-react";
 import {
   forwardRef,
   type InputHTMLAttributes,
@@ -9,6 +9,11 @@ import {
 } from "react";
 
 import { dolyFlowbiteTheme } from "@/components/ui/flowbite-theme";
+import {
+  FieldError,
+  FieldHint,
+  FieldLabelRow,
+} from "@/components/ui/form-field";
 
 export interface InputProps
   extends Omit<InputHTMLAttributes<HTMLInputElement>, "color"> {
@@ -87,37 +92,16 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
 
   return (
     <div className={`flex flex-col gap-1.5 ${containerClassName}`.trim()}>
-      <div className="flex items-baseline justify-between gap-2">
-        <Label
-          htmlFor={inputId}
-          theme={dolyFlowbiteTheme.label}
-          applyTheme={{ root: { colors: "replace" } }}
-          color={hasError ? "failure" : "default"}
-          disabled={disabled}
-        >
-          <span>{label}</span>
-          {required && (
-            <span aria-hidden="true" className="ml-1 text-fg-danger">
-              *
-            </span>
-          )}
-        </Label>
-        {labelAction && (
-          <div className="text-xs text-body">{labelAction}</div>
-        )}
-      </div>
+      <FieldLabelRow
+        htmlFor={inputId}
+        label={label}
+        required={required}
+        disabled={disabled}
+        hasError={hasError}
+        labelAction={labelAction}
+      />
 
-      {hasHint && (
-        <HelperText
-          id={hintId}
-          theme={dolyFlowbiteTheme.helperText}
-          applyTheme={{ root: { colors: "replace" } }}
-          color="gray"
-          className="mt-0"
-        >
-          {hint}
-        </HelperText>
-      )}
+      {hasHint && <FieldHint id={hintId}>{hint}</FieldHint>}
 
       <div className="relative flex items-center">
         <TextInput
@@ -151,30 +135,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
         )}
       </div>
 
-      {hasError && (
-        <HelperText
-          id={errorId}
-          role="alert"
-          theme={dolyFlowbiteTheme.helperText}
-          applyTheme={{ root: { colors: "replace" } }}
-          color="failure"
-          className="mt-0.5 flex items-center gap-1.5"
-        >
-          <svg
-            aria-hidden="true"
-            className="h-3.5 w-3.5 shrink-0"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-          >
-            <path
-              fillRule="evenodd"
-              d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z"
-              clipRule="evenodd"
-            />
-          </svg>
-          <span>{error}</span>
-        </HelperText>
-      )}
+      {hasError && <FieldError id={errorId}>{error}</FieldError>}
     </div>
   );
 });

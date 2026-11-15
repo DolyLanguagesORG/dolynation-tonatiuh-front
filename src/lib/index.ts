@@ -1,49 +1,52 @@
+export * from "@/lib/api-contracts";
 export {
   ApiClientError,
+  ErrorCode,
+  extractRejectedCategories,
+  extractValidationFields,
+  isErrorCode,
+  resolveErrorMessage,
   type ApiError,
   type ApiResponse,
-  ErrorCode,
-  extractValidationFields,
   type KnownErrorCode,
-  resolveErrorMessage,
+  type RejectedCategoryDetail,
   type ValidationFieldIssue,
 } from "@/lib/api-errors";
+export { authClient } from "@/lib/auth-client";
 export {
-  authClient,
-  type AuthSessionPayload,
-  type AuthTokens,
-  type AuthUser,
-  type LoginInput,
-  type RegisterInput,
-} from "@/lib/auth-client";
-export {
-  clearAuthTokens,
   executeSingleFlightRefresh,
-  getAccessToken,
-  getRefreshToken,
   notifySessionUnauthorized,
   registerAuthLifecycleHandlers,
-  setAuthTokens,
-  type TokenPair,
 } from "@/lib/auth-token-store";
 export { buildApiUrl, env } from "@/lib/env";
+export { apiRequest, httpClient } from "@/lib/http-client";
+export { AI_TIMEOUT_MS, DEFAULT_TIMEOUT_MS } from "@/lib/http-core";
 export {
-  apiRequest,
-  httpClient,
-  type HttpRequestOptions,
-} from "@/lib/http-client";
+  cleanLookupSelection,
+  cleanLookupWord,
+  computeNextTokenSpan,
+  countWords,
+  estimateReadingMinutes,
+  extractSalientVocabulary,
+  findTokenSpanInParagraphs,
+  formatReadingDate,
+  formatReadingLanguageBadge,
+  getDifficultyMeta,
+  getSpeechLocale,
+  MAX_LOOKUP_SELECTION_CHARS,
+  type ParagraphTokenSpan,
+  resolveSpanSelectionText,
+  tokenizeReadingParagraph,
+} from "@/lib/reading-utils";
+export * from "@/lib/services";
 export {
-  DEFAULT_CATEGORIES,
   DEFAULT_DIFFICULTIES,
   DEFAULT_LANGUAGES,
   DEFAULT_SIZES,
+  DEFAULT_STUDY_PARAMETERS,
   studyClient,
   type CatalogCategory,
   type DifficultyOption,
-  type ReadingDifficulty,
-  type ReadingDto,
-  type ReadingSize,
-  type ReadingSizeOption,
+  type LanguageOption,
   type StudyParameters,
-  type TargetLanguageCode,
 } from "@/lib/study-client";

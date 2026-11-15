@@ -1,0 +1,80 @@
+import { describe, expect, it } from "@jest/globals";
+
+import {
+  ApiClientError,
+  ErrorCode,
+  resolveErrorMessage,
+} from "@/lib/api-errors";
+
+const BACKEND_FLOW_ERROR_CODES = [
+  ErrorCode.SUBSCRIPTION_REQUIRED,
+  ErrorCode.READING_PENDING_LIMIT_REACHED,
+  ErrorCode.READING_DAILY_LIMIT_REACHED,
+  ErrorCode.SUBSCRIPTION_LANGUAGE_LIMIT_EXCEEDED,
+  ErrorCode.SUBSCRIPTION_LANGUAGE_NOT_ALLOWED,
+  ErrorCode.LANGUAGE_NOT_SELECTED,
+  ErrorCode.LANGUAGE_CHANGE_LOCKED,
+  ErrorCode.CATEGORY_MODERATION_REJECTED,
+  ErrorCode.CATEGORY_DAILY_LIMIT_REACHED,
+  ErrorCode.EXPLANATION_DAILY_LIMIT_REACHED,
+  ErrorCode.AUTH_EMAIL_NOT_VERIFIED,
+  ErrorCode.AUTH_EMAIL_TOKEN_INVALID,
+  ErrorCode.AUTH_TOKEN_INVALID,
+] as const;
+
+describe("api-errors catalog", () => {
+  it("resolves localized user messages in es, en, fr, and it for all backend QA error codes", () => {
+    for (const code of BACKEND_FLOW_ERROR_CODES) {
+      const esMsg = resolveErrorMessage(code, "es");
+      const enMsg = resolveErrorMessage(code, "en");
+      const frMsg = resolveErrorMessage(code, "fr");
+      const itMsg = resolveErrorMessage(code, "it");
+
+      expect(esMsg.trim().length).toBeGreaterThan(10);
+      expect(enMsg.trim().length).toBeGreaterThan(10);
+      expect(frMsg.trim().length).toBeGreaterThan(10);
+      expect(itMsg.trim().length).toBeGreaterThan(10);
+      expect(esMsg).not.toBe(enMsg);
+      expect(frMsg).not.toBe(enMsg);
+      expect(itMsg).not.toBe(esMsg);
+    }
+  });
+
+  it("constructs ApiClientError preserving code, HTTP status, and details", () => {
+    const err = new ApiClientError({
+      code: ErrorCode.READING_PENDING_LIMIT_REACHED,
+      message: "Maximum 3 pending readings",
+      status: 400,
+      details: { pendingCount: 3, maxPending: 3 },
+    });
+
+    expect(err.code).toBe(ErrorCode.READING_PENDING_LIMIT_REACHED);
+    expect(err.status).toBe(400);
+    expect(err.details).toEqual({ pendingCount: 3, maxPending: 3 });
+    expect(err.getUserMessage("es")).toBe(
+      resolveErrorMessage(ErrorCode.READING_PENDING_LIMIT_REACHED, "es"),
+    );
+    expect(err.getUserMessage("en")).toBe(
+      resolveErrorMessage(ErrorCode.READING_PENDING_LIMIT_REACHED, "en"),
+    );
+  });
+
+  it("includes rejected category names in getUserMessage for CATEGORY_MODERATION_REJECTED", () => {
+    const err = new ApiClientError({
+      code: ErrorCode.CATEGORY_MODERATION_REJECTED,
+      message: "Rejected by moderation",
+      status: 400,
+      details: {
+        rejected: [
+          { category: "spam", layer: "blacklist", reason: "unsafe" },
+          { category: "SPAM", layer: "blacklist", reason: "duplicate case" },
+          { category: "gore", layer: "ai_moderation", reason: "unsafe_content" },
+        ],
+      },
+    });
+
+    expect(err.getRejectedCategories()).toHaveLength(2);
+    expect(err.getUserMessage("es")).toContain('"spam", "gore"');
+    expect(err.getUserMessage("en")).toContain('"spam", "gore"');
+  });
+});

@@ -42,8 +42,9 @@ Los tokens visuales se definen en `src/app/globals.css` sobre `:root` y `@theme 
 - El backend envuelve toda respuesta en `ApiResponse<T>` (`{ message, data, error }`).
 - Ante un fallo, `httpClient` lanza un `ApiClientError` tipado. La interfaz **siempre** decide en función de `error.code` (`ErrorCode`), nunca parseando `error.message`.
 
-## 5. Variables de entorno (`NEXT_PUBLIC_*`)
+## 5. Variables de entorno
 
-- Toda variable expuesta al navegador lleva el prefijo `NEXT_PUBLIC_`.
-- `NEXT_PUBLIC_API_BASE_URL` define la URL base del backend (documentada en `.env.example`).
+- El frontend **no** conoce la dirección del backend: el navegador solo llama al proxy BFF de este mismo origen (`/api/v1/...`), y el proxy es quien habla con el backend.
+- `BACKEND_INTERNAL_URL` es la URL del backend y la consume **solo el servidor** (el proxy de `src/app/api/v1/[...path]/route.ts`). No lleva prefijo `NEXT_PUBLIC_` a propósito: así nunca se compila en el bundle del navegador ni se filtra al cliente. Está documentada en `.env.example`.
+- Si alguna vez hace falta exponer una variable al navegador, el prefijo `NEXT_PUBLIC_` la compila en el bundle del cliente: úsalo solo cuando no haya alternativa de servidor.
 - Nunca commitear archivos `.env` ni `.env.local` con secretos reales.

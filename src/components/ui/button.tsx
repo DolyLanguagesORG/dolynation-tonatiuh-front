@@ -1,20 +1,16 @@
 "use client";
 
-import { Button as FlowbiteButton, Spinner } from "flowbite-react";
+import { Button as FlowbiteButton } from "flowbite-react";
 import { type ButtonHTMLAttributes, forwardRef, type ReactNode } from "react";
 
+import {
+  type ButtonSize,
+  type ButtonVariant,
+} from "@/components/ui/button-styles";
 import { dolyFlowbiteTheme } from "@/components/ui/flowbite-theme";
+import { Icon } from "@/components/ui/icon";
 
-export type ButtonVariant =
-  | "primary"
-  | "secondary"
-  | "outline"
-  | "ghost"
-  | "success"
-  | "warning"
-  | "danger";
-
-export type ButtonSize = "sm" | "md" | "lg";
+export type { ButtonSize, ButtonVariant };
 
 export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: ButtonVariant;
@@ -80,10 +76,11 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
         {...rest}
       >
         {isLoading ? (
-          <Spinner
-            aria-hidden="true"
+          <Icon
+            name="loader"
             size="sm"
-            className="me-1.5 fill-current text-transparent"
+            aria-hidden="true"
+            className="me-1.5 shrink-0 animate-spin text-current"
           />
         ) : (
           leftIcon && (
