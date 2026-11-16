@@ -15,7 +15,7 @@ import {
   SkeletonCard,
   Text,
 } from "@/components/ui";
-import { type Locale } from "@/i18n";
+import { type Dictionary, formatMessage, type Locale } from "@/i18n";
 import {
   type SubscriptionPlanItem,
   type SubscriptionTier,
@@ -25,6 +25,7 @@ import {
 import { formatPlanFromBackend } from "@/lib/plan-presentation";
 
 export interface SubscriptionPlanCardProps {
+  t: Dictionary;
   locale: Locale;
   currentSubscription: UserSubscriptionResponse | null;
   plans: readonly SubscriptionPlanItem[];
@@ -37,19 +38,19 @@ export interface SubscriptionPlanCardProps {
 }
 
 interface QuotaRowProps {
+  t: Dictionary;
   label: string;
   used: number;
   limit: number | null;
   remaining?: number | null;
-  locale: Locale;
 }
 
 function QuotaMeter({
+  t,
   label,
   used,
   limit,
   remaining,
-  locale,
 }: QuotaRowProps) {
   const pct =
     limit !== null && limit > 0
@@ -70,12 +71,10 @@ function QuotaMeter({
         </span>
         <Badge variant={limit === null ? "secondary" : isExhausted ? "warning" : "outline"}>
           {limit === null
-            ? locale === "es"
-              ? "ILIMITADO"
-              : "UNLIMITED"
-            : locale === "es"
-              ? `${remaining ?? Math.max(0, limit - used)} RESTANTES`
-              : `${remaining ?? Math.max(0, limit - used)} LEFT`}
+            ? t.profile.subscription.unlimitedBadge
+            : formatMessage(t.profile.subscription.remainingBadge, {
+                count: remaining ?? Math.max(0, limit - used),
+              })}
         </Badge>
       </div>
 
@@ -92,7 +91,7 @@ function QuotaMeter({
             {used}
           </span>
           <span className="font-mono text-[11px] text-muted uppercase">
-            {locale === "es" ? "Sin tope diario" : "No daily cap"}
+            {t.profile.subscription.noDailyCap}
           </span>
         </div>
       )}
@@ -105,6 +104,7 @@ function QuotaMeter({
  * y cierre global de sesiones en `/profile#subscription`.
  */
 export function SubscriptionPlanCard({
+  t,
   locale,
   currentSubscription,
   plans,
@@ -136,24 +136,18 @@ export function SubscriptionPlanCard({
           <div className="flex flex-wrap items-center gap-2">
             <Icon name="layers" size="md" className="text-heading" />
             <Heading as="h2" variant="subsection">
-              {locale === "es"
-                ? "Suscripción Activa y Consumo del Plan"
-                : "Active Subscription & Plan Usage"}
+              {t.profile.subscription.title}
             </Heading>
             <Badge variant={activePlan ? "primary" : "warning"}>
               {activeFormatted
                 ? activeFormatted.name
-                : locale === "es"
-                  ? "SIN PLAN ACTIVO"
-                  : "NO ACTIVE PLAN"}
+                : t.profile.subscription.noActivePlanBadge}
             </Badge>
           </div>
           <Text variant="small" tone="muted">
             {activeFormatted
               ? activeFormatted.description
-              : locale === "es"
-                ? "Selecciona uno de los planes oficiales para habilitar lecturas IA y gestión de idiomas."
-                : "Choose an official plan below to enable AI readings and language settings."}
+              : t.profile.subscription.choosePlanDesc}
           </Text>
         </div>
 
@@ -165,28 +159,28 @@ export function SubscriptionPlanCard({
       {usage && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <QuotaMeter
-            locale={locale}
-            label={locale === "es" ? "Lecturas hoy" : "Readings today"}
+            t={t}
+            label={t.profile.subscription.readingsToday}
             used={usage.readingsCreatedToday}
             limit={usage.readingsLimit}
             remaining={usage.readingsRemainingToday}
           />
           <QuotaMeter
-            locale={locale}
-            label={locale === "es" ? "Consultas IA hoy" : "AI queries today"}
+            t={t}
+            label={t.profile.subscription.aiQueriesToday}
             used={usage.questionsAskedToday}
             limit={usage.questionsLimit}
             remaining={usage.questionsRemainingToday}
           />
           <QuotaMeter
-            locale={locale}
-            label={locale === "es" ? "Categorías activas" : "Active categories"}
+            t={t}
+            label={t.profile.subscription.activeCategories}
             used={usage.categoriesCount}
             limit={usage.categoriesLimit}
           />
           <QuotaMeter
-            locale={locale}
-            label={locale === "es" ? "Idiomas activos" : "Active languages"}
+            t={t}
+            label={t.profile.subscription.activeLanguages}
             used={usage.languagesCount}
             limit={usage.languagesLimit}
           />
@@ -198,34 +192,22 @@ export function SubscriptionPlanCard({
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Eyebrow tone="muted" className="text-[10px]">
-            {locale === "es"
-              ? "CAMBIAR PLAN DISPONIBLE (CATÁLOGO DEL SERVIDOR)"
-              : "SWITCH AVAILABLE PLAN (SERVER CATALOG)"}
+            {t.profile.subscription.switchPlanEyebrow}
           </Eyebrow>
           <Text variant="caption" tone="subtle">
-            {locale === "es"
-              ? "Los cupos de idiomas y categorías activas se ajustan automáticamente al plan seleccionado."
-              : "Active language and category quotas adjust automatically to the selected plan."}
+            {t.profile.subscription.switchPlanHint}
           </Text>
         </div>
 
         {isLoadingPlans ? (
           <SkeletonCard
             lines={3}
-            label={
-              locale === "es"
-                ? "Cargando catálogo de planes..."
-                : "Loading plan catalog..."
-            }
+            label={t.profile.subscription.loadingCatalog}
           />
         ) : plansError ? (
           <Alert
             variant="error"
-            title={
-              locale === "es"
-                ? "No se pudo cargar el catálogo de planes"
-                : "Could not load plan catalog"
-            }
+            title={t.profile.subscription.loadCatalogErrorTitle}
           >
             {plansError}
           </Alert>
@@ -252,9 +234,7 @@ export function SubscriptionPlanCard({
                       </span>
                       <Badge variant={isCurrent ? "primary" : "secondary"}>
                         {isCurrent
-                          ? locale === "es"
-                            ? "ACTUAL"
-                            : "CURRENT"
+                          ? t.profile.subscription.currentBadge
                           : summary.quotaHeadline}
                       </Badge>
                     </div>
@@ -292,12 +272,11 @@ export function SubscriptionPlanCard({
                     }}
                   >
                     {isCurrent
-                      ? locale === "es"
-                        ? "Plan activo"
-                        : "Active plan"
-                      : locale === "es"
-                        ? `Cambiar a ${summary.name}`
-                        : `Switch to ${summary.name}`}
+                      ? t.profile.subscription.activePlanButton
+                      : formatMessage(
+                          t.profile.subscription.switchToPlanButton,
+                          { name: summary.name },
+                        )}
                   </Button>
                 </div>
               );
@@ -316,14 +295,10 @@ export function SubscriptionPlanCard({
           <Icon name="shield" size="md" className="mt-0.5 shrink-0 text-heading" />
           <div className="flex flex-col gap-0.5">
             <span className="text-sm font-bold text-heading">
-              {locale === "es"
-                ? "Seguridad de sesiones activas"
-                : "Active session security"}
+              {t.profile.subscription.sessionSecurityTitle}
             </span>
             <Text variant="caption" tone="muted">
-              {locale === "es"
-                ? "Revoca tu sesión actual y cualquier otro dispositivo conectado de forma inmediata."
-                : "Revoke your current session and every other signed-in device immediately."}
+              {t.profile.subscription.sessionSecurityDesc}
             </Text>
           </div>
         </div>
@@ -338,9 +313,7 @@ export function SubscriptionPlanCard({
               leftIcon={<Icon name="log-out" size="xs" />}
               onClick={() => setConfirmingLogoutAll(true)}
             >
-              {locale === "es"
-                ? "Cerrar todas las sesiones"
-                : "Sign out all devices"}
+              {t.profile.subscription.logoutAllButton}
             </Button>
           ) : (
             <>
@@ -354,9 +327,7 @@ export function SubscriptionPlanCard({
                   void onLogoutAll();
                 }}
               >
-                {locale === "es"
-                  ? "Confirmar cierre global"
-                  : "Confirm global sign-out"}
+                {t.profile.subscription.confirmLogoutAllButton}
               </Button>
               <Button
                 type="button"
@@ -365,7 +336,7 @@ export function SubscriptionPlanCard({
                 disabled={isLoggingOutAll}
                 onClick={() => setConfirmingLogoutAll(false)}
               >
-                {locale === "es" ? "Cancelar" : "Cancel"}
+                {t.profile.cancelButton}
               </Button>
             </>
           )}

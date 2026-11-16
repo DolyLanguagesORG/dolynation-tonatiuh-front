@@ -81,7 +81,7 @@ export function EvaluationView({ readingId }: EvaluationViewProps) {
                       getDifficultyMeta(
                         evaluation.reading.difficulty,
                         evaluation.readingLanguage,
-                      ).cefrBadge
+                      ).label
                     }
                   </Badge>
                 </>

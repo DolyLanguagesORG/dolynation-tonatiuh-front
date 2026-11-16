@@ -7,7 +7,8 @@ import { useState } from "react";
 import { ActionLink, Button, Icon, IconButton } from "@/components/ui";
 import { UserMenuDropdown } from "@/components/layout/user-menu-dropdown";
 import { useAuth } from "@/context";
-import { useLocale } from "@/i18n";
+import { formatMessage, useLocale } from "@/i18n";
+import { LocaleSelector } from "@/components/layout/locale-selector";
 
 export interface HeaderProps {
   isMobileMenuOpen: boolean;
@@ -24,31 +25,6 @@ export interface HeaderProps {
   isAuthRoute?: boolean;
 }
 
-function LocaleEditionButton() {
-  const { locale, t, toggleLocale } = useLocale();
-
-  return (
-    <Button
-      variant="secondary"
-      size="xs"
-      onClick={toggleLocale}
-      title={
-        locale === "es"
-          ? "Idioma: Español (clic para cambiar a inglés)"
-          : "Language: English (click to switch to Spanish)"
-      }
-      aria-label={
-        locale === "es"
-          ? "Cambiar idioma de la interfaz a inglés (actual: ES)"
-          : "Switch interface language to Spanish (current: EN)"
-      }
-      className="min-h-7 min-w-10 bg-surface-subtle/60 px-2.5 py-1 font-mono text-[11px] font-semibold tracking-wider text-heading uppercase"
-    >
-      {t.meta.editionBadge}
-    </Button>
-  );
-}
-
 /**
  * Barra superior del shell editorial DolyNation.
  * Soporta tanto el modo de aplicación (con menú móvil, racha y cierre de sesión)
@@ -62,7 +38,7 @@ export function Header({
   isAuthRoute = false,
 }: HeaderProps) {
   const pathname = usePathname();
-  const { locale, t } = useLocale();
+  const { t } = useLocale();
   const { user, accessPhase, isAuthenticated, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -76,10 +52,10 @@ export function Header({
   };
 
   const streakCount = user?.currentStreak ?? 0;
-  const dynamicStreakLabel =
-    locale === "es"
-      ? `Racha: ${streakCount} días`
-      : `Streak: ${streakCount} days`;
+  const dynamicStreakLabel = formatMessage(t.meta.streakTemplate, {
+    count: streakCount,
+    unit: streakCount === 1 ? t.meta.daySingular : t.meta.dayPlural,
+  });
 
   if (isAuthRoute) {
     const isUnverifiedLock = accessPhase === "unverified_email";
@@ -89,16 +65,16 @@ export function Header({
     const brandHref = isPlanLock ? "/select-plan" : "/";
 
     return (
-      <header className="sticky top-0 z-30 flex h-14 w-full shrink-0 items-center justify-between border-b border-border bg-surface px-4 sm:px-8 lg:px-12">
-        <div className="flex items-center gap-3">
+      <header className="sticky top-0 z-30 flex h-14 w-full shrink-0 items-center justify-between border-b border-border bg-surface px-3 sm:px-8 lg:px-12">
+        <div className="flex items-center gap-2 sm:gap-3">
           {hideBrandLink ? (
-            <span className="font-serif text-lg font-bold tracking-tight text-ink sm:text-xl">
+            <span className="font-serif text-base font-bold tracking-tight text-ink sm:text-xl">
               DolyNation
             </span>
           ) : (
             <Link
               href={brandHref}
-              className="font-serif text-lg font-bold tracking-tight text-ink sm:text-xl"
+              className="font-serif text-base font-bold tracking-tight text-ink sm:text-xl"
             >
               DolyNation
             </Link>
@@ -106,7 +82,7 @@ export function Header({
 
           <span aria-hidden="true" className="h-4 w-px bg-border-strong" />
 
-          <LocaleEditionButton />
+          <LocaleSelector />
         </div>
 
         {isIsolatedShowcase ? (
@@ -131,9 +107,7 @@ export function Header({
           </div>
         ) : (
           <nav
-            aria-label={
-              locale === "es" ? "Acceso a cuenta" : "Account access"
-            }
+            aria-label={t.meta.accountAccessAria}
             className="flex items-center gap-3 sm:gap-5"
           >
             <Link
@@ -164,66 +138,64 @@ export function Header({
   }
 
   const desktopSidebarToggleLabel = isDesktopSidebarOpen
-    ? locale === "es"
-      ? "Ocultar barra lateral"
-      : "Hide sidebar"
-    : locale === "es"
-      ? "Mostrar barra lateral"
-      : "Show sidebar";
+    ? t.meta.hideSidebarAria
+    : t.meta.showSidebarAria;
 
   return (
     <header className="sticky top-0 z-30 flex h-14 w-full shrink-0 items-center border-b border-border bg-surface">
       {/* Bloque izquierdo alineado con el ancho del sidebar en escritorio */}
       <div
         data-testid="header-brand-slot"
-        className={`flex h-full items-center gap-2 px-4 transition-colors lg:w-48 lg:shrink-0 lg:justify-between lg:border-r lg:px-3.5 ${
+        className={`flex h-full shrink-0 items-center gap-1.5 px-2.5 transition-colors sm:gap-2 sm:px-4 lg:w-48 lg:justify-between lg:border-r lg:px-3.5 ${
           isDesktopSidebarOpen ? "lg:border-border" : "lg:border-transparent"
         }`}
       >
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
           <IconButton
             icon={isMobileMenuOpen ? "close" : "menu"}
             variant="secondary"
-            size="md"
-            iconSize="lg"
+            size="sm"
+            iconSize="md"
             onClick={onToggleMobileMenu}
             aria-expanded={isMobileMenuOpen}
             aria-controls="doly-sidebar-drawer"
             aria-label={isMobileMenuOpen ? t.meta.closeMenu : t.meta.openMenu}
-            className="lg:hidden"
+            className="lg:hidden sm:h-9 sm:w-9"
           />
 
           <Link
             href="/"
-            className="font-serif text-lg font-bold tracking-tight text-ink sm:text-xl"
+            className="font-serif text-base font-bold tracking-tight text-ink sm:text-xl"
           >
             DolyNation
           </Link>
         </div>
 
         {onToggleDesktopSidebar && (
-          <IconButton
-            icon={isDesktopSidebarOpen ? "panel-left-close" : "panel-left-open"}
-            variant="ghost"
-            size="xs"
-            iconSize="sm"
-            onClick={onToggleDesktopSidebar}
-            aria-expanded={isDesktopSidebarOpen}
-            aria-controls="doly-sidebar-desktop"
-            aria-label={desktopSidebarToggleLabel}
-            title={desktopSidebarToggleLabel}
-            className="hidden text-muted hover:text-heading lg:inline-flex"
-          />
+          <span className="hidden lg:inline-flex">
+            <IconButton
+              icon={isDesktopSidebarOpen ? "panel-left-close" : "panel-left-open"}
+              variant="ghost"
+              size="xs"
+              iconSize="sm"
+              onClick={onToggleDesktopSidebar}
+              aria-expanded={isDesktopSidebarOpen}
+              aria-controls="doly-sidebar-desktop"
+              aria-label={desktopSidebarToggleLabel}
+              title={desktopSidebarToggleLabel}
+              className="hidden text-muted hover:text-heading lg:inline-flex"
+            />
+          </span>
         )}
       </div>
 
       {/* Barra de contexto y utilidades */}
-      <div className="flex min-w-0 flex-1 items-center justify-between gap-2 px-3 sm:px-6 lg:px-8">
-        <LocaleEditionButton />
+      <div className="flex min-w-0 flex-1 items-center justify-between gap-1.5 px-2 sm:gap-2 sm:px-6 lg:px-8">
+        <LocaleSelector />
 
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="inline-flex items-center gap-1.5 rounded-base border border-border-strong bg-surface px-2.5 py-1 text-xs font-semibold text-ink">
-            <Icon name="flame" size="sm" />
+        <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
+          <div className="inline-flex min-w-0 items-center gap-1 rounded-base border border-border-strong bg-surface px-2 py-1 text-[11px] font-semibold text-ink sm:gap-1.5 sm:px-2.5 sm:text-xs">
+            <Icon name="flame" size="sm" className="shrink-0" />
             <span className="whitespace-nowrap tabular-nums">
               {dynamicStreakLabel}
             </span>

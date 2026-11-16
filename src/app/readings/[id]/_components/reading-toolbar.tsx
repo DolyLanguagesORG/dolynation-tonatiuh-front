@@ -56,9 +56,7 @@ export function ReadingToolbar({
             <Badge variant="primary">
               {formatReadingLanguageBadge(reading.language, displayLanguage)}
             </Badge>
-            <Badge variant="outline">
-              {diffMeta.label} · {diffMeta.cefrBadge}
-            </Badge>
+            <Badge variant="outline">{diffMeta.label}</Badge>
             {reading.category && (
               <Badge variant="secondary">{reading.category.toUpperCase()}</Badge>
             )}

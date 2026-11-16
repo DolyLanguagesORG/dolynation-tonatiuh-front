@@ -42,11 +42,20 @@ describe("reading-utils & password-strength", () => {
     expect(formatReadingLanguageBadge("it", "it")).toBe("[IT] ITALIANO");
 
     expect(getDifficultyMeta("easy", "en").cefrBadge).toBe("A1–A2");
-    expect(getDifficultyMeta("easy", "fr").label).toBe("DÉBUTANT");
+    expect(getDifficultyMeta("easy", "es").label).toBe("FÁCIL");
+    expect(getDifficultyMeta("easy", "en").label).toBe("EASY");
+    expect(getDifficultyMeta("easy", "fr").label).toBe("FACILE");
+    expect(getDifficultyMeta("easy", "it").label).toBe("FACILE");
     expect(getDifficultyMeta("medium", "es").cefrBadge).toBe("B1–B2");
-    expect(getDifficultyMeta("medium", "fr").label).toBe("INTERMÉDIAIRE");
+    expect(getDifficultyMeta("medium", "es").label).toBe("MEDIO");
+    expect(getDifficultyMeta("medium", "en").label).toBe("MEDIUM");
+    expect(getDifficultyMeta("medium", "fr").label).toBe("MOYEN");
+    expect(getDifficultyMeta("medium", "it").label).toBe("MEDIO");
     expect(getDifficultyMeta("hard", "es").cefrBadge).toBe("C1–C2");
-    expect(getDifficultyMeta("hard", "it").label).toBe("AVANZATO");
+    expect(getDifficultyMeta("hard", "es").label).toBe("DIFÍCIL");
+    expect(getDifficultyMeta("hard", "en").label).toBe("HARD");
+    expect(getDifficultyMeta("hard", "fr").label).toBe("DIFFICILE");
+    expect(getDifficultyMeta("hard", "it").label).toBe("DIFFICILE");
 
     expect(getSpeechLocale("es")).toBe("es-ES");
     expect(getSpeechLocale("en")).toBe("en-US");

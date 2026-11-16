@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
 import type { ReactNode } from "react";
@@ -614,5 +614,12 @@ describe("StudyParametersForm", () => {
     expect(
       screen.getByRole("button", { name: dictionaries.es.study.addCategoryPrompt }),
     ).toBeInTheDocument();
+    const difficultyGroup = screen.getByRole("radiogroup", {
+      name: dictionaries.es.study.step3Difficulty,
+    });
+    expect(within(difficultyGroup).getByRole("radio", { name: /Fácil/i })).toBeInTheDocument();
+    expect(within(difficultyGroup).getByRole("radio", { name: /Medio/i })).toBeInTheDocument();
+    expect(within(difficultyGroup).getByRole("radio", { name: /Difícil/i })).toBeInTheDocument();
+    expect(screen.queryByText(/A1 – A2|B1 – B2|C1 – C2/)).toBeNull();
   });
 });

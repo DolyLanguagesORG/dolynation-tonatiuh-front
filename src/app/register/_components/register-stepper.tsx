@@ -10,6 +10,7 @@ export interface RegisterStepperProps {
   isAuthenticated: boolean;
   onboarding: OnboardingState;
   stepsLabels: Dictionary["auth"]["stepper"]["steps"];
+  ariaLabel?: string;
   onStepSelect?: (step: RegisterStepNumber) => void;
 }
 
@@ -21,6 +22,7 @@ export function RegisterStepper({
   isAuthenticated,
   onboarding,
   stepsLabels,
+  ariaLabel = "Progreso de registro",
   onStepSelect,
 }: RegisterStepperProps) {
   const rawSteps: readonly { step: RegisterStepNumber; label: string }[] = [
@@ -44,7 +46,7 @@ export function RegisterStepper({
 
   return (
     <Stepper
-      ariaLabel="Progreso de registro"
+      ariaLabel={ariaLabel}
       items={items}
       onStepSelect={
         onStepSelect

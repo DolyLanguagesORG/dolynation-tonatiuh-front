@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
 
 import { EvaluationResultView } from "@/app/readings/[id]/result/_components/evaluation-result-view";
+import { getDictionary } from "@/i18n";
+import { getServerLocale } from "@/i18n/server-locale";
 
-export const metadata: Metadata = {
-  title: "Resultado de Evaluación | DolyNation",
-  description:
-    "Consulta tu índice de comprensión CEFR, retroalimentación de IA y vocabulario contextual asimilado.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale();
+  const t = getDictionary(locale);
+  return {
+    title: t.readings.result.breakdownTitle,
+    description: t.readings.result.subtitle,
+  };
+}
 
 interface ReadingResultPageProps {
   params: Promise<{ id: string }>;

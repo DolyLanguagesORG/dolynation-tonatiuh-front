@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui";
  */
 export function RegisterFlow() {
   const flow = useRegisterFlow();
-  const { t, locale } = flow;
+  const { t } = flow;
 
   return (
     <AuthShell
@@ -28,14 +28,11 @@ export function RegisterFlow() {
             isAuthenticated={flow.isAuthenticated}
             onboarding={flow.onboarding}
             stepsLabels={t.auth.stepper.steps}
+            ariaLabel={t.meta.stepperAriaLabel}
           />
           <div className="flex items-center justify-between gap-2 px-1">
-            <Badge variant="outline">
-              {locale === "es" ? "PASO 01 / 04" : "STEP 01 / 04"}
-            </Badge>
-            <Badge variant="secondary">
-              {locale === "es" ? "Creación de Cuenta" : "Account Creation"}
-            </Badge>
+            <Badge variant="outline">{t.auth.register.stepBadge}</Badge>
+            <Badge variant="secondary">{t.auth.register.sectionBadge}</Badge>
           </div>
         </div>
       }

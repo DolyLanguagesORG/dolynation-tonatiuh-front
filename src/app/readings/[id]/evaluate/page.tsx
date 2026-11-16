@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
 
 import { EvaluationView } from "@/app/readings/[id]/evaluate/_components/evaluation-view";
+import { getDictionary } from "@/i18n";
+import { getServerLocale } from "@/i18n/server-locale";
 
-export const metadata: Metadata = {
-  title: "Evaluación de Comprensión | DolyNation",
-  description:
-    "Redacta tu resumen contextual y recibe evaluación inteligente sobre retención temática, léxico y claridad.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale();
+  const t = getDictionary(locale);
+  return {
+    title: t.readings.eval.title,
+    description: t.readings.eval.criteriaDescription,
+  };
+}
 
 interface EvaluateReadingPageProps {
   params: Promise<{ id: string }>;

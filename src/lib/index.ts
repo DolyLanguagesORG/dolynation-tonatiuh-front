@@ -31,6 +31,7 @@ export {
   findTokenSpanInParagraphs,
   formatReadingDate,
   formatReadingLanguageBadge,
+  getDateLocale,
   getDifficultyMeta,
   getSpeechLocale,
   MAX_LOOKUP_SELECTION_CHARS,

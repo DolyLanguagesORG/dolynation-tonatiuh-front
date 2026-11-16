@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
 import { type ReactNode } from "react";
 
-export const metadata: Metadata = {
-  title: "Generación de Lectura",
-  description:
-    "Configuración y selección de parámetros de estudio (idioma, categoría, dificultad, longitud) para lecturas asistidas por IA.",
-};
+import { getDictionary } from "@/i18n";
+import { getServerLocale } from "@/i18n/server-locale";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale();
+  const t = getDictionary(locale);
+  return {
+    title: t.study.pageTitle,
+    description: t.study.pageSubtitle,
+  };
+}
 
 export default function GenerateLayout({ children }: { children: ReactNode }) {
   return children;

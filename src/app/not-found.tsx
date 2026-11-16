@@ -1,3 +1,5 @@
+"use client";
+
 import {
   ActionLink,
   Badge,
@@ -7,20 +9,22 @@ import {
   Icon,
   Text,
 } from "@/components/ui";
+import { useLocale } from "@/i18n";
 
 export default function NotFound() {
+  const { t } = useLocale();
+
   return (
     <Container size="md" className="py-12">
       <Card padding="lg" className="flex flex-col items-start gap-5">
-        <Badge variant="primary">[ERROR 404] ARCHIVO NO LOCALIZADO</Badge>
+        <Badge variant="primary">{t.errors.notFoundEyebrow}</Badge>
 
         <div className="flex flex-col gap-2">
           <Heading as="h1" variant="display" mainHeading>
-            Expediente o lectura no encontrada
+            {t.errors.notFoundTitle}
           </Heading>
           <Text variant="editorial" tone="muted" className="italic">
-            La ruta solicitada no existe en el catálogo editorial de DolyNation
-            o ha sido trasladada.
+            {t.errors.notFoundDescription}
           </Text>
         </div>
 
@@ -30,7 +34,7 @@ export default function NotFound() {
           size="md"
           leftIcon={<Icon name="arrow-left" size="sm" />}
         >
-          Volver al inicio académico
+          {t.errors.notFoundHome}
         </ActionLink>
       </Card>
     </Container>

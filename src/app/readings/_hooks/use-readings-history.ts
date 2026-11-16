@@ -22,7 +22,7 @@ const PAGE_SIZE = 5;
  * Hook de estado, filtrado y paginación para el historial de lecturas (`/readings`).
  */
 export function useReadingsHistory() {
-  const { locale } = useLocale();
+  const { locale, t } = useLocale();
   const { user, isAuthenticated } = useAuth();
 
   const [allReadings, setAllReadings] = useState<ReadingDto[]>([]);
@@ -84,9 +84,7 @@ export function useReadingsHistory() {
           setErrorMessage(
             reason instanceof ApiClientError
               ? reason.getUserMessage(locale)
-              : locale === "es"
-                ? "No pudimos cargar tu historial de lecturas en este momento."
-                : "Could not load your reading history right now.",
+              : t.readings.fetchErrorFallback,
           );
         } else {
           setErrorMessage(null);
@@ -101,7 +99,7 @@ export function useReadingsHistory() {
     return () => {
       cancelled = true;
     };
-  }, [fetchKey, locale]);
+  }, [fetchKey, locale, t]);
 
   const counts = useMemo(() => {
     let pending = 0;
@@ -200,19 +198,13 @@ export function useReadingsHistory() {
     try {
       await readingsService.remove(readingId);
       setAllReadings((prev) => prev.filter((item) => item.id !== readingId));
-      setDeleteNotice(
-        locale === "es"
-          ? "Lectura eliminada correctamente."
-          : "Reading deleted successfully.",
-      );
+      setDeleteNotice(t.readings.deleteSuccessNotice);
       return true;
     } catch (error) {
       setDeleteError(
         error instanceof ApiClientError
           ? error.getUserMessage(locale)
-          : locale === "es"
-            ? "No fue posible eliminar la lectura."
-            : "Could not delete the reading.",
+          : t.readings.deleteFailedFallback,
       );
       return false;
     } finally {

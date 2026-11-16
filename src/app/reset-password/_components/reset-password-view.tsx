@@ -31,7 +31,8 @@ import { evaluatePasswordStrength } from "@/lib/password-strength";
  * Vista `/reset-password?token=...` conectada a `POST /api/v1/auth/reset-password`.
  */
 export function ResetPasswordView() {
-  const { locale } = useLocale();
+  const { locale, t } = useLocale();
+  const rp = t.auth.resetPassword;
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = useMemo(
@@ -81,20 +82,12 @@ export function ResetPasswordView() {
     }
 
     if (password.length < 8 || password.length > 128) {
-      setFieldError(
-        locale === "es"
-          ? "La contraseña debe tener entre 8 y 128 caracteres."
-          : "Password must be between 8 and 128 characters.",
-      );
+      setFieldError(rp.lengthError);
       return;
     }
 
     if (password !== confirmPassword) {
-      setConfirmError(
-        locale === "es"
-          ? "Las contraseñas no coinciden."
-          : "Passwords do not match.",
-      );
+      setConfirmError(rp.mismatchError);
       return;
     }
 
@@ -128,27 +121,19 @@ export function ResetPasswordView() {
   return (
     <Container size="sm" className="flex flex-col items-center py-6 sm:py-10">
       <div className="mb-8 flex flex-col items-center gap-2 text-center">
-        <Eyebrow tone="muted">
-          {locale === "es"
-            ? "ACTUALIZACIÓN DE CREDENCIALES"
-            : "CREDENTIAL UPDATE"}
-        </Eyebrow>
+        <Eyebrow tone="muted">{rp.eyebrow}</Eyebrow>
         <Heading as="h1" id="main-heading" variant="display">
-          {locale === "es" ? "Nueva Contraseña" : "Set New Password"}
+          {rp.title}
         </Heading>
         <Text variant="lead" tone="muted" className="max-w-md">
-          {locale === "es"
-            ? "Define una nueva contraseña segura. Al confirmar, cerraremos tus sesiones activas anteriores por seguridad."
-            : "Choose a new strong password. Confirming will revoke previous active sessions for your security."}
+          {rp.subtitle}
         </Text>
       </div>
 
       <Card padding="lg" className="w-full max-w-md">
         <div className="flex flex-col gap-5">
           <div className="flex items-center justify-between gap-2">
-            <Eyebrow tone="muted">
-              {locale === "es" ? "VALIDACIÓN DE TOKEN" : "TOKEN VALIDATION"}
-            </Eyebrow>
+            <Eyebrow tone="muted">{rp.cardEyebrow}</Eyebrow>
             <Badge
               variant={
                 isSuccess
@@ -159,16 +144,10 @@ export function ResetPasswordView() {
               }
             >
               {isSuccess
-                ? locale === "es"
-                  ? "CONTRASEÑA ACTUALIZADA"
-                  : "PASSWORD UPDATED"
+                ? rp.badgeUpdated
                 : hasInvalidOrMissingToken
-                  ? locale === "es"
-                    ? "ENLACE INVÁLIDO"
-                    : "INVALID LINK"
-                  : locale === "es"
-                    ? "ENLACE DETECTADO"
-                    : "LINK DETECTED"}
+                  ? rp.badgeInvalid
+                  : rp.badgeDetected}
             </Badge>
           </div>
 
@@ -176,26 +155,16 @@ export function ResetPasswordView() {
             <Alert
               variant="error"
               code={ErrorCode.AUTH_EMAIL_TOKEN_INVALID}
-              title={
-                locale === "es"
-                  ? "Falta el token de restablecimiento"
-                  : "Missing reset token"
-              }
+              title={rp.missingTokenTitle}
             >
-              {locale === "es"
-                ? "Abre el enlace directamente desde tu correo electrónico o solicita un nuevo correo de recuperación."
-                : "Open the link directly from your email or request a new recovery link."}
+              {rp.missingTokenBody}
             </Alert>
           )}
 
           {apiError && (
             <Alert
               variant="error"
-              title={
-                locale === "es"
-                  ? "No se pudo actualizar la contraseña"
-                  : "Could not update password"
-              }
+              title={rp.errorTitle}
               code={apiError.code}
               onDismiss={() => setApiError(null)}
             >
@@ -205,17 +174,8 @@ export function ResetPasswordView() {
 
           {isSuccess ? (
             <div className="flex flex-col gap-4">
-              <Alert
-                variant="success"
-                title={
-                  locale === "es"
-                    ? "¡Contraseña restablecida!"
-                    : "Password updated!"
-                }
-              >
-                {locale === "es"
-                  ? "Tu contraseña se actualizó y se cerraron las sesiones previas. Redirigiendo a inicio de sesión..."
-                  : "Your password was updated and previous sessions were signed out. Redirecting to sign in..."}
+              <Alert variant="success" title={rp.successTitle}>
+                {rp.successBody}
               </Alert>
 
               <ActionLink
@@ -224,9 +184,7 @@ export function ResetPasswordView() {
                 size="md"
                 rightIcon={<Icon name="arrow-right" size="sm" />}
               >
-                {locale === "es"
-                  ? "Ir a iniciar sesión ahora"
-                  : "Go to sign in now"}
+                {rp.goToLoginButton}
               </ActionLink>
             </div>
           ) : !token ? (
@@ -237,14 +195,10 @@ export function ResetPasswordView() {
                 size="md"
                 rightIcon={<Icon name="arrow-right" size="sm" />}
               >
-                {locale === "es"
-                  ? "Solicitar nuevo enlace"
-                  : "Request a new link"}
+                {rp.requestNewLinkButton}
               </ActionLink>
               <ActionLink href="/login" variant="secondary" size="sm">
-                {locale === "es"
-                  ? "Volver a iniciar sesión"
-                  : "Back to sign in"}
+                {rp.backToLoginButton}
               </ActionLink>
             </div>
           ) : (
@@ -259,16 +213,14 @@ export function ResetPasswordView() {
                   name="password"
                   autoComplete="new-password"
                   minLength={8}
-                  label={
-                    locale === "es" ? "Nueva contraseña" : "New password"
-                  }
+                  label={rp.newPasswordLabel}
                   placeholder="••••••••••••"
                   value={password}
                   disabled={isSubmitting}
                   required
                   toggleStyle="text"
-                  showLabel={locale === "es" ? "Mostrar" : "Show"}
-                  hideLabel={locale === "es" ? "Ocultar" : "Hide"}
+                  showLabel={rp.showPassword}
+                  hideLabel={rp.hidePassword}
                   error={fieldError ?? undefined}
                   onChange={(event) => {
                     setPassword(event.target.value);
@@ -278,11 +230,7 @@ export function ResetPasswordView() {
                 <SegmentedMeter
                   activeCount={strength.activeSegments}
                   total={3}
-                  caption={
-                    locale === "es"
-                      ? "Mínimo 8 caracteres; combina mayúsculas, minúsculas y números."
-                      : "Minimum 8 characters; combine upper/lowercase letters and numbers."
-                  }
+                  caption={rp.requirementsHint}
                   statusLabel={strength.label}
                   tone={strength.tone}
                 />
@@ -293,18 +241,14 @@ export function ResetPasswordView() {
                 name="confirmPassword"
                 autoComplete="new-password"
                 minLength={8}
-                label={
-                  locale === "es"
-                    ? "Confirmar nueva contraseña"
-                    : "Confirm new password"
-                }
+                label={rp.confirmPasswordLabel}
                 placeholder="••••••••••••"
                 value={confirmPassword}
                 disabled={isSubmitting}
                 required
                 toggleStyle="text"
-                showLabel={locale === "es" ? "Mostrar" : "Show"}
-                hideLabel={locale === "es" ? "Ocultar" : "Hide"}
+                showLabel={rp.showPassword}
+                hideLabel={rp.hidePassword}
                 error={confirmError ?? undefined}
                 onChange={(event) => {
                   setConfirmPassword(event.target.value);
@@ -321,13 +265,7 @@ export function ResetPasswordView() {
                 rightIcon={<Icon name="check" size="sm" />}
                 className="normal-case tracking-normal"
               >
-                {isSubmitting
-                  ? locale === "es"
-                    ? "Guardando contraseña..."
-                    : "Saving password..."
-                  : locale === "es"
-                    ? "Guardar nueva contraseña"
-                    : "Save new password"}
+                {isSubmitting ? rp.savingButton : rp.saveButton}
               </Button>
 
               {hasInvalidOrMissingToken && (
@@ -336,9 +274,7 @@ export function ResetPasswordView() {
                   variant="secondary"
                   size="sm"
                 >
-                  {locale === "es"
-                    ? "Solicitar un nuevo enlace por correo"
-                    : "Request a new email link"}
+                  {rp.requestAnotherLinkButton}
                 </ActionLink>
               )}
             </form>
@@ -351,7 +287,7 @@ export function ResetPasswordView() {
           href="/login"
           className="font-semibold text-ink underline underline-offset-4 hover:text-muted"
         >
-          {locale === "es" ? "← Volver a iniciar sesión" : "← Back to sign in"}
+          {rp.footerBackLink}
         </Link>
       </div>
     </Container>

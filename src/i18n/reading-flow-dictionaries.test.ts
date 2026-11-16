@@ -46,6 +46,29 @@ describe("readingFlowDictionaries", () => {
       expect(dict.readings.eval.submitButton).toBeTruthy();
       expect(dict.readings.result.completedBadge).toBeTruthy();
       expect(dict.readings.errors.loadReadingFailed).toBeTruthy();
+      expect(dict.glossary.entryTypeWord).toBeTruthy();
+      expect(dict.glossary.entryTypePhrase).toBeTruthy();
+      expect(dict.glossary.savedBadge).toBeTruthy();
+      expect(dict.glossary.readingContextLabel).toBeTruthy();
+      expect(dict.glossary.literalLabel).toBeTruthy();
+      expect(dict.glossary.breakdownLabel).toBeTruthy();
+      expect(dict.glossary.alternativesLabel).toBeTruthy();
+      expect(dict.glossary.otherContextsLabel).toBeTruthy();
+      expect(dict.glossary.openReadingButton).toBeTruthy();
+      expect(dict.glossary.readingUnavailableBadge).toBeTruthy();
+      expect(dict.glossary.readingUnavailableNotice).toBeTruthy();
+      expect(dict.glossary.showDetailsButton).toBeTruthy();
+      expect(dict.glossary.hideDetailsButton).toBeTruthy();
+      expect(dict.glossary.roleLabel).toBeTruthy();
+      expect(dict.readingCard.statusCompleted).toBeTruthy();
+      expect(dict.readingCard.statusPendingEvaluation).toBeTruthy();
+      expect(dict.readingCard.minReadUnit).toBeTruthy();
+      expect(dict.readingCard.wordsUnit).toBeTruthy();
+      expect(dict.readingCard.feedbackButton).toBeTruthy();
+      expect(dict.readingCard.rereadButton).toBeTruthy();
+      expect(dict.readingCard.deleteReadingLabel).toBeTruthy();
+      expect(dict.readingCard.confirmDeleteButton).toBeTruthy();
+      expect(dict.readingCard.cancelDeleteButton).toBeTruthy();
     }
 
     const fr = getReadingFlowDictionary("fr");
@@ -57,6 +80,9 @@ describe("readingFlowDictionaries", () => {
     expect(fr.readings.backToConfigButton).toBe("Revenir à la configuration");
     expect(fr.readings.eval.submitButton).toMatch(/Envoyer le résumé/i);
     expect(fr.readings.result.sessionFooterStandard).toBe("");
+    expect(fr.glossary.savedBadge).toBe("ENREGISTRÉ");
+    expect(fr.glossary.openReadingButton).toBe("Ouvrir la lecture");
+    expect(fr.glossary.readingUnavailableBadge).toBe("Lecture indisponible");
 
     const itDict = getReadingFlowDictionary("it");
     expect(itDict.readings.backToReadings).toBe("TORNA ALLE LETTURE");
@@ -69,6 +95,9 @@ describe("readingFlowDictionaries", () => {
     expect(itDict.readings.backToConfigButton).toBe("Torna alla configurazione");
     expect(itDict.readings.eval.submitButton).toMatch(/Invia riassunto/i);
     expect(itDict.readings.result.sessionFooterStandard).toBe("");
+    expect(itDict.glossary.savedBadge).toBe("SALVATO");
+    expect(itDict.glossary.openReadingButton).toBe("Apri lettura");
+    expect(itDict.glossary.readingUnavailableBadge).toBe("Lettura non disponibile");
   });
 
   it("syncs documentElement.lang while active in immersion and restores the prior lang on unmount", () => {

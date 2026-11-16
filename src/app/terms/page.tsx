@@ -1,13 +1,19 @@
 import type { Metadata } from "next";
 
 import { InfoPageView } from "@/components/legal/info-page-view";
+import { loadLegalDocument, loadLegalDocuments } from "@/i18n/server-legal-docs";
+import { getServerLocale } from "@/i18n/server-locale";
 
-export const metadata: Metadata = {
-  title: "Términos Académicos de Uso",
-  description:
-    "Condiciones de cuenta, planes de suscripción y uso educativo de DolyNation.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale();
+  const doc = loadLegalDocument("terms", locale);
+  return {
+    title: doc.title,
+    description: doc.intro,
+  };
+}
 
 export default function TermsPage() {
-  return <InfoPageView kind="terms" />;
+  const docs = loadLegalDocuments("terms");
+  return <InfoPageView kind="terms" docs={docs} />;
 }

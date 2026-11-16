@@ -25,11 +25,7 @@ export function ReadingsHistoryView() {
     <RequireAuth>
       <Container size="xl" className="flex flex-col gap-8">
         <PageHeader
-          eyebrow={
-            locale === "es"
-              ? "[ARCHIVO ACADÉMICO] / HISTORIAL"
-              : "[ACADEMIC ARCHIVE] / HISTORY"
-          }
+          eyebrow={t.readings.historyEyebrow}
           title={t.readings.historyTitle}
           subtitle={t.readings.historySubtitle}
           actions={
@@ -45,14 +41,7 @@ export function ReadingsHistoryView() {
         />
 
         {history.errorMessage && (
-          <Alert
-            variant="error"
-            title={
-              locale === "es"
-                ? "Error al cargar historial"
-                : "Failed to load history"
-            }
-          >
+          <Alert variant="error" title={t.readings.loadHistoryErrorTitle}>
             {history.errorMessage}
           </Alert>
         )}
@@ -60,11 +49,7 @@ export function ReadingsHistoryView() {
         {history.deleteError && (
           <Alert
             variant="error"
-            title={
-              locale === "es"
-                ? "No se pudo eliminar la lectura"
-                : "Could not delete reading"
-            }
+            title={t.readings.deleteErrorTitle}
             onDismiss={() => history.setDeleteError(null)}
           >
             {history.deleteError}
@@ -74,7 +59,7 @@ export function ReadingsHistoryView() {
         {history.deleteNotice && (
           <Alert
             variant="success"
-            title={locale === "es" ? "Archivo actualizado" : "Archive updated"}
+            title={t.readings.syncCompletedTitle}
             onDismiss={() => history.setDeleteNotice(null)}
           >
             {history.deleteNotice}
@@ -96,14 +81,7 @@ export function ReadingsHistoryView() {
         />
 
         {history.isLoading ? (
-          <SkeletonCard
-            lines={5}
-            label={
-              locale === "es"
-                ? "Cargando historial de lecturas"
-                : "Loading reading history"
-            }
-          />
+          <SkeletonCard lines={5} label={t.readings.loadingHistory} />
         ) : (
           <ReadingsHistoryTable
             t={t}

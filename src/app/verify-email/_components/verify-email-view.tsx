@@ -195,7 +195,7 @@ export function VerifyEmailView() {
     router.replace("/login");
   };
 
-  const stepBadgeText = locale === "es" ? "PASO 02 / 04" : "STEP 02 / 04";
+  const stepBadgeText = s2.stepBadge;
   const statusBadgeText =
     tokenState === "verified"
       ? s2.verifiedBadge
@@ -224,6 +224,7 @@ export function VerifyEmailView() {
             isAuthenticated={isAuthenticated}
             onboarding={onboarding}
             stepsLabels={t.auth.stepper.steps}
+            ariaLabel={t.meta.stepperAriaLabel}
           />
           <div className="flex items-center justify-between gap-2 px-1">
             <Badge variant="outline">{stepBadgeText}</Badge>

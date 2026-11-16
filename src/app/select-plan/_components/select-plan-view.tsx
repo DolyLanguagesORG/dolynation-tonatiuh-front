@@ -44,11 +44,7 @@ export function SelectPlanView() {
       <Container size="none" className="w-full max-w-5xl px-0">
         <SkeletonCard
           lines={6}
-          label={
-            locale === "es"
-              ? "Cargando planes de suscripción"
-              : "Loading subscription plans"
-          }
+          label={t.auth.stepper.step3Plan.loadingLabel}
         />
       </Container>
     );
@@ -73,20 +69,15 @@ export function SelectPlanView() {
       if (error instanceof ApiClientError) {
         setPlanError(error.getUserMessage(locale));
       } else {
-        setPlanError(
-          locale === "es"
-            ? "No fue posible registrar tu plan de suscripción. Inténtalo de nuevo."
-            : "Could not save your subscription plan. Please try again.",
-        );
+        setPlanError(t.auth.stepper.step3Plan.saveErrorFallback);
       }
     } finally {
       setIsSubmittingPlan(false);
     }
   };
 
-  const stepBadge = locale === "es" ? "PASO 03 / 04" : "STEP 03 / 04";
-  const sectionLabel =
-    locale === "es" ? "Suscripción Académica" : "Academic Subscription";
+  const stepBadge = t.auth.stepper.step3Plan.stepBadge;
+  const sectionLabel = t.auth.stepper.step3Plan.sectionBadge;
 
   return (
     <AuthShell
@@ -100,6 +91,7 @@ export function SelectPlanView() {
             isAuthenticated={isAuthenticated}
             onboarding={onboarding}
             stepsLabels={t.auth.stepper.steps}
+            ariaLabel={t.meta.stepperAriaLabel}
           />
           <div className="flex items-center justify-between gap-2 px-1">
             <Badge variant="outline">{stepBadge}</Badge>

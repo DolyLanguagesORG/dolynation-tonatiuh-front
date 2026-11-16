@@ -265,6 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isBootstrappedRef = useRef(false);
   const isUnloadingRef = useRef(false);
+  const authTransitionEpochRef = useRef(0);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -296,6 +297,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearSessionState = useCallback(
     (options?: { preservePendingEmail?: boolean }): void => {
+      authTransitionEpochRef.current += 1;
       clearBrowserSessionHints(options);
       setUser(null);
       setSubscription(null);
@@ -312,10 +314,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   /**
-   * Sincroniza suscripción, idiomas y categorías actuales cuando ya hay plan activo.
+   * Recupera suscripción, idiomas y categorías actuales sin publicar estado parcial
+   * hasta completar el lote completo.
    */
-  const syncSubscribedAccountSettings = useCallback(
-    async (authenticatedUser: AuthUser): Promise<void> => {
+  const fetchSubscribedAccountSettings = useCallback(
+    async (authenticatedUser: AuthUser) => {
       const [subResult, langResult, catResult] = await Promise.allSettled([
         subscriptionsService.getCurrentSubscription(),
         settingsService.getLanguages(),
@@ -329,44 +332,83 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const nextCategories =
         catResult.status === "fulfilled" ? catResult.value.data : null;
 
-      setSubscription(nextSubscription);
-      setLanguagesSettings(nextLanguages);
-      setCategoriesSettings(nextCategories);
-
       const resolvedTier =
         nextSubscription?.tier ?? authenticatedUser.subscriptionTier ?? null;
       const selectedLanguages = nextLanguages?.selected ?? [];
       const selectedCategories = nextCategories?.selected ?? [];
 
-      setOnboarding(
-        buildOnboardingState({
+      return {
+        nextSubscription,
+        nextLanguages,
+        nextCategories,
+        nextOnboarding: buildOnboardingState({
           emailVerified: Boolean(authenticatedUser.emailVerifiedAt),
           tier: resolvedTier,
           selectedLanguages,
           selectedCategories,
         }),
-      );
+      };
     },
     [],
   );
 
+  const applySubscribedAccountSettings = useCallback(
+    (settingsSnapshot: {
+      nextSubscription: UserSubscriptionResponse | null;
+      nextLanguages: LanguagesSettings | null;
+      nextCategories: CategoriesSettings | null;
+      nextOnboarding: OnboardingState;
+    }): void => {
+      setSubscription(settingsSnapshot.nextSubscription);
+      setLanguagesSettings(settingsSnapshot.nextLanguages);
+      setCategoriesSettings(settingsSnapshot.nextCategories);
+      setOnboarding(settingsSnapshot.nextOnboarding);
+    },
+    [],
+  );
+
+  /**
+   * Sincroniza suscripción, idiomas y categorías actuales cuando ya hay plan activo.
+   */
+  const syncSubscribedAccountSettings = useCallback(
+    async (authenticatedUser: AuthUser): Promise<void> => {
+      const transitionEpoch = authTransitionEpochRef.current;
+      const settingsSnapshot =
+        await fetchSubscribedAccountSettings(authenticatedUser);
+      if (authTransitionEpochRef.current !== transitionEpoch) {
+        return;
+      }
+      applySubscribedAccountSettings(settingsSnapshot);
+    },
+    [applySubscribedAccountSettings, fetchSubscribedAccountSettings],
+  );
+
   const applyAuthenticatedUser = useCallback(
     async (authenticatedUser: AuthUser): Promise<void> => {
-      updatePendingVerificationEmail(null);
-      setUser(authenticatedUser);
-      saveUserSnapshot(authenticatedUser);
-      setStatus("authenticated");
+      const transitionEpoch = ++authTransitionEpochRef.current;
 
       if (authenticatedUser.subscriptionTier) {
+        // Publicamos usuario, estado `authenticated` y onboarding completo en el mismo
+        // commit tras resolver suscripción/idiomas/categorías para evitar destellos de gates en `/`.
+        const settingsSnapshot =
+          await fetchSubscribedAccountSettings(authenticatedUser);
+        if (authTransitionEpochRef.current !== transitionEpoch) {
+          return;
+        }
+        updatePendingVerificationEmail(null);
+        saveUserSnapshot(authenticatedUser);
+        applySubscribedAccountSettings(settingsSnapshot);
+        setUser(authenticatedUser);
         setSubscriptionRequired(false);
-        await syncSubscribedAccountSettings(authenticatedUser);
+        setStatus("authenticated");
         return;
       }
 
+      updatePendingVerificationEmail(null);
+      saveUserSnapshot(authenticatedUser);
       setSubscription(null);
       setLanguagesSettings(null);
       setCategoriesSettings(null);
-      setSubscriptionRequired(true);
       setOnboarding(
         buildOnboardingState({
           emailVerified: true,
@@ -375,8 +417,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           selectedCategories: [],
         }),
       );
+      setUser(authenticatedUser);
+      setSubscriptionRequired(true);
+      setStatus("authenticated");
     },
-    [syncSubscribedAccountSettings, updatePendingVerificationEmail],
+    [
+      applySubscribedAccountSettings,
+      fetchSubscribedAccountSettings,
+      updatePendingVerificationEmail,
+    ],
   );
 
   const reloadAccountState = useCallback(async (): Promise<void> => {
@@ -437,6 +486,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Nunca borramos `doly_session` ante un abort de navegación o fallo de red.
         const snapshot = loadUserSnapshot();
         if (snapshot) {
+          setOnboarding(
+            buildOnboardingState({
+              emailVerified: Boolean(snapshot.emailVerifiedAt),
+              tier: snapshot.subscriptionTier ?? null,
+              selectedLanguages: [],
+              selectedCategories: [],
+            }),
+          );
           setUser(snapshot);
           setSubscriptionRequired(!snapshot.subscriptionTier);
           setStatus("authenticated");
@@ -634,12 +691,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const selectPlan = useCallback(
     async (plan: SubscriptionPlanId): Promise<UserSubscriptionResponse> => {
+      const transitionEpoch = ++authTransitionEpochRef.current;
       const response = await subscriptionsService.selectSubscription({
         tier: plan,
       });
       const updatedSubscription = response.data;
-      setSubscription(updatedSubscription);
-      setSubscriptionRequired(false);
 
       const snapshot = loadUserSnapshot();
       const baseUser = user ?? snapshot;
@@ -648,16 +704,33 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ...baseUser,
           subscriptionTier: updatedSubscription.tier,
         };
-        setUser(nextUser);
+        const settingsSnapshot =
+          await fetchSubscribedAccountSettings(nextUser);
+        if (authTransitionEpochRef.current !== transitionEpoch) {
+          return updatedSubscription;
+        }
         saveUserSnapshot(nextUser);
-        await syncSubscribedAccountSettings(nextUser);
+        applySubscribedAccountSettings({
+          ...settingsSnapshot,
+          nextSubscription:
+            settingsSnapshot.nextSubscription ?? updatedSubscription,
+        });
+        setUser(nextUser);
+        setSubscriptionRequired(false);
       } else {
+        setSubscription(updatedSubscription);
+        setSubscriptionRequired(false);
         await reloadAccountState();
       }
 
       return updatedSubscription;
     },
-    [reloadAccountState, syncSubscribedAccountSettings, user],
+    [
+      applySubscribedAccountSettings,
+      fetchSubscribedAccountSettings,
+      reloadAccountState,
+      user,
+    ],
   );
 
   const selectLanguages = useCallback(

@@ -21,7 +21,14 @@ import {
   Pagination,
   Text,
 } from "@/components/ui";
-import { type Dictionary, type Locale } from "@/i18n";
+import {
+  type Dictionary,
+  formatMessage,
+  getReadingFlowDictionary,
+  type Locale,
+  type ReadingFlowDictionary,
+  resolveReadingLanguage,
+} from "@/i18n";
 import {
   estimateReadingMinutes,
   formatReadingDate,
@@ -44,10 +51,32 @@ export interface ReadingsHistoryTableProps {
   onDeleteReading: (readingId: number) => Promise<boolean>;
 }
 
+function buildReadingRowPresentation(
+  reading: ReadingDto,
+  fallbackLocale: Locale,
+) {
+  const cardLanguage = resolveReadingLanguage(reading.language, fallbackLocale);
+  const cardDict = getReadingFlowDictionary(cardLanguage);
+  const diffMeta = getDifficultyMeta(reading.difficulty, cardLanguage);
+  const estMinutes = estimateReadingMinutes(reading.wordCount, reading.content);
+  const isEvaluated = typeof reading.score === "number";
+  const categoryLabel = (
+    reading.category ?? cardDict.readingCard.defaultCategory
+  ).toUpperCase();
+
+  return {
+    cardLanguage,
+    cardDict,
+    diffMeta,
+    estMinutes,
+    isEvaluated,
+    categoryLabel,
+  };
+}
+
 interface ReadingActionControlsProps {
   reading: ReadingDto;
-  t: Dictionary;
-  locale: Locale;
+  cardDict: ReadingFlowDictionary;
   isEvaluated: boolean;
   confirmingDeleteId: number | null;
   deletingId: number | null;
@@ -57,8 +86,7 @@ interface ReadingActionControlsProps {
 
 function ReadingActionControls({
   reading,
-  t,
-  locale,
+  cardDict,
   isEvaluated,
   confirmingDeleteId,
   deletingId,
@@ -80,7 +108,7 @@ function ReadingActionControls({
           leftIcon={<Icon name="trash" size="xs" />}
           onClick={() => onConfirmDelete(reading.id)}
         >
-          {locale === "es" ? "Confirmar" : "Confirm"}
+          {cardDict.readingCard.confirmDeleteButton}
         </Button>
         <Button
           type="button"
@@ -89,7 +117,7 @@ function ReadingActionControls({
           disabled={isDeleting}
           onClick={() => onRequestConfirmDelete(null)}
         >
-          {locale === "es" ? "Cancelar" : "Cancel"}
+          {cardDict.readingCard.cancelDeleteButton}
         </Button>
       </div>
     );
@@ -106,7 +134,9 @@ function ReadingActionControls({
         variant="secondary"
         size="xs"
       >
-        {isEvaluated ? t.readings.detailAction : t.readings.evaluateAction}
+        {isEvaluated
+          ? cardDict.readings.detailAction
+          : cardDict.readings.evaluateAction}
       </ActionLink>
       <ActionLink
         href={`/readings/${reading.id}`}
@@ -115,8 +145,8 @@ function ReadingActionControls({
         rightIcon={<Icon name="arrow-right" size="xs" />}
       >
         {reading.status === "completed"
-          ? t.readings.rereadAction
-          : t.readings.startReadingAction}
+          ? cardDict.readings.rereadAction
+          : cardDict.readings.startReadingAction}
       </ActionLink>
       <IconButton
         type="button"
@@ -125,12 +155,8 @@ function ReadingActionControls({
         variant="outline"
         size="sm"
         disabled={deletingId !== null}
-        aria-label={
-          locale === "es"
-            ? `Eliminar lectura: ${reading.title}`
-            : `Delete reading: ${reading.title}`
-        }
-        title={locale === "es" ? "Eliminar lectura" : "Delete reading"}
+        aria-label={`${cardDict.readingCard.deleteReadingLabel}: ${reading.title}`}
+        title={cardDict.readingCard.deleteReadingLabel}
         onClick={() => onRequestConfirmDelete(reading.id)}
       />
     </div>
@@ -182,7 +208,7 @@ export function ReadingsHistoryTable({
             </ActionLink>
             {hasActiveFilters && (
               <Button variant="secondary" size="md" onClick={onResetFilters}>
-                {locale === "es" ? "Restablecer filtros" : "Reset filters"}
+                {t.readings.resetFiltersButton}
               </Button>
             )}
           </>
@@ -191,10 +217,10 @@ export function ReadingsHistoryTable({
     );
   }
 
-  const summaryText =
-    locale === "es"
-      ? `Mostrando ${readings.length} de ${totalFilteredCount} lecturas`
-      : `Showing ${readings.length} of ${totalFilteredCount} readings`;
+  const summaryText = formatMessage(t.readings.showingSummary, {
+    visible: readings.length,
+    total: totalFilteredCount,
+  });
 
   return (
     <div className="flex flex-col gap-4">
@@ -220,15 +246,17 @@ export function ReadingsHistoryTable({
 
             <DataTableBody>
               {readings.map((reading) => {
-                const diffMeta = getDifficultyMeta(reading.difficulty, locale);
-                const estMinutes = estimateReadingMinutes(
-                  reading.wordCount,
-                  reading.content,
-                );
-                const isEvaluated = typeof reading.score === "number";
+                const {
+                  cardLanguage,
+                  cardDict,
+                  diffMeta,
+                  estMinutes,
+                  isEvaluated,
+                  categoryLabel,
+                } = buildReadingRowPresentation(reading, locale);
 
                 return (
-                  <DataTableRow key={reading.id}>
+                  <DataTableRow key={reading.id} lang={cardLanguage}>
                     <DataTableCell className="max-w-xs whitespace-normal">
                       <Link
                         href={`/readings/${reading.id}`}
@@ -237,20 +265,20 @@ export function ReadingsHistoryTable({
                         {reading.title}
                       </Link>
                       <p className="mt-0.5 font-mono text-[11px] text-muted uppercase">
-                        {(reading.category ?? "GENERAL").toUpperCase()} •{" "}
-                        {estMinutes} {t.readings.estimatedReadUnit}
+                        {categoryLabel} • {estMinutes}{" "}
+                        {cardDict.readings.estimatedReadUnit}
                       </p>
                     </DataTableCell>
 
                     <DataTableCell>
                       <Badge variant="secondary">
-                        {formatReadingLanguageBadge(reading.language, locale)}
+                        {formatReadingLanguageBadge(cardLanguage, cardLanguage)}
                       </Badge>
                     </DataTableCell>
 
                     <DataTableCell>
                       <Badge variant={diffMeta.badgeVariant}>
-                        {diffMeta.label} • {diffMeta.cefrBadge}
+                        {diffMeta.label}
                       </Badge>
                     </DataTableCell>
 
@@ -261,20 +289,19 @@ export function ReadingsHistoryTable({
                         </Badge>
                       ) : (
                         <Badge variant="outline">
-                          {locale === "es" ? "PENDIENTE" : "PENDING"}
+                          {cardDict.readings.result.pendingBadge}
                         </Badge>
                       )}
                     </DataTableCell>
 
                     <DataTableCell className="font-mono text-xs text-muted">
-                      {formatReadingDate(reading.createdAt, locale)}
+                      {formatReadingDate(reading.createdAt, cardLanguage)}
                     </DataTableCell>
 
                     <DataTableCell className="text-right">
                       <ReadingActionControls
                         reading={reading}
-                        t={t}
-                        locale={locale}
+                        cardDict={cardDict}
                         isEvaluated={isEvaluated}
                         confirmingDeleteId={confirmingDeleteId}
                         deletingId={deletingId}
@@ -294,18 +321,29 @@ export function ReadingsHistoryTable({
 
       <div className="flex flex-col gap-3 md:hidden">
         {readings.map((reading) => {
-          const diffMeta = getDifficultyMeta(reading.difficulty, locale);
-          const isEvaluated = typeof reading.score === "number";
+          const {
+            cardLanguage,
+            cardDict,
+            diffMeta,
+            isEvaluated,
+            categoryLabel,
+          } = buildReadingRowPresentation(reading, locale);
 
           return (
-            <Card key={reading.id} padding="md" className="flex flex-col gap-3">
+            <Card
+              key={reading.id}
+              as="article"
+              lang={cardLanguage}
+              padding="md"
+              className="flex flex-col gap-3"
+            >
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex flex-wrap items-center gap-1.5">
                   <Badge variant="secondary">
-                    {formatReadingLanguageBadge(reading.language, locale)}
+                    {formatReadingLanguageBadge(cardLanguage, cardLanguage)}
                   </Badge>
                   <Badge variant={diffMeta.badgeVariant}>
-                    {diffMeta.cefrBadge}
+                    {diffMeta.label}
                   </Badge>
                 </div>
 
@@ -315,7 +353,7 @@ export function ReadingsHistoryTable({
                   </Badge>
                 ) : (
                   <Badge variant="outline">
-                    {locale === "es" ? "PENDIENTE" : "PENDING"}
+                    {cardDict.readings.result.pendingBadge}
                   </Badge>
                 )}
               </div>
@@ -325,16 +363,15 @@ export function ReadingsHistoryTable({
                   {reading.title}
                 </Heading>
                 <Text variant="caption" tone="muted" className="font-mono uppercase">
-                  {formatReadingDate(reading.createdAt, locale)} •{" "}
-                  {(reading.category ?? "GENERAL").toUpperCase()}
+                  {formatReadingDate(reading.createdAt, cardLanguage)} •{" "}
+                  {categoryLabel}
                 </Text>
               </div>
 
               <div className="flex flex-wrap items-center justify-end gap-2 border-t border-default pt-3">
                 <ReadingActionControls
                   reading={reading}
-                  t={t}
-                  locale={locale}
+                  cardDict={cardDict}
                   isEvaluated={isEvaluated}
                   confirmingDeleteId={confirmingDeleteId}
                   deletingId={deletingId}
@@ -355,8 +392,9 @@ export function ReadingsHistoryTable({
         totalItems={totalFilteredCount}
         visibleItemsCount={readings.length}
         onPageChange={onPageChange}
-        previousLabel={locale === "es" ? "ANTERIOR" : "PREVIOUS"}
-        nextLabel={locale === "es" ? "SIGUIENTE" : "NEXT"}
+        previousLabel={t.meta.paginationPrevious}
+        nextLabel={t.meta.paginationNext}
+        ariaLabel={t.meta.paginationAriaLabel}
         summaryText={summaryText}
       />
     </div>

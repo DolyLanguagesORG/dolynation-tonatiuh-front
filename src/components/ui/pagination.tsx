@@ -13,6 +13,7 @@ export interface PaginationProps {
   previousLabel?: string;
   nextLabel?: string;
   summaryText?: string;
+  ariaLabel?: string;
   className?: string;
 }
 
@@ -29,6 +30,7 @@ export function Pagination({
   previousLabel = "ANTERIOR",
   nextLabel = "SIGUIENTE",
   summaryText,
+  ariaLabel = "Paginación de registros",
   className = "",
 }: PaginationProps) {
   const safeTotalPages = Math.max(1, totalPages);
@@ -37,7 +39,7 @@ export function Pagination({
 
   return (
     <nav
-      aria-label="Paginación de registros"
+      aria-label={ariaLabel}
       className={`flex flex-wrap items-center justify-between gap-3 pt-4 ${className}`.trim()}
     >
       <Text variant="caption" tone="muted" className="font-mono uppercase">

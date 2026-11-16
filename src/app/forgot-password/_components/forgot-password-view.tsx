@@ -16,7 +16,7 @@ import {
   Input,
   Text,
 } from "@/components/ui";
-import { useLocale } from "@/i18n";
+import { formatMessage, useLocale } from "@/i18n";
 import {
   ApiClientError,
   authService,
@@ -30,7 +30,8 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
  * Vista `/forgot-password` conectada a `POST /api/v1/auth/forgot-password`.
  */
 export function ForgotPasswordView() {
-  const { locale } = useLocale();
+  const { locale, t } = useLocale();
+  const fp = t.auth.forgotPassword;
   const [email, setEmail] = useState("");
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<{
@@ -44,11 +45,7 @@ export function ForgotPasswordView() {
     event.preventDefault();
     const trimmed = email.trim().toLowerCase();
     if (!EMAIL_REGEX.test(trimmed)) {
-      setFieldError(
-        locale === "es"
-          ? "Ingresa un correo electrónico válido."
-          : "Enter a valid email address.",
-      );
+      setFieldError(fp.invalidEmailError);
       return;
     }
 
@@ -79,44 +76,28 @@ export function ForgotPasswordView() {
   return (
     <Container size="sm" className="flex flex-col items-center py-6 sm:py-10">
       <div className="mb-8 flex flex-col items-center gap-2 text-center">
-        <Eyebrow tone="muted">
-          {locale === "es" ? "RECUPERACIÓN DE CUENTA" : "ACCOUNT RECOVERY"}
-        </Eyebrow>
+        <Eyebrow tone="muted">{fp.eyebrow}</Eyebrow>
         <Heading as="h1" id="main-heading" variant="display">
-          {locale === "es" ? "Restablecer Contraseña" : "Reset Password"}
+          {fp.title}
         </Heading>
         <Text variant="lead" tone="muted" className="max-w-md">
-          {locale === "es"
-            ? "Ingresa tu correo electrónico registrado y te enviaremos un enlace seguro de un solo uso para definir una nueva contraseña."
-            : "Enter your registered email address and we will send a secure single-use link to set a new password."}
+          {fp.subtitle}
         </Text>
       </div>
 
       <Card padding="lg" className="w-full max-w-md">
         <div className="flex flex-col gap-5">
           <div className="flex items-center justify-between gap-2">
-            <Eyebrow tone="muted">
-              {locale === "es" ? "SOLICITUD DE ENLACE" : "LINK REQUEST"}
-            </Eyebrow>
+            <Eyebrow tone="muted">{fp.cardEyebrow}</Eyebrow>
             <Badge variant={emailSent ? "primary" : "outline"}>
-              {emailSent
-                ? locale === "es"
-                  ? "CORREO ENVIADO"
-                  : "EMAIL SENT"
-                : locale === "es"
-                  ? "60 MIN DE VIGENCIA"
-                  : "60 MIN VALIDITY"}
+              {emailSent ? fp.badgeSent : fp.badgeValidity}
             </Badge>
           </div>
 
           {apiError && (
             <Alert
               variant="error"
-              title={
-                locale === "es"
-                  ? "No se pudo procesar la solicitud"
-                  : "Request failed"
-              }
+              title={fp.errorTitle}
               code={apiError.code}
               onDismiss={() => setApiError(null)}
             >
@@ -126,17 +107,10 @@ export function ForgotPasswordView() {
 
           {emailSent ? (
             <div className="flex flex-col gap-5">
-              <Alert
-                variant="success"
-                title={
-                  locale === "es"
-                    ? "Revisa tu bandeja de entrada"
-                    : "Check your inbox"
-                }
-              >
-                {locale === "es"
-                  ? `Si existe una cuenta asociada a ${email.trim().toLowerCase()}, recibirás en unos momentos un correo con el enlace para crear una nueva contraseña.`
-                  : `If an account exists for ${email.trim().toLowerCase()}, you will shortly receive an email containing a link to create a new password.`}
+              <Alert variant="success" title={fp.successTitle}>
+                {formatMessage(fp.successBody, {
+                  email: email.trim().toLowerCase(),
+                })}
               </Alert>
 
               <div className="flex flex-col gap-2 sm:flex-row sm:justify-between">
@@ -146,9 +120,7 @@ export function ForgotPasswordView() {
                   size="sm"
                   onClick={() => setEmailSent(false)}
                 >
-                  {locale === "es"
-                    ? "Enviar a otro correo"
-                    : "Use a different email"}
+                  {fp.tryAnotherButton}
                 </Button>
                 <ActionLink
                   href="/login"
@@ -156,9 +128,7 @@ export function ForgotPasswordView() {
                   size="sm"
                   leftIcon={<Icon name="arrow-left" size="xs" />}
                 >
-                  {locale === "es"
-                    ? "Volver a iniciar sesión"
-                    : "Back to sign in"}
+                  {fp.backToLoginButton}
                 </ActionLink>
               </div>
             </div>
@@ -170,12 +140,8 @@ export function ForgotPasswordView() {
                 type="email"
                 inputMode="email"
                 autoComplete="email"
-                label={
-                  locale === "es"
-                    ? "Correo electrónico institucional o personal"
-                    : "Institutional or personal email"
-                }
-                placeholder="estudiante@universidad.edu"
+                label={fp.emailLabel}
+                placeholder={fp.emailPlaceholder}
                 value={email}
                 disabled={isSubmitting}
                 required
@@ -195,13 +161,7 @@ export function ForgotPasswordView() {
                 rightIcon={<Icon name="arrow-right" size="md" />}
                 className="normal-case tracking-normal"
               >
-                {isSubmitting
-                  ? locale === "es"
-                    ? "Enviando enlace..."
-                    : "Sending link..."
-                  : locale === "es"
-                    ? "Enviar enlace de recuperación"
-                    : "Send recovery link"}
+                {isSubmitting ? fp.sendingButton : fp.submitButton}
               </Button>
             </form>
           )}
@@ -209,16 +169,12 @@ export function ForgotPasswordView() {
       </Card>
 
       <div className="mt-6 flex items-center gap-2 text-sm text-body">
-        <span>
-          {locale === "es"
-            ? "¿Recordaste tu contraseña?"
-            : "Remembered your password?"}
-        </span>
+        <span>{fp.rememberedPrompt}</span>
         <Link
           href="/login"
           className="font-semibold text-ink underline underline-offset-4 hover:text-muted"
         >
-          {locale === "es" ? "Inicia sesión" : "Sign in"}
+          {fp.signInLink}
         </Link>
       </div>
     </Container>

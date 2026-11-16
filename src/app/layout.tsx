@@ -1,13 +1,13 @@
 import { ThemeProvider } from "flowbite-react";
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
 import { Geist, Geist_Mono, Newsreader } from "next/font/google";
 
 import { AppShell } from "@/components/layout";
 import { ToastViewport } from "@/components/ui";
 import { dolyFlowbiteTheme } from "@/components/ui/flowbite-theme";
 import { AuthProvider, ToastProvider } from "@/context";
-import { LocaleProvider, type Locale } from "@/i18n";
+import { getDictionary, LocaleProvider } from "@/i18n";
+import { getServerLocale } from "@/i18n/server-locale";
 import { isDesignSystemEnabled } from "@/lib/feature-flags";
 
 import "./globals.css";
@@ -28,19 +28,21 @@ const editorialSerif = Newsreader({
   style: ["normal", "italic"],
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: "DolyNation — Plataforma Lingüística & Lectura Contextual",
-    template: "%s | DolyNation Editorial",
-  },
-  description:
-    "Plataforma académica de adquisición lingüística mediante lectura contextual asistida por inteligencia artificial y evaluación CEFR.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale();
+  const dict = getDictionary(locale);
+
+  return {
+    title: {
+      default: dict.meta.siteTitle,
+      template: "%s | DolyNation Editorial",
+    },
+    description: dict.meta.siteDescription,
+  };
+}
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const cookieStore = await cookies();
-  const rawLocale = cookieStore.get("doly_ui_locale")?.value;
-  const initialLocale: Locale = rawLocale === "en" ? "en" : "es";
+  const initialLocale = await getServerLocale();
   const designSystemEnabled = isDesignSystemEnabled();
 
   return (

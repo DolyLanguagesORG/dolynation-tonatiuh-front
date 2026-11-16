@@ -67,9 +67,9 @@ export const DEFAULT_LANGUAGES: readonly LanguageOption[] = [
 export const DEFAULT_DIFFICULTIES: readonly DifficultyOption[] = [
   {
     id: "easy",
-    title: "Básico",
-    titleEs: "Básico",
-    titleEn: "Beginner",
+    title: "Fácil",
+    titleEs: "Fácil",
+    titleEn: "Easy",
     cefr: "A1 – A2",
     description: "Oraciones directas y vocabulario esencial de uso diario.",
     descriptionEs: "Oraciones directas y vocabulario esencial de uso diario.",
@@ -77,9 +77,9 @@ export const DEFAULT_DIFFICULTIES: readonly DifficultyOption[] = [
   },
   {
     id: "medium",
-    title: "Intermedio",
-    titleEs: "Intermedio",
-    titleEn: "Intermediate",
+    title: "Medio",
+    titleEs: "Medio",
+    titleEn: "Medium",
     cefr: "B1 – B2",
     description:
       "Lectura editorial con matices argumentativos e idiomáticos.",
@@ -89,9 +89,9 @@ export const DEFAULT_DIFFICULTIES: readonly DifficultyOption[] = [
   },
   {
     id: "hard",
-    title: "Avanzado",
-    titleEs: "Avanzado",
-    titleEn: "Advanced",
+    title: "Difícil",
+    titleEs: "Difícil",
+    titleEn: "Hard",
     cefr: "C1 – C2",
     description:
       "Ensayos densos, terminología especializada y sintaxis compleja.",

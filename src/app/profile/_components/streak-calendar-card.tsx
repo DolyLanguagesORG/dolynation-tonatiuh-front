@@ -9,6 +9,7 @@ import {
   Text,
 } from "@/components/ui";
 import { type Dictionary, type Locale } from "@/i18n";
+import { getDateLocale } from "@/lib";
 
 export interface StreakCalendarCardProps {
   t: Dictionary;
@@ -26,10 +27,10 @@ export function StreakCalendarCard({
   currentStreak,
   streakDays,
 }: StreakCalendarCardProps) {
-  const cycleLabel = new Date().toLocaleDateString(
-    locale === "es" ? "es-MX" : "en-US",
-    { month: "long", year: "numeric" },
-  );
+  const cycleLabel = new Date().toLocaleDateString(getDateLocale(locale), {
+    month: "long",
+    year: "numeric",
+  });
 
   const dailyGoalPct = currentStreak > 0 ? 100 : 0;
 
@@ -44,7 +45,7 @@ export function StreakCalendarCard({
         </div>
 
         <Eyebrow tone="muted" className="text-[10px]">
-          CICLO: {cycleLabel}
+          {t.profile.cyclePrefix} {cycleLabel}
         </Eyebrow>
       </div>
 

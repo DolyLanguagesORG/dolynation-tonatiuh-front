@@ -2,15 +2,20 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
 import { DesignSystemView } from "@/app/design-system/_components/design-system-view";
+import { getDictionary } from "@/i18n";
+import { getServerLocale } from "@/i18n/server-locale";
 import { isDesignSystemEnabled } from "@/lib/feature-flags";
 
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Sistema de Diseño UI | DolyNation",
-  description:
-    "Catálogo oficial de primitivos estandarizados en Blanco y Negro basados en Flowbite React y Lucide Icons.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale();
+  const t = getDictionary(locale);
+  return {
+    title: t.designSystem.title,
+    description: t.designSystem.subtitle,
+  };
+}
 
 /**
  * Ruta `/design-system`: catálogo público e interactivo de la biblioteca `@/components/ui`

@@ -10,7 +10,7 @@ import {
   Text,
 } from "@/components/ui";
 import { type OnboardingState } from "@/context";
-import { type Dictionary, useLocale } from "@/i18n";
+import { formatMessage, type Dictionary, useLocale } from "@/i18n";
 import { useSubscriptionPlans } from "@/lib/hooks/use-subscription-plans";
 import { formatPlanFromBackend } from "@/lib/plan-presentation";
 
@@ -48,13 +48,14 @@ export function OnboardingGateBanner({
         <Card padding="lg" className="w-full border-brand bg-surface p-6 sm:p-8">
           <div className="flex flex-col gap-6 text-center">
             <div className="flex flex-col items-center gap-2">
-              <Badge variant="warning">CONFIGURACIÓN PENDIENTE</Badge>
+              <Badge variant="warning">{t.home.preferencesSetupBadge}</Badge>
               <Heading as="h1" variant="title" mainHeading>
-                Completa la selección de tus idiomas
+                {t.home.gateLanguagesTitle}
               </Heading>
               <Text variant="small" tone="muted" className="max-w-lg sm:text-sm">
-                Has seleccionado tu plan ({planLabel}). Ahora elige los idiomas
-                que deseas aprender para desbloquear tu acceso.
+                {formatMessage(t.home.gateLanguagesSubtitle, {
+                  plan: planLabel,
+                })}
               </Text>
             </div>
 
@@ -99,9 +100,7 @@ export function OnboardingGateBanner({
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               {isLoading && plans.length === 0 ? (
                 <div className="col-span-full text-xs text-muted">
-                  {locale === "es"
-                    ? "Consultando catálogo de planes..."
-                    : "Loading subscription plans..."}
+                  {t.plans.ui.loadingPlans}
                 </div>
               ) : (
                 plans.map((rawPlan) => {
@@ -122,7 +121,7 @@ export function OnboardingGateBanner({
                         </span>
                         {isRecommended && (
                           <Badge variant="primary">
-                            {locale === "es" ? "RECOMENDADO" : "RECOMMENDED"}
+                            {t.home.onboardingRecommendedBadge}
                           </Badge>
                         )}
                       </div>

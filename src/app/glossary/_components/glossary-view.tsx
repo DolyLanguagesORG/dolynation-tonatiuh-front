@@ -76,14 +76,7 @@ export function GlossaryView() {
         </div>
 
         {glossary.errorMessage && (
-          <Alert
-            variant="error"
-            title={
-              locale === "es"
-                ? "Error al consultar glosario"
-                : "Failed to load glossary"
-            }
-          >
+          <Alert variant="error" title={t.glossary.errorAlertTitle}>
             {glossary.errorMessage}
           </Alert>
         )}
@@ -92,6 +85,7 @@ export function GlossaryView() {
           t={t}
           locale={locale}
           counts={glossary.counts}
+          languagePlan={glossary.languagePlan}
           scopeFilter={glossary.scopeFilter}
           typeFilter={glossary.typeFilter}
           languageFilter={glossary.languageFilter}
@@ -103,12 +97,7 @@ export function GlossaryView() {
         />
 
         {glossary.isLoading ? (
-          <SkeletonCard
-            lines={5}
-            label={
-              locale === "es" ? "Cargando glosario personal" : "Loading glossary"
-            }
-          />
+          <SkeletonCard lines={5} label={t.glossary.loadingGlossary} />
         ) : glossary.filteredEntries.length === 0 ? (
           <EmptyState
             icon="bookmark"
@@ -122,7 +111,7 @@ export function GlossaryView() {
                     size="sm"
                     onClick={glossary.resetFilters}
                   >
-                    {locale === "es" ? "Limpiar filtros" : "Clear filters"}
+                    {t.glossary.clearFiltersButton}
                   </Button>
                 )}
                 <ActionLink
@@ -148,7 +137,6 @@ export function GlossaryView() {
                 {phraseEntries.map((entry) => (
                   <GlossaryEntryCard
                     key={entry.id}
-                    t={t}
                     locale={locale}
                     entry={entry}
                     isToggling={glossary.togglingId === entry.id}
@@ -169,7 +157,6 @@ export function GlossaryView() {
                 {wordEntries.map((entry) => (
                   <GlossaryEntryCard
                     key={entry.id}
-                    t={t}
                     locale={locale}
                     entry={entry}
                     isToggling={glossary.togglingId === entry.id}
@@ -185,7 +172,6 @@ export function GlossaryView() {
             {glossary.filteredEntries.map((entry) => (
               <GlossaryEntryCard
                 key={entry.id}
-                t={t}
                 locale={locale}
                 entry={entry}
                 isToggling={glossary.togglingId === entry.id}

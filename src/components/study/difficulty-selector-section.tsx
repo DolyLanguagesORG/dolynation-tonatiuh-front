@@ -1,7 +1,7 @@
 "use client";
 
 import { ChoiceCard, Eyebrow } from "@/components/ui";
-import { type Locale } from "@/i18n";
+import { getDictionary, type Locale, resolveBilingualText } from "@/i18n";
 import { type DifficultyOption, type ReadingDifficulty } from "@/lib";
 
 export interface DifficultySelectorSectionProps {
@@ -22,6 +22,8 @@ export function DifficultySelectorSection({
   selectedDifficulty,
   onSelect,
 }: DifficultySelectorSectionProps) {
+  const t = getDictionary(locale);
+
   return (
     <fieldset className="flex flex-col gap-3">
       <legend>
@@ -36,14 +38,23 @@ export function DifficultySelectorSection({
         className="grid grid-cols-1 gap-3.5 md:grid-cols-3"
       >
         {difficulties.map((level) => {
+          const localizedCopy = t.study.difficulties[level.id];
           const localizedTitle =
-            locale === "en"
-              ? (level.titleEn ?? level.title)
-              : (level.titleEs ?? level.title);
+            localizedCopy?.label ??
+            resolveBilingualText(
+              { es: level.titleEs, en: level.titleEn, fallback: level.title },
+              locale,
+            );
           const localizedDescription =
-            locale === "en"
-              ? (level.descriptionEn ?? level.description)
-              : (level.descriptionEs ?? level.description);
+            localizedCopy?.description ??
+            resolveBilingualText(
+              {
+                es: level.descriptionEs,
+                en: level.descriptionEn,
+                fallback: level.description,
+              },
+              locale,
+            );
 
           return (
             <ChoiceCard
@@ -52,7 +63,6 @@ export function DifficultySelectorSection({
               emphasis="filled"
               showSelectionIndicator={false}
               title={localizedTitle}
-              meta={level.cefr}
               description={localizedDescription}
               onClick={() => onSelect(level.id)}
               className="sm:p-5"

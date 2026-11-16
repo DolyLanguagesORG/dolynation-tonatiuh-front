@@ -232,10 +232,7 @@ export function useRegisterFlow() {
       } else {
         setApiError({
           code: ErrorCode.UNKNOWN_ERROR,
-          message:
-            locale === "es"
-              ? "Ocurrió un error inesperado al crear tu cuenta."
-              : "An unexpected error occurred while creating your account.",
+          message: t.auth.register.fallbackError,
         });
       }
     } finally {

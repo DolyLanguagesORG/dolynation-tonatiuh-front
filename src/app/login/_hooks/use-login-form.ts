@@ -55,17 +55,11 @@ export function useLoginForm() {
   useEffect(() => {
     if (searchParams.get("reset") === "success") {
       setInfoNotice({
-        title:
-          locale === "es"
-            ? "Contraseña restablecida"
-            : "Password updated",
-        message:
-          locale === "es"
-            ? "Tu contraseña se actualizó correctamente. Inicia sesión con tu nueva contraseña."
-            : "Your password was updated successfully. Sign in with your new password.",
+        title: t.auth.login.resetSuccessTitle,
+        message: t.auth.login.resetSuccessMessage,
       });
     }
-  }, [locale, searchParams]);
+  }, [searchParams, t.auth.login.resetSuccessMessage, t.auth.login.resetSuccessTitle]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -188,10 +182,7 @@ export function useLoginForm() {
       } else {
         setApiError({
           code: ErrorCode.UNKNOWN_ERROR,
-          message:
-            locale === "es"
-              ? "Ocurrió un error inesperado al iniciar sesión."
-              : "An unexpected error occurred while signing in.",
+          message: t.auth.login.unexpectedError,
         });
       }
     } finally {

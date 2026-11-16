@@ -5,20 +5,25 @@ import { QuickGenerateCard } from "@/app/_components/quick-generate-card";
 import { RecentReadingsSection } from "@/app/_components/recent-readings-section";
 import { StreakSummaryCard } from "@/app/_components/streak-summary-card";
 import { useHomeDashboard } from "@/app/_hooks/use-home-dashboard";
-import { ActionLink, Alert, Badge, Container, Heading, Icon, Text } from "@/components/ui";
+import { ActionLink, Alert, Container, Heading, Icon, Text } from "@/components/ui";
 
 /**
  * Orquestador interactivo de la pantalla principal (`/`).
  */
 export function HomeDashboard() {
   const home = useHomeDashboard();
-  const { locale, t, isAuthenticated, onboarding, user } = home;
+  const { locale, t, isAuthenticated, onboarding } = home;
 
   if (!isAuthenticated) {
     return null;
   }
 
   if (!onboarding.hasSelectedPlan) {
+    // No mostrar la puerta de selección de plan si el perfil autenticado ya posee un tier activo
+    // (evita cualquier destello transitorio mientras termina de sincronizarse el onboarding).
+    if (home.user?.subscriptionTier) {
+      return null;
+    }
     return (
       <OnboardingGateBanner t={t} onboarding={onboarding} mode="plan" />
     );
@@ -28,23 +33,13 @@ export function HomeDashboard() {
 
   return (
     <Container size="lg" className="flex flex-col gap-8 sm:gap-10">
-      <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
-        <div className="flex flex-col gap-1.5">
-          <Heading as="h1" variant="display" mainHeading>
-            {home.welcomeHeading}
-          </Heading>
-          <Text variant="editorial" tone="muted" className="italic">
-            {t.home.welcomeSubtitle}
-          </Text>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="success">
-            {locale === "es"
-              ? `SESIÓN ACTIVA: ${user?.email}`
-              : `ACTIVE SESSION: ${user?.email}`}
-          </Badge>
-        </div>
+      <section className="flex flex-col gap-1.5">
+        <Heading as="h1" variant="display" mainHeading>
+          {home.welcomeHeading}
+        </Heading>
+        <Text variant="editorial" tone="muted" className="italic">
+          {t.home.welcomeSubtitle}
+        </Text>
       </section>
 
       {isAuthenticated && !onboarding.canGenerateReadings && (
@@ -69,7 +64,6 @@ export function HomeDashboard() {
         locale={locale}
         streakDaysCount={home.streakDaysCount}
         weeklyActiveDays={home.weeklyActiveDays}
-        historySummary={home.historySummary}
         isAuthenticated={isAuthenticated}
       />
 

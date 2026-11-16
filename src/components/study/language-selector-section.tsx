@@ -1,7 +1,7 @@
 "use client";
 
 import { ChoiceChip, Eyebrow } from "@/components/ui";
-import { type Locale } from "@/i18n";
+import { getDictionary, type Locale } from "@/i18n";
 import { DEFAULT_LANGUAGES, type TargetLanguageCode } from "@/lib";
 
 export interface LanguageSelectorSectionProps {
@@ -22,6 +22,8 @@ export function LanguageSelectorSection({
   activePlanLanguages,
   onSelect,
 }: LanguageSelectorSectionProps) {
+  const t = getDictionary(locale);
+
   return (
     <fieldset className="flex flex-col gap-3">
       <legend>
@@ -39,7 +41,7 @@ export function LanguageSelectorSection({
           const isSelected = selectedLanguage === lang.id;
           const isAllowed =
             !activePlanLanguages || activePlanLanguages.includes(lang.id);
-          const label = locale === "es" ? lang.nameEs : lang.nameEn;
+          const label = t.languages[lang.id];
 
           return (
             <ChoiceChip
@@ -48,13 +50,7 @@ export function LanguageSelectorSection({
               selected={isSelected}
               disabled={!isAllowed}
               codePrefix={`[${lang.id.toUpperCase()}]`}
-              title={
-                !isAllowed
-                  ? locale === "es"
-                    ? "Idioma no activo en tu plan actual"
-                    : "Language not active in your current plan"
-                  : undefined
-              }
+              title={!isAllowed ? t.study.languageNotActiveInPlan : undefined}
               onClick={() => {
                 if (isAllowed) {
                   onSelect(lang.id);
@@ -69,9 +65,7 @@ export function LanguageSelectorSection({
 
       {activePlanLanguages && (
         <p className="text-[11px] text-muted">
-          {locale === "es"
-            ? "Idiomas habilitados según tu suscripción actual:"
-            : "Languages enabled by your active plan:"}{" "}
+          {t.study.enabledLanguagesPrefix}{" "}
           <span className="font-mono font-semibold text-ink uppercase">
             {activePlanLanguages.join(", ")}
           </span>

@@ -17,6 +17,7 @@ import {
   SkeletonCard,
   Text,
 } from "@/components/ui";
+import { formatMessage } from "@/i18n";
 import { ErrorCode, type StudyParameters } from "@/lib";
 
 export interface StudyParametersFormProps {
@@ -38,12 +39,12 @@ function ReadingGenerationProgress({
   title,
   subtitle,
   stages,
-  locale,
+  inProgressBadge,
 }: {
   title: string;
   subtitle: string;
-  stages: readonly [string, string, string];
-  locale: "es" | "en";
+  stages: readonly string[];
+  inProgressBadge: string;
 }) {
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
@@ -79,8 +80,7 @@ function ReadingGenerationProgress({
         </div>
 
         <span className="rounded-xxs border border-default bg-surface px-2 py-0.5 font-mono text-[11px] font-semibold tabular-nums text-muted">
-          {elapsedSeconds}s ·{" "}
-          {locale === "es" ? "IA EN CURSO" : "AI IN PROGRESS"}
+          {elapsedSeconds}s · {inProgressBadge}
         </span>
       </div>
 
@@ -167,12 +167,11 @@ export function StudyParametersForm({
                 }
               >
                 {study.subscriptionUsage.readingsLimit != null
-                  ? locale === "es"
-                    ? `HOY: ${study.subscriptionUsage.readingsCreatedToday}/${study.subscriptionUsage.readingsLimit} LECTURAS`
-                    : `TODAY: ${study.subscriptionUsage.readingsCreatedToday}/${study.subscriptionUsage.readingsLimit} READINGS`
-                  : locale === "es"
-                    ? "LECTURAS ILIMITADAS"
-                    : "UNLIMITED READINGS"}
+                  ? formatMessage(t.study.todayQuotaBadge, {
+                      created: study.subscriptionUsage.readingsCreatedToday,
+                      limit: study.subscriptionUsage.readingsLimit,
+                    })
+                  : t.study.unlimitedReadingsBadge}
               </Badge>
             )}
             <Badge variant="outline">
@@ -188,9 +187,7 @@ export function StudyParametersForm({
               <span>
                 {study.missingLanguagesForGeneration &&
                 study.missingCategoriesForGeneration
-                  ? locale === "es"
-                    ? "Debes seleccionar al menos un idioma meta de estudio y registrar 3 categorías favoritas en tu cuenta antes de generar nuevas lecturas."
-                    : "Select at least one target study language and 3 favorite categories before generating new readings."
+                  ? t.study.generationBlockedBoth
                   : study.missingLanguagesForGeneration
                     ? t.study.generationBlockedLanguages
                     : t.study.generationBlockedCategories}
@@ -214,12 +211,8 @@ export function StudyParametersForm({
             code={study.validationErrorCode ?? undefined}
             title={
               study.validationErrorCode
-                ? locale === "es"
-                  ? "No se pudo completar la acción"
-                  : "Action could not be completed"
-                : locale === "es"
-                  ? "Parámetro incompleto"
-                  : "Missing parameter"
+                ? t.study.errorTitle
+                : t.study.missingParameterTitle
             }
             onDismiss={() => study.setValidationError(null)}
           >
@@ -234,9 +227,7 @@ export function StudyParametersForm({
                   rightIcon={<Icon name="arrow-right" size="xs" />}
                   className="shrink-0 normal-case tracking-normal"
                 >
-                  {locale === "es"
-                    ? "Ver lecturas pendientes"
-                    : "View pending readings"}
+                  {t.study.viewPendingReadings}
                 </ActionLink>
               )}
               {(study.validationErrorCode ===
@@ -252,9 +243,7 @@ export function StudyParametersForm({
                   rightIcon={<Icon name="arrow-right" size="xs" />}
                   className="shrink-0 normal-case tracking-normal"
                 >
-                  {locale === "es"
-                    ? "Ver plan y consumo"
-                    : "View plan & usage"}
+                  {t.study.viewPlanAndUsage}
                 </ActionLink>
               )}
             </div>
@@ -264,7 +253,7 @@ export function StudyParametersForm({
         {study.saveNotice && (
           <Alert
             variant="success"
-            title={locale === "es" ? "Preferencias guardadas" : "Preferences saved"}
+            title={t.study.preferencesSavedTitle}
             onDismiss={() => study.setSaveNotice(null)}
           >
             {study.saveNotice}
@@ -274,7 +263,7 @@ export function StudyParametersForm({
         {study.generationNotice && (
           <Alert
             variant="info"
-            title={locale === "es" ? "Sesión de estudio configurada" : "Study session ready"}
+            title={t.study.sessionReadyTitle}
             code="STUDY_READY"
             onDismiss={() => study.setGenerationNotice(null)}
           >
@@ -346,7 +335,7 @@ export function StudyParametersForm({
             title={t.study.generatingTitle}
             subtitle={t.study.generatingSubtitle}
             stages={t.study.generatingStages}
-            locale={locale}
+            inProgressBadge={t.study.aiInProgressBadge}
           />
         )}
 

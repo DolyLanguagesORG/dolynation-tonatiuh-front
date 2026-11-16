@@ -5,7 +5,7 @@ import { type FormEvent, useEffect, useState } from "react";
 
 import { useAuth } from "@/context";
 import { useToast } from "@/context/toast-context";
-import { useLocale } from "@/i18n";
+import { formatMessage, useLocale } from "@/i18n";
 import {
   ApiClientError,
   type CatalogCategory,
@@ -322,19 +322,12 @@ export function useStudyParameters(
         setValidationErrorCode(error.code);
         setValidationError(msg);
         toast.error(msg, {
-          title:
-            locale === "es"
-              ? "No se pudo guardar"
-              : "Could not save",
+          title: t.study.couldNotSaveTitle,
         });
       } else {
-        const fallbackMsg =
-          locale === "es"
-            ? "No se pudieron sincronizar las preferencias con el servidor."
-            : "Could not sync preferences with server.";
         setValidationErrorCode(null);
-        setValidationError(fallbackMsg);
-        toast.error(fallbackMsg);
+        setValidationError(t.study.preferencesSavedError);
+        toast.error(t.study.preferencesSavedError);
       }
     } finally {
       setIsSaving(false);
@@ -344,22 +337,14 @@ export function useStudyParameters(
   const handleAddCustomCategory = (): void => {
     const cleanName = customCategoryName.trim();
     if (!cleanName) {
-      const msg =
-        locale === "es"
-          ? "Ingresa un nombre para la temática."
-          : "Enter a name for the topic.";
-      setCustomCategoryError(msg);
-      toast.warning(msg);
+      setCustomCategoryError(t.study.categoryRequiredError);
+      toast.warning(t.study.categoryRequiredError);
       return;
     }
 
     if (cleanName.length < 2 || cleanName.length > 50) {
-      const msg =
-        locale === "es"
-          ? "La categoría debe tener entre 2 y 50 caracteres."
-          : "Category name must be between 2 and 50 characters.";
-      setCustomCategoryError(msg);
-      toast.warning(msg);
+      setCustomCategoryError(t.study.categoryLengthError);
+      toast.warning(t.study.categoryLengthError);
       return;
     }
 
@@ -464,10 +449,9 @@ export function useStudyParameters(
         onGenerate(finalParams);
       } else {
         const generated = await studyClient.generateReading(finalParams);
-        const readyMsg =
-          locale === "es"
-            ? `Lectura generada con éxito: "${generated.title}". Abriendo visor...`
-            : `Reading generated successfully: "${generated.title}". Opening reader...`;
+        const readyMsg = formatMessage(t.study.readingGeneratedSuccess, {
+          title: generated.title,
+        });
         setGenerationNotice(readyMsg);
         toast.success(readyMsg);
         router.push(`/readings/${generated.id}`);
@@ -478,19 +462,12 @@ export function useStudyParameters(
         setValidationErrorCode(error.code);
         setValidationError(msg);
         toast.error(msg, {
-          title:
-            locale === "es"
-              ? "No se pudo generar la lectura"
-              : "Could not generate reading",
+          title: t.study.generateFailedTitle,
         });
       } else {
-        const fallbackMsg =
-          locale === "es"
-            ? "Ocurrió un error al preparar la generación de la lectura."
-            : "An error occurred while generating the reading.";
         setValidationErrorCode(null);
-        setValidationError(fallbackMsg);
-        toast.error(fallbackMsg);
+        setValidationError(t.study.generateFailedError);
+        toast.error(t.study.generateFailedError);
       }
     } finally {
       setIsSubmitting(false);

@@ -118,7 +118,7 @@ export interface RegisterInput {
   email: string;
   password: string;
   fullName: string;
-  locale?: "es" | "en";
+  locale?: TargetLanguageCode;
 }
 
 export interface LoginInput {
@@ -364,6 +364,7 @@ export interface GlossaryEntryDto {
   id: number;
   readingId: number;
   readingTitle: string;
+  readingAvailable: boolean;
   word: string;
   normalizedWord: string;
   entryType: ExplanationEntryType;

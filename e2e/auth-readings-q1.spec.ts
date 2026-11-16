@@ -133,7 +133,7 @@ test.describe("Auth Session Revocation (T6), Password Reset & Q1 Core Loop", () 
       asidePanel.getByRole("button", { name: "Enregistré dans le glossaire" }),
     ).toBeVisible();
 
-    // Navigate to glossary: global shell returns in outer UI locale
+    // Navigate to glossary: global shell returns in outer UI locale while card uses entry language (FR)
     await page.goto("/glossary");
     await expect(page.getByRole("banner")).toHaveCount(1);
     await expect(page.locator("footer")).toHaveCount(1);
@@ -141,7 +141,12 @@ test.describe("Auth Session Revocation (T6), Password Reset & Q1 Core Loop", () 
     await expect(
       page.getByRole("heading", { name: "Comprehension" }),
     ).toBeVisible();
-    await expect(page.getByText("GUARDADO").first()).toBeVisible();
+    const frenchGlossaryCard = page.locator("article[lang='fr']").first();
+    await expect(frenchGlossaryCard).toBeVisible();
+    await expect(frenchGlossaryCard.getByText("ENREGISTRÉ")).toBeVisible();
+    await expect(
+      frenchGlossaryCard.getByRole("link", { name: /Ouvrir la lecture/i }),
+    ).toBeVisible();
 
     // Navigate to evaluation flow for this French reading (immersive French, no global chrome)
     await page.goto(`/readings/${readingId}/evaluate`);

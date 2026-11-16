@@ -16,9 +16,19 @@ jest.mock("@/context", () => ({
   useAuth: () => mockAuthState,
 }));
 
-jest.mock("@/i18n", () => ({
-  useLocale: () => ({ locale: "es" }),
-}));
+jest.mock("@/i18n", () => {
+  const actual = jest.requireActual<typeof import("@/i18n")>("@/i18n");
+  return {
+    ...actual,
+    useLocale: () => ({
+      locale: "es" as const,
+      locales: actual.UI_LOCALE_LIST,
+      t: actual.getDictionary("es"),
+      setLocale: jest.fn(),
+      toggleLocale: jest.fn(),
+    }),
+  };
+});
 
 import { RequireAuth } from "@/components/auth/require-auth";
 import { RouteAccessGuard } from "@/components/auth/route-access-guard";
@@ -131,5 +141,27 @@ describe("RouteAccessGuard & RequireAuth", () => {
 
     expect(mockReplace).toHaveBeenCalledWith("/select-plan");
     expect(screen.queryByText("Readings History")).not.toBeInTheDocument();
+  });
+
+  it("redirects ready users on /select-plan to /setup-preferences when preferences are still incomplete", () => {
+    mockAuthState = {
+      isLoading: false,
+      isAuthenticated: true,
+      accessPhase: "ready",
+      onboarding: {
+        hasSelectedPlan: true,
+        canGenerateReadings: false,
+      },
+    };
+    mockPathname = "/select-plan";
+
+    render(
+      <RouteAccessGuard>
+        <div>Select Plan</div>
+      </RouteAccessGuard>,
+    );
+
+    expect(mockReplace).toHaveBeenCalledWith("/setup-preferences");
+    expect(screen.queryByText("Select Plan")).not.toBeInTheDocument();
   });
 });

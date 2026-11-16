@@ -1,7 +1,7 @@
 "use client";
 
 import { ChoiceCard, Eyebrow } from "@/components/ui";
-import { type Locale } from "@/i18n";
+import { getDictionary, type Locale } from "@/i18n";
 import { type ReadingSize, type ReadingSizeOption } from "@/lib";
 
 export interface SizeSelectorSectionProps {
@@ -10,19 +10,6 @@ export interface SizeSelectorSectionProps {
   sizes: readonly ReadingSizeOption[];
   selectedSize: ReadingSize;
   onSelect: (size: ReadingSize) => void;
-}
-
-const SIZE_LABELS: Record<ReadingSize, { es: string; en: string }> = {
-  short: { es: "Corto", en: "Short" },
-  medium: { es: "Medio", en: "Medium" },
-  long: { es: "Largo", en: "Long" },
-};
-
-function formatLocalizedWordRange(wordRange: string, locale: Locale): string {
-  if (locale === "es") {
-    return wordRange.replace(/\bwords\b/gi, "palabras");
-  }
-  return wordRange.replace(/\bpalabras\b/gi, "words");
 }
 
 /**
@@ -35,6 +22,8 @@ export function SizeSelectorSection({
   selectedSize,
   onSelect,
 }: SizeSelectorSectionProps) {
+  const t = getDictionary(locale);
+
   return (
     <fieldset className="flex flex-col gap-3">
       <legend>
@@ -50,10 +39,10 @@ export function SizeSelectorSection({
       >
         {sizes.map((sizeOption) => {
           const localizedLabel =
-            SIZE_LABELS[sizeOption.id]?.[locale] ?? sizeOption.label;
-          const localizedRange = formatLocalizedWordRange(
-            sizeOption.wordRange,
-            locale,
+            t.study.sizeOptions[sizeOption.id]?.label ?? sizeOption.label;
+          const localizedRange = sizeOption.wordRange.replace(
+            /\b(palabras|words|mots|parole)\b/gi,
+            t.study.wordsUnit,
           );
 
           return (

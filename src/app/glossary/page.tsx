@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
 
 import { GlossaryView } from "@/app/glossary/_components/glossary-view";
+import { getDictionary } from "@/i18n";
+import { getServerLocale } from "@/i18n/server-locale";
 
-export const metadata: Metadata = {
-  title: "Glosario Personal | DolyNation",
-  description:
-    "Consulta palabras, frases y expresiones guardadas desde tus lecturas con su desglose literal, explicación contextual, alternativas y otros usos.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const locale = await getServerLocale();
+  const t = getDictionary(locale);
+  return {
+    title: t.glossary.title,
+    description: t.glossary.subtitle,
+  };
+}
 
 /**
  * Ruta `/glossary`: Server Component que delega la vista interactiva a `GlossaryView`.

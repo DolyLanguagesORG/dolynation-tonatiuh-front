@@ -69,6 +69,10 @@ export {
   type SelectProps,
 } from "@/components/ui/select";
 export { Skeleton, SkeletonCard, type SkeletonProps } from "@/components/ui/skeleton";
+export {
+  LocalizedSkeletonCard,
+  type LocalizedSkeletonCardProps,
+} from "@/components/ui/localized-skeleton-card";
 export { StatCard, type StatCardProps } from "@/components/ui/stat-card";
 export {
   Stepper,

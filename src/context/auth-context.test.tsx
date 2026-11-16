@@ -303,4 +303,126 @@ describe("AuthProvider onboarding & session phase transitions", () => {
     expect(result.current.onboarding.hasConfiguredLanguages).toBe(false);
     expect(result.current.onboarding.canGenerateReadings).toBe(false);
   });
+
+  it("does not expose authenticated or ready state before subscribed onboarding settings settle on bootstrap", async () => {
+    document.cookie = "doly_session=1; Path=/";
+    state = {
+      user: makeUser({
+        emailVerifiedAt: "2026-11-13T00:00:00.000Z",
+        subscriptionTier: "dolly_pro",
+      }),
+      selectedLanguages: ["en"],
+      selectedCategories: ["technology", "history", "education"],
+    };
+    bindStatefulMocks(true);
+
+    let releaseSettings!: () => void;
+    const settingsGate = new Promise<void>((resolve) => {
+      releaseSettings = resolve;
+    });
+
+    const getLanguagesSpy = jest
+      .spyOn(settingsService, "getLanguages")
+      .mockImplementation(async () => {
+        await settingsGate;
+        return {
+          message: "OK",
+          data: {
+            catalog: [],
+            selected: ["en"],
+            active: ["es", "en", "fr", "it"],
+            maxLanguages: 4,
+            canChangeFree: true,
+            nextFreeChangeAt: null,
+            lastLanguageChangeAt: null,
+            languageChangeCredits: 0,
+          },
+        };
+      });
+
+    jest
+      .spyOn(settingsService, "getCategories")
+      .mockImplementation(async () => {
+        await settingsGate;
+        return {
+          message: "OK",
+          data: {
+            catalog: [],
+            selected: ["technology", "history", "education"],
+          },
+        };
+      });
+
+    jest
+      .spyOn(subscriptionsService, "getCurrentSubscription")
+      .mockImplementation(async () => {
+        await settingsGate;
+        return {
+          message: "OK",
+          data: {
+            hasSubscription: true,
+            tier: "dolly_pro",
+            plan: null,
+            usage: {
+              categoriesCount: 3,
+              categoriesLimit: null,
+              languagesCount: 1,
+              languagesLimit: null,
+              readingsCreatedToday: 0,
+              readingsLimit: null,
+              readingsRemainingToday: null,
+              questionsAskedToday: 0,
+              questionsLimit: null,
+              questionsRemainingToday: null,
+            },
+          },
+        };
+      });
+
+    const observedStates: Array<{
+      isAuthenticated: boolean;
+      accessPhase: string;
+      hasSelectedPlan: boolean;
+      canGenerateReadings: boolean;
+    }> = [];
+
+    const { result } = renderHook(
+      () => {
+        const auth = useAuth();
+        observedStates.push({
+          isAuthenticated: auth.isAuthenticated,
+          accessPhase: auth.accessPhase,
+          hasSelectedPlan: auth.onboarding.hasSelectedPlan,
+          canGenerateReadings: auth.onboarding.canGenerateReadings,
+        });
+        return auth;
+      },
+      { wrapper },
+    );
+
+    await waitFor(() => expect(getLanguagesSpy).toHaveBeenCalledTimes(1));
+    expect(result.current.isLoading).toBe(true);
+    expect(result.current.isAuthenticated).toBe(false);
+    expect(result.current.accessPhase).toBe("loading");
+
+    await act(async () => {
+      releaseSettings();
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isAuthenticated).toBe(true);
+    expect(result.current.accessPhase).toBe("ready");
+    expect(result.current.onboarding.hasSelectedPlan).toBe(true);
+    expect(result.current.onboarding.canGenerateReadings).toBe(true);
+    expect(
+      observedStates.some(
+        (entry) => entry.isAuthenticated && !entry.hasSelectedPlan,
+      ),
+    ).toBe(false);
+    expect(
+      observedStates.some(
+        (entry) => entry.isAuthenticated && !entry.canGenerateReadings,
+      ),
+    ).toBe(false);
+  });
 });
