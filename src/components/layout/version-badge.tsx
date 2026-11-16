@@ -9,9 +9,17 @@ import { useEffect, useState } from "react";
  * sale de `NEXT_PUBLIC_APP_VERSION`, que el build inyecta: no esta
  * hardcodeado.
  *
- * Si la variable no esta (por ejemplo en desarrollo), se consulta
- * `/version.json`. Si tampoco hay respuesta, no se muestra nada: es preferible
- * un pie limpio a un "v0.0.0-dev" que confunde.
+ * Si la variable no esta (por ejemplo en desarrollo), se consulta la ruta
+ * `/version`, que **siempre** responde (la sirve `src/app/version/route.ts`).
+ *
+ * Antes se consultaba `/version.json`, que es el archivo estatico que genera
+ * el build (`scripts/generate-version-json.mjs`): en desarrollo no existe, y
+ * el badge se quedaba sin mostrar con un 404 en la consola. Ese archivo se
+ * sigue publicando para monitorizacion (`curl .../version.json`), que es su
+ * proposito.
+ *
+ * Si tampoco hay respuesta, no se muestra nada: es preferible un pie limpio
+ * a un "v0.0.0-dev" que confunde.
  */
 export function VersionBadge() {
   const [version, setVersion] = useState<string | null>(null);
@@ -28,7 +36,7 @@ export function VersionBadge() {
 
     let cancelled = false;
 
-    void fetch("/version.json", { cache: "no-store" })
+    void fetch("/version", { cache: "no-store" })
       .then((res) => (res.ok ? res.json() : null))
       .then((data: { appVersion?: string } | null) => {
         if (!cancelled && data?.appVersion) {
