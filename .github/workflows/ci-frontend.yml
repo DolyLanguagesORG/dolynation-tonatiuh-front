@@ -127,6 +127,12 @@ jobs:
       # Las pruebas de la suite `live-backend` (que pegan contra el backend
       # desplegado) quedan fuera: `E2E_TARGET` no se define, asi que
       # `live-backend.spec.ts` se ignora.
+      # Las pruebas NUNCA deben usar una clave real de proveedor: el e2e corre
+      # contra el API mock de `e2e/support/mock-api.ts`. Una clave real
+      # pegada en un test gastaria cuota en cada push.
+      - name: Ninguna prueba usa claves reales de proveedor
+        run: bash scripts/check-no-real-keys.sh src e2e
+
       - name: E2E tests
         run: npm run test:e2e
 
