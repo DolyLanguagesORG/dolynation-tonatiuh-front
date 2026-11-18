@@ -143,14 +143,28 @@ jobs:
           # maximo entre backend y frontend). Sin ella, el dev server
           # responde `0.0.0-dev` en `/version` y el badge del pie no dice que
           # build se esta probando.
+          # Se lee por la **API con token**, no por raw.githubusercontent: las
+          # peticiones sin autenticar a raw se limitan por cuota y desde los
+          # runners de la CI fallan.
           APP_VERSION="$(curl -fsSL \
-            "https://raw.githubusercontent.com/DolyLanguagesORG/dolynation-tlalli-infra/develop/versions.yml" \
-            2>/dev/null | grep -E '^app_version:' | head -1 | cut -d: -f2 | tr -d ' \042\047' || true)"
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            "https://api.github.com/repos/DolyLanguagesORG/dolynation-tlalli-infra/contents/versions.yml?ref=develop" \
+            2>/dev/null \
+            | jq -r '.content' 2>/dev/null \
+            | base64 -d 2>/dev/null \
+            | grep -E '^app_version:' \
+            | head -1 \
+            | cut -d: -f2 \
+            | tr -d ' \042\047' || true)"
           if [ -z "$APP_VERSION" ]; then
+            # Sin manifiesto se usa la version del paquete: mejor eso que
+            # `0.0.0-dev`, que no dice nada.
             echo "::warning::No se pudo leer app_version del manifiesto: se usa la version del paquete."
-            APP_VERSION="$(node -p "require('./package.json').version")"
+            APP_VERSION="$(node -p "require('./package.json').version" 2>/dev/null || echo '')"
           fi
-          GIT_COMMIT="$(git rev-parse HEAD)"
+          # El SHA del commit desplegado: `github.sha`, no `git rev-parse`
+          # (este paso no hace checkout del repo y el comando fallaria).
+          GIT_COMMIT="${{ github.sha }}"
           {
             printf 'BACKEND_INTERNAL_URL=%s\n' "$BACKEND_INTERNAL_URL"
             printf 'NEXT_ALLOWED_DEV_ORIGINS=%s\n' "$NEXT_ALLOWED_DEV_ORIGINS"
