@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server';
+import { NextResponse } from "next/server";
 
 /**
  * `public/version.json` — la versión del frontend desplegado.
@@ -16,16 +16,21 @@ import { NextResponse } from 'next/server';
 export function GET(): NextResponse {
   return NextResponse.json(
     {
-      appVersion: process.env.APP_VERSION ?? '0.0.0-dev',
-      component: process.env.COMPONENT ?? 'dolynation-tonatiuh-front',
-      version: process.env.npm_package_version ?? '0.0.0-dev',
-      commit: process.env.GIT_COMMIT ?? 'unknown',
-      builtAt: process.env.BUILT_AT ?? 'unknown',
+      // Sin APP_VERSION (desarrollo, sin deploy) se usa la version del
+      // paquete: mejor `0.7.1` que un `0.0.0-dev` que no dice nada.
+      appVersion:
+        process.env.APP_VERSION ??
+        process.env.npm_package_version ??
+        "0.0.0-dev",
+      component: process.env.COMPONENT ?? "dolynation-tonatiuh-front",
+      version: process.env.npm_package_version ?? "0.0.0-dev",
+      commit: process.env.GIT_COMMIT ?? "unknown",
+      builtAt: process.env.BUILT_AT ?? "unknown",
     },
     {
       headers: {
-        'Content-Type': 'application/json',
-        'Cache-Control': 'no-store, max-age=0',
+        "Content-Type": "application/json",
+        "Cache-Control": "no-store, max-age=0",
       },
     },
   );
