@@ -17,10 +17,12 @@ export function GET(): NextResponse {
   return NextResponse.json(
     {
       // Sin APP_VERSION (desarrollo, sin deploy) se usa la version del
-      // paquete: mejor `0.7.1` que un `0.0.0-dev` que no dice nada.
+      // paquete: mejor `0.7.2` que un `0.0.0-dev` que no dice nada.
+      // Con `||` (y no `??`) porque una variable de entorno **vacia**
+      // tambien tiene que caer al respaldo.
       appVersion:
-        process.env.APP_VERSION ??
-        process.env.npm_package_version ??
+        process.env.APP_VERSION ||
+        process.env.npm_package_version ||
         "0.0.0-dev",
       component: process.env.COMPONENT ?? "dolynation-tonatiuh-front",
       version: process.env.npm_package_version ?? "0.0.0-dev",

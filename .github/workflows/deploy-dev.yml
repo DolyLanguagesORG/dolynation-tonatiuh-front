@@ -110,6 +110,13 @@ jobs:
           fi
           cat /tmp/host_keys >> ~/.ssh/known_hosts
 
+      # Sin checkout, el paso siguiente no puede leer el `package.json` del
+      # repo (ni `git rev-parse`): la version de respaldo no existiria.
+      - name: Checkout del frontend
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
       - name: Regenerar .env del frontend en el servidor
         env:
           BACKEND_INTERNAL_URL: ${{ secrets.BACKEND_INTERNAL_URL }}
@@ -143,15 +150,18 @@ jobs:
           # maximo entre backend y frontend). Sin ella, el dev server
           # responde `0.0.0-dev` en `/version` y el badge del pie no dice que
           # build se esta probando.
-          # Se lee por la **API con token**, no por raw.githubusercontent: las
-          # peticiones sin autenticar a raw se limitan por cuota y desde los
-          # runners de la CI fallan.
+          # La version de la APLICACION (la que compone `versions.yml`, el
+          # maximo entre backend y frontend).
+          #
+          # Se lee del manifiesto **sin autenticar** (raw.githubusercontent): el
+          # token del workflow es de instalacion y **no puede leer** el repo
+          # de infra, y las peticiones sin autenticar a raw se limitan por
+          # cuota. Por eso va con respaldo: si el manifiesto no esta
+          # disponible, se usa la version del paquete de este repo, que
+          # siempre se puede leer (para eso el checkout de arriba).
           APP_VERSION="$(curl -fsSL \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            "https://api.github.com/repos/DolyLanguagesORG/dolynation-tlalli-infra/contents/versions.yml?ref=develop" \
+            "https://raw.githubusercontent.com/DolyLanguagesORG/dolynation-tlalli-infra/develop/versions.yml" \
             2>/dev/null \
-            | jq -r '.content' 2>/dev/null \
-            | base64 -d 2>/dev/null \
             | grep -E '^app_version:' \
             | head -1 \
             | cut -d: -f2 \
