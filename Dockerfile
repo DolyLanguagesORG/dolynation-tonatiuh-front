@@ -44,10 +44,27 @@ FROM node:22-alpine AS runner
 
 WORKDIR /app
 
+# Los ARG/ENV se repiten aqui a proposito: `runner` es un `FROM` nuevo y
+# **no hereda** los del stage `builder`. Sin esto, el contenedor no tiene
+# APP_VERSION y la ruta `/version` (que se lee en el servidor, en runtime)
+# responde `0.0.0-dev`: el version que se veía en staging y produccion no
+# era el real.
+#
+# `NEXT_PUBLIC_APP_VERSION` si se compila dentro del bundle (stage builder),
+# asi que el badge del pie lo lleva desde ahi.
+ARG GIT_COMMIT=unknown
+ARG APP_VERSION=
+ARG COMPONENT=dolynation-tonatiuh-front
+ARG BUILT_AT=
+
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
-    HOSTNAME=0.0.0.0
+    HOSTNAME=0.0.0.0 \
+    GIT_COMMIT=$GIT_COMMIT \
+    APP_VERSION=$APP_VERSION \
+    COMPONENT=$COMPONENT \
+    BUILT_AT=$BUILT_AT
 
 # Usuario sin privilegios (lo trae la imagen oficial de node).
 RUN addgroup --system --gid 1001 nodejs \
