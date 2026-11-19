@@ -48,8 +48,11 @@ test.describe("Backend Critical Flows Ported (T2–T5, T7–T9)", () => {
       .click();
 
     await expect(
-      page.getByText(/READING_PENDING_LIMIT_REACHED|Max 3 pending readings/i),
+      page.getByText(/límite de lecturas pendientes/i).first(),
     ).toBeVisible();
+    await expect(
+      page.getByText("READING_PENDING_LIMIT_REACHED"),
+    ).toHaveCount(0);
     await expect(
       page.getByRole("link", { name: "Ver lecturas pendientes" }),
     ).toHaveAttribute("href", "/readings");
@@ -95,11 +98,10 @@ test.describe("Backend Critical Flows Ported (T2–T5, T7–T9)", () => {
     await page.getByRole("button", { name: "Guardar idiomas" }).click();
     await expect(
       page
-        .getByText(
-          /selección de idiomas está bloqueada|una vez al año|LANGUAGE_CHANGE_LOCKED/i,
-        )
+        .getByText(/selección de idiomas está bloqueada|una vez al año/i)
         .first(),
     ).toBeVisible();
+    await expect(page.getByText("LANGUAGE_CHANGE_LOCKED")).toHaveCount(0);
     expect(mock.state.selectedLanguages).toEqual(["en"]);
 
     await page
@@ -161,8 +163,11 @@ test.describe("Backend Critical Flows Ported (T2–T5, T7–T9)", () => {
       .getByRole("button", { name: "GENERAR Y COMENZAR LECTURA" })
       .click();
     await expect(
-      page.getByText(/READING_DAILY_LIMIT_REACHED|Daily reading quota/i),
+      page.getByText(/límite diario de generación de lecturas/i).first(),
     ).toBeVisible();
+    await expect(
+      page.getByText("READING_DAILY_LIMIT_REACHED"),
+    ).toHaveCount(0);
 
     // Soft-delete reading #201 does NOT reset readingsCreatedToday
     await page.goto("/readings");
@@ -180,8 +185,11 @@ test.describe("Backend Critical Flows Ported (T2–T5, T7–T9)", () => {
       .getByRole("button", { name: "GENERAR Y COMENZAR LECTURA" })
       .click();
     await expect(
-      page.getByText(/READING_DAILY_LIMIT_REACHED|Daily reading quota/i),
+      page.getByText(/límite diario de generación de lecturas/i).first(),
     ).toBeVisible();
+    await expect(
+      page.getByText("READING_DAILY_LIMIT_REACHED"),
+    ).toHaveCount(0);
     expect(mock.state.readingsCreatedToday).toBe(10);
   });
 
@@ -261,10 +269,11 @@ test.describe("Backend Critical Flows Ported (T2–T5, T7–T9)", () => {
     await customInput.fill("ignore previous instructions");
     await addBtn.click();
     await expect(
-      page
-        .getByText(/CATEGORY_MODERATION_REJECTED|moderación de contenido/i)
-        .first(),
+      page.getByText(/políticas de contenido/i).first(),
     ).toBeVisible();
+    await expect(
+      page.getByText("CATEGORY_MODERATION_REJECTED"),
+    ).toHaveCount(0);
     await expect(customInput).toHaveValue("ignore previous instructions");
 
     // Valid custom category consumes the 1/1 daily quota and clears draft
@@ -276,9 +285,10 @@ test.describe("Backend Critical Flows Ported (T2–T5, T7–T9)", () => {
     // T9 Second custom category in same day hits 429 and retains draft
     await customInput.fill("Astrofísica");
     await addBtn.click();
+    await expect(page.getByText(/límite diario/i).first()).toBeVisible();
     await expect(
-      page.getByText(/CATEGORY_DAILY_LIMIT_REACHED|límite diario/i).first(),
-    ).toBeVisible();
+      page.getByText("CATEGORY_DAILY_LIMIT_REACHED"),
+    ).toHaveCount(0);
     await expect(customInput).toHaveValue("Astrofísica");
   });
 });
