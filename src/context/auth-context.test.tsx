@@ -10,6 +10,7 @@ jest.mock("next/navigation", () => ({
 
 import { AuthProvider, useAuth } from "@/context/auth-context";
 import {
+  accessRequestsService,
   ApiClientError,
   type AuthUser,
   authService,
@@ -424,5 +425,53 @@ describe("AuthProvider onboarding & session phase transitions", () => {
         (entry) => entry.isAuthenticated && !entry.canGenerateReadings,
       ),
     ).toBe(false);
+  });
+
+  it("isolates admin sessions to admin phase and exposes student waitlist requests", async () => {
+    window.sessionStorage.clear();
+    window.localStorage.clear();
+    document.cookie = "doly_session=1; path=/";
+
+    state.user = makeUser({
+      id: 99,
+      email: "admin@dolynation.test",
+      role: "admin",
+      subscriptionTier: null,
+      emailVerifiedAt: "2026-11-10T00:00:00.000Z",
+    });
+    bindStatefulMocks(true);
+
+    const { result, unmount } = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isAuthenticated).toBe(true);
+    expect(result.current.accessPhase).toBe("admin");
+    expect(result.current.accessRequests).toBeNull();
+    unmount();
+
+    state.user = makeUser({
+      id: 12,
+      email: "student-waitlist@example.com",
+      role: "student",
+      subscriptionTier: null,
+      emailVerifiedAt: "2026-11-10T00:00:00.000Z",
+    });
+    bindStatefulMocks(true);
+    const getMyRequestsSpy = jest
+      .spyOn(accessRequestsService, "getMyRequests")
+      .mockResolvedValue({
+        message: "OK",
+        data: {
+          enabled: true,
+          requests: [],
+          pendingSubscriptionRequest: null,
+          pendingLanguageUnlockRequest: null,
+        },
+      });
+
+    const studentHook = renderHook(() => useAuth(), { wrapper });
+    await waitFor(() => expect(studentHook.result.current.isLoading).toBe(false));
+    expect(studentHook.result.current.accessPhase).toBe("plan_required");
+    expect(studentHook.result.current.accessRequestsEnabled).toBe(true);
+    expect(getMyRequestsSpy).toHaveBeenCalled();
   });
 });

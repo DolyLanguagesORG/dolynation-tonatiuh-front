@@ -14,7 +14,7 @@ import { formatMessage, useLocale } from "@/i18n";
  */
 export function UserMenuDropdown({ pathname }: { pathname: string }) {
   const { t } = useLocale();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, accessPhase, isAuthenticated, logout } = useAuth();
   const [isOpen, setIsOpen] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -51,11 +51,14 @@ export function UserMenuDropdown({ pathname }: { pathname: string }) {
     return null;
   }
 
+  const isAdminSession =
+    accessPhase === "admin" || user?.role === "admin";
   const { displayName, email, initials, isVerified } = getUserAccountSummary(
     user,
-    t.nav.studentRole,
+    isAdminSession ? t.nav.adminRole : t.nav.studentRole,
   );
   const isProfileActive = pathname.startsWith("/profile");
+  const isAdminActive = pathname.startsWith("/admin");
 
   const handleLogout = async (): Promise<void> => {
     setIsLoggingOut(true);
@@ -149,25 +152,47 @@ export function UserMenuDropdown({ pathname }: { pathname: string }) {
           </div>
 
           <div className="p-1.5">
-            <Link
-              href="/profile"
-              role="menuitem"
-              onClick={() => setIsOpen(false)}
-              aria-current={isProfileActive ? "page" : undefined}
-              className={`flex items-center gap-2.5 rounded-base px-2.5 py-2 text-xs font-medium transition-colors ${
-                isProfileActive
-                  ? "bg-neutral-secondary-medium font-semibold text-heading"
-                  : "text-heading hover:bg-neutral-secondary-soft"
-              }`}
-            >
-              <Icon
-                name="user"
-                size="sm"
-                aria-hidden="true"
-                className="text-muted"
-              />
-              <span>{t.nav.profileAndProgress}</span>
-            </Link>
+            {isAdminSession ? (
+              <Link
+                href="/admin"
+                role="menuitem"
+                onClick={() => setIsOpen(false)}
+                aria-current={isAdminActive ? "page" : undefined}
+                className={`flex items-center gap-2.5 rounded-base px-2.5 py-2 text-xs font-medium transition-colors ${
+                  isAdminActive
+                    ? "bg-neutral-secondary-medium font-semibold text-heading"
+                    : "text-heading hover:bg-neutral-secondary-soft"
+                }`}
+              >
+                <Icon
+                  name="shield"
+                  size="sm"
+                  aria-hidden="true"
+                  className="text-muted"
+                />
+                <span>{t.nav.adminDashboard}</span>
+              </Link>
+            ) : (
+              <Link
+                href="/profile"
+                role="menuitem"
+                onClick={() => setIsOpen(false)}
+                aria-current={isProfileActive ? "page" : undefined}
+                className={`flex items-center gap-2.5 rounded-base px-2.5 py-2 text-xs font-medium transition-colors ${
+                  isProfileActive
+                    ? "bg-neutral-secondary-medium font-semibold text-heading"
+                    : "text-heading hover:bg-neutral-secondary-soft"
+                }`}
+              >
+                <Icon
+                  name="user"
+                  size="sm"
+                  aria-hidden="true"
+                  className="text-muted"
+                />
+                <span>{t.nav.profileAndProgress}</span>
+              </Link>
+            )}
 
             <div role="separator" className="my-1.5 border-t border-default" />
 

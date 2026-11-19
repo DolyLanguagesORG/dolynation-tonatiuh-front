@@ -224,4 +224,155 @@ describe("LearningPreferencesCard", () => {
       screen.queryByRole("button", { name: /Tecnología|Historia|Educación/i }),
     ).not.toBeInTheDocument();
   });
+
+  it("renders optional message form and pending state when accessRequestsEnabled is true", async () => {
+    const user = userEvent.setup();
+    const onUnlockLanguageChange = jest.fn<
+      (message?: string) => Promise<boolean>
+    >(async () => true);
+    const onCancelAccessRequest = jest.fn<(id: number) => Promise<boolean>>(
+      async () => true,
+    );
+
+    const { rerender } = render(
+      <LearningPreferencesCard
+        t={dictionaries.es}
+        locale="es"
+        activeLanguages={[{ code: "en", name: "Inglés", isPrimary: true }]}
+        languagesSettings={createLanguagesSettings({
+          canChangeFree: false,
+          languageChangeCredits: 0,
+        })}
+        categories={CATEGORIES}
+        selectedCategoryIds={["technology", "history", "education"]}
+        isSaving={false}
+        isUnlockingLanguage={false}
+        accessRequestsEnabled
+        latestRejectedLanguageUnlockRequest={{
+          id: 9,
+          userId: 1,
+          requestType: "language_unlock",
+          requestedTier: null,
+          currentTier: "dolly_plus",
+          userMessage: null,
+          status: "rejected",
+          rejectionReason: "Falta completar lecturas en inglés.",
+          reviewedByUserId: 99,
+          reviewedAt: "2026-11-15T00:00:00.000Z",
+          createdAt: "2026-11-14T00:00:00.000Z",
+          updatedAt: "2026-11-15T00:00:00.000Z",
+        }}
+        onPromoteLanguage={jest.fn()}
+        onUpdateLanguages={jest.fn(async () => true)}
+        onUnlockLanguageChange={onUnlockLanguageChange}
+        onCancelAccessRequest={onCancelAccessRequest}
+        onToggleCategory={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(/Falta completar lecturas en inglés\./i),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: /Solicitar desbloqueo de idioma/i }),
+    );
+    await user.type(
+      screen.getByPlaceholderText(/Explica brevemente/i),
+      "Necesito estudiar francés por intercambio.",
+    );
+    await user.click(
+      screen.getByRole("button", { name: /Enviar solicitud de desbloqueo/i }),
+    );
+
+    await waitFor(() => {
+      expect(onUnlockLanguageChange).toHaveBeenCalledWith(
+        "Necesito estudiar francés por intercambio.",
+      );
+    });
+
+    rerender(
+      <LearningPreferencesCard
+        t={dictionaries.es}
+        locale="es"
+        activeLanguages={[{ code: "en", name: "Inglés", isPrimary: true }]}
+        languagesSettings={createLanguagesSettings({
+          canChangeFree: false,
+          languageChangeCredits: 0,
+        })}
+        categories={CATEGORIES}
+        selectedCategoryIds={["technology", "history", "education"]}
+        isSaving={false}
+        isUnlockingLanguage={false}
+        accessRequestsEnabled
+        pendingLanguageUnlockRequest={{
+          id: 14,
+          userId: 1,
+          requestType: "language_unlock",
+          requestedTier: null,
+          currentTier: "dolly_plus",
+          userMessage: "Necesito estudiar francés por intercambio.",
+          status: "pending",
+          rejectionReason: null,
+          reviewedByUserId: null,
+          reviewedAt: null,
+          createdAt: "2026-11-16T00:00:00.000Z",
+          updatedAt: "2026-11-16T00:00:00.000Z",
+        }}
+        onPromoteLanguage={jest.fn()}
+        onUpdateLanguages={jest.fn(async () => true)}
+        onUnlockLanguageChange={onUnlockLanguageChange}
+        onCancelAccessRequest={onCancelAccessRequest}
+        onToggleCategory={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(dictionaries.es.profile.pendingLanguageUnlockTitle),
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: /Cancelar solicitud/i }),
+    );
+    await waitFor(() => {
+      expect(onCancelAccessRequest).toHaveBeenCalledWith(14);
+    });
+  });
+
+  it("renders separate toggle and delete buttons when onDeleteCategory is provided", async () => {
+    const user = userEvent.setup();
+    const onToggleCategory = jest.fn();
+    const onDeleteCategory = jest.fn<
+      (categoryId: string) => Promise<boolean>
+    >(async () => true);
+
+    render(
+      <LearningPreferencesCard
+        t={dictionaries.es}
+        locale="es"
+        activeLanguages={[{ code: "en", name: "Inglés", isPrimary: true }]}
+        languagesSettings={createLanguagesSettings({
+          maxLanguages: 1,
+          selected: ["en"],
+          active: ["en"],
+        })}
+        categories={CATEGORIES}
+        selectedCategoryIds={["technology", "history", "education"]}
+        isSaving={false}
+        isUnlockingLanguage={false}
+        onPromoteLanguage={jest.fn()}
+        onUpdateLanguages={jest.fn(async () => true)}
+        onUnlockLanguageChange={jest.fn(async () => true)}
+        onToggleCategory={onToggleCategory}
+        onDeleteCategory={onDeleteCategory}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Cultura" }));
+    expect(onToggleCategory).toHaveBeenCalledWith("culture");
+
+    await user.click(
+      screen.getByRole("button", { name: "Eliminar categoría Cultura" }),
+    );
+    expect(onDeleteCategory).toHaveBeenCalledWith("culture");
+  });
 });

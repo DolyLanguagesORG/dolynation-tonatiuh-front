@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { RegisterStepper } from "@/app/register/_components/register-stepper";
 import { AuthShell } from "@/components/auth";
+import { FloatingLocaleSelector } from "@/components/layout/floating-locale-selector";
 import {
   Alert,
   Badge,
@@ -272,6 +273,7 @@ export function SetupPreferencesView() {
       title={sp.title}
       subtitle={sp.subtitle}
       maxWidthClass="max-w-4xl"
+      headerAction={<FloatingLocaleSelector />}
       topSlot={
         <div className="flex flex-col gap-3">
           <RegisterStepper

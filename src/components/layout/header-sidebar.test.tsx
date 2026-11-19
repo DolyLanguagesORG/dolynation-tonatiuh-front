@@ -5,6 +5,7 @@ import type { ReactNode } from "react";
 
 const mockLogout = jest.fn(async () => {});
 let mockPathname = "/";
+let mockAuthOverrides: Record<string, unknown> = {};
 
 jest.mock("next/navigation", () => ({
   usePathname: () => mockPathname,
@@ -39,6 +40,7 @@ jest.mock("@/context", () => ({
       id: 7,
       email: "sebastianrdzc04@gmail.com",
       fullName: "sebastian rodriguez",
+      role: "student",
       subscriptionTier: "dolly",
       currentStreak: 3,
       lastStreakDate: null,
@@ -49,6 +51,7 @@ jest.mock("@/context", () => ({
     accessPhase: "ready",
     isAuthenticated: true,
     logout: mockLogout,
+    ...mockAuthOverrides,
   }),
 }));
 
@@ -62,6 +65,7 @@ describe("Header & Sidebar layout", () => {
     jest.clearAllMocks();
     window.localStorage.clear();
     mockPathname = "/";
+    mockAuthOverrides = {};
   });
 
   it("renders ES/EN/FR/IT LocaleSelector dropdown and user dropdown menu in Header top-right", async () => {
@@ -351,5 +355,43 @@ describe("Header & Sidebar layout", () => {
     await user.click(logoutBtn);
     expect(mockLogout).toHaveBeenCalledTimes(1);
     expect(onClose).toHaveBeenCalledTimes(2);
+  });
+
+  it("isolates admin chrome by hiding student CTAs, streak badge, and profile/glossary links", () => {
+    mockPathname = "/admin";
+    mockAuthOverrides = {
+      user: {
+        id: 1,
+        email: "admin@dolynation.test",
+        fullName: "Admin Owner",
+        role: "admin",
+        subscriptionTier: null,
+        currentStreak: 0,
+        lastStreakDate: null,
+        emailVerifiedAt: "2026-11-10T10:00:00.000Z",
+        locale: "es",
+        createdAt: "2026-11-10T10:00:00.000Z",
+      },
+      accessPhase: "admin",
+    };
+
+    render(
+      <LocaleProvider initialLocale="es">
+        <AppShell>
+          <div>Admin Content</div>
+        </AppShell>
+      </LocaleProvider>,
+    );
+
+    expect(screen.getByText("ADMINISTRADOR")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /^Usuarios$/i })).toHaveAttribute(
+      "href",
+      "/admin",
+    );
+    expect(screen.queryByRole("link", { name: /Inicio/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Mis Lecturas/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Glosario/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /NUEVA LECTURA/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/días/i)).not.toBeInTheDocument();
   });
 });

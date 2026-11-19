@@ -10,6 +10,7 @@ import {
   SESSION_FLAG_COOKIE_NAME,
 } from "@/lib/server/auth-cookies";
 import { serverHttpClient } from "@/lib/server/server-http-client";
+import { createAccessRequestsService } from "@/lib/services/access-requests-service";
 import { createAdminService } from "@/lib/services/admin-service";
 import { createAuthService } from "@/lib/services/auth-service";
 import { createContentService } from "@/lib/services/content-service";
@@ -39,6 +40,8 @@ export const serverEvaluationService =
 export const serverHistoryService = createHistoryService(serverHttpClient);
 export const serverIaService = createIaService(serverHttpClient);
 export const serverAdminService = createAdminService(serverHttpClient);
+export const serverAccessRequestsService =
+  createAccessRequestsService(serverHttpClient);
 export const serverSystemService = createSystemService(serverHttpClient);
 
 export const serverApi = {
@@ -52,6 +55,7 @@ export const serverApi = {
   history: serverHistoryService,
   ia: serverIaService,
   admin: serverAdminService,
+  accessRequests: serverAccessRequestsService,
   system: serverSystemService,
 } as const;
 

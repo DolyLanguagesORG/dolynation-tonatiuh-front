@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import {
   ActionLink,
+  Alert,
   Badge,
   Button,
   Card,
@@ -13,9 +14,11 @@ import {
   Icon,
   Input,
   Text,
+  Textarea,
 } from "@/components/ui";
 import { type Dictionary, formatMessage, type Locale } from "@/i18n";
 import {
+  type AccessRequestItem,
   DEFAULT_LANGUAGES,
   getDateLocale,
   type LanguagesSettings,
@@ -38,11 +41,18 @@ export interface LearningPreferencesCardProps {
   selectedCategoryIds: readonly string[];
   isSaving: boolean;
   isUnlockingLanguage: boolean;
+  accessRequestsEnabled?: boolean;
+  pendingLanguageUnlockRequest?: AccessRequestItem | null;
+  latestRejectedLanguageUnlockRequest?: AccessRequestItem | null;
+  isCancellingRequest?: boolean;
   onPromoteLanguage: (code: TargetLanguageCode) => void;
   onUpdateLanguages: (languages: TargetLanguageCode[]) => Promise<boolean>;
-  onUnlockLanguageChange: () => Promise<boolean>;
+  onUnlockLanguageChange: (message?: string) => Promise<boolean>;
+  onCancelAccessRequest?: (requestId: number) => Promise<boolean>;
+  onRefreshAccessRequests?: () => Promise<void>;
   onToggleCategory: (categoryId: string) => void;
   onAddCustomCategory?: (name: string) => Promise<boolean>;
+  onDeleteCategory?: (categoryId: string) => Promise<boolean> | void;
 }
 
 /**
@@ -57,11 +67,18 @@ export function LearningPreferencesCard({
   selectedCategoryIds,
   isSaving,
   isUnlockingLanguage,
+  accessRequestsEnabled = false,
+  pendingLanguageUnlockRequest = null,
+  latestRejectedLanguageUnlockRequest = null,
+  isCancellingRequest = false,
   onPromoteLanguage,
   onUpdateLanguages,
   onUnlockLanguageChange,
+  onCancelAccessRequest,
+  onRefreshAccessRequests,
   onToggleCategory,
   onAddCustomCategory,
+  onDeleteCategory,
 }: LearningPreferencesCardProps) {
   const [customName, setCustomName] = useState("");
   const [isAddingCustom, setIsAddingCustom] = useState(false);
@@ -69,6 +86,7 @@ export function LearningPreferencesCard({
     TargetLanguageCode[] | null
   >(null);
   const [confirmingUnlock, setConfirmingUnlock] = useState(false);
+  const [unlockMessage, setUnlockMessage] = useState("");
 
   const isMissingMinCategories =
     selectedCategoryIds.length < MIN_USER_CATEGORIES;
@@ -135,9 +153,12 @@ export function LearningPreferencesCard({
   };
 
   const handleConfirmUnlock = async (): Promise<void> => {
-    const ok = await onUnlockLanguageChange();
+    const ok = await onUnlockLanguageChange(
+      accessRequestsEnabled ? unlockMessage : undefined,
+    );
     if (ok) {
       setConfirmingUnlock(false);
+      setUnlockMessage("");
     }
   };
 
@@ -373,44 +394,173 @@ export function LearningPreferencesCard({
                         : t.profile.annualLockHint}
                   </Text>
 
-                  <div className="flex flex-wrap items-center gap-2">
-                    {!confirmingUnlock ? (
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        size="xs"
-                        disabled={isUnlockingLanguage}
-                        leftIcon={<Icon name="unlock" size="xs" />}
-                        onClick={() => setConfirmingUnlock(true)}
-                      >
-                        {t.profile.unlockLanguageChangeButton}
-                      </Button>
+                  {accessRequestsEnabled ? (
+                    pendingLanguageUnlockRequest ? (
+                      <div className="flex flex-col gap-2.5 rounded-base border border-default bg-surface p-3">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <div className="flex items-center gap-1.5">
+                            <Icon name="clock" size="xs" className="text-heading" />
+                            <span className="text-xs font-bold text-heading">
+                              {t.profile.pendingLanguageUnlockTitle}
+                            </span>
+                          </div>
+                          <Badge variant="warning">
+                            {t.accessRequests.status.pending}
+                          </Badge>
+                        </div>
+
+                        <Text variant="caption" tone="muted">
+                          {t.profile.pendingLanguageUnlockDesc}
+                        </Text>
+
+                        {pendingLanguageUnlockRequest.userMessage && (
+                          <Text variant="caption" className="italic text-body">
+                            “{pendingLanguageUnlockRequest.userMessage}”
+                          </Text>
+                        )}
+
+                        <div className="flex flex-wrap items-center gap-2">
+                          {onRefreshAccessRequests && (
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="xs"
+                              leftIcon={<Icon name="refresh" size="xs" />}
+                              onClick={() => {
+                                void onRefreshAccessRequests();
+                              }}
+                            >
+                              {t.auth.stepper.step3Plan.refreshStatusButton}
+                            </Button>
+                          )}
+                          {onCancelAccessRequest && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="xs"
+                              isLoading={isCancellingRequest}
+                              onClick={() => {
+                                void onCancelAccessRequest(
+                                  pendingLanguageUnlockRequest.id,
+                                );
+                              }}
+                            >
+                              {t.auth.stepper.step3Plan.cancelRequestButton}
+                            </Button>
+                          )}
+                        </div>
+                      </div>
                     ) : (
-                      <>
+                      <div className="flex flex-col gap-2.5">
+                        {latestRejectedLanguageUnlockRequest?.rejectionReason && (
+                          <Alert variant="warning">
+                            {formatMessage(
+                              t.profile.rejectedLanguageUnlockNotice,
+                              {
+                                reason:
+                                  latestRejectedLanguageUnlockRequest.rejectionReason,
+                              },
+                            )}
+                          </Alert>
+                        )}
+
+                        {!confirmingUnlock ? (
+                          <div>
+                            <Button
+                              type="button"
+                              variant="secondary"
+                              size="xs"
+                              disabled={isUnlockingLanguage}
+                              leftIcon={<Icon name="unlock" size="xs" />}
+                              onClick={() => setConfirmingUnlock(true)}
+                            >
+                              {t.profile.requestLanguageUnlockButton}
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col gap-2.5 rounded-base border border-default bg-surface p-3">
+                            <Textarea
+                              label={t.profile.languageUnlockMessageLabel}
+                              placeholder={
+                                t.profile.languageUnlockMessagePlaceholder
+                              }
+                              maxLength={1000}
+                              rows={2}
+                              value={unlockMessage}
+                              onChange={(event) =>
+                                setUnlockMessage(event.target.value)
+                              }
+                            />
+                            <div className="flex flex-wrap items-center gap-2">
+                              <Button
+                                type="button"
+                                variant="primary"
+                                size="xs"
+                                isLoading={isUnlockingLanguage}
+                                leftIcon={<Icon name="check" size="xs" />}
+                                onClick={() => {
+                                  void handleConfirmUnlock();
+                                }}
+                              >
+                                {t.profile.submitLanguageUnlockButton}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="xs"
+                                disabled={isUnlockingLanguage}
+                                onClick={() => {
+                                  setConfirmingUnlock(false);
+                                  setUnlockMessage("");
+                                }}
+                              >
+                                {t.profile.cancelButton}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  ) : (
+                    <div className="flex flex-wrap items-center gap-2">
+                      {!confirmingUnlock ? (
                         <Button
                           type="button"
-                          variant="primary"
-                          size="xs"
-                          isLoading={isUnlockingLanguage}
-                          leftIcon={<Icon name="check" size="xs" />}
-                          onClick={() => {
-                            void handleConfirmUnlock();
-                          }}
-                        >
-                          {t.profile.confirmCreditButton}
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
+                          variant="secondary"
                           size="xs"
                           disabled={isUnlockingLanguage}
-                          onClick={() => setConfirmingUnlock(false)}
+                          leftIcon={<Icon name="unlock" size="xs" />}
+                          onClick={() => setConfirmingUnlock(true)}
                         >
-                          {t.profile.cancelButton}
+                          {t.profile.unlockLanguageChangeButton}
                         </Button>
-                      </>
-                    )}
-                  </div>
+                      ) : (
+                        <>
+                          <Button
+                            type="button"
+                            variant="primary"
+                            size="xs"
+                            isLoading={isUnlockingLanguage}
+                            leftIcon={<Icon name="check" size="xs" />}
+                            onClick={() => {
+                              void handleConfirmUnlock();
+                            }}
+                          >
+                            {t.profile.confirmCreditButton}
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="xs"
+                            disabled={isUnlockingLanguage}
+                            onClick={() => setConfirmingUnlock(false)}
+                          >
+                            {t.profile.cancelButton}
+                          </Button>
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
@@ -443,21 +593,75 @@ export function LearningPreferencesCard({
             </Text>
           ) : (
             <div className="flex flex-wrap gap-2">
-              {categories.map((cat) => (
-                <ChoiceChip
-                  key={cat.id}
-                  selected={selectedCategoryIds.some(
-                    (id) => id.toLowerCase() === cat.id.toLowerCase(),
-                  )}
-                  indicator="plus-check"
-                  size="sm"
-                  disabled={isSaving}
-                  onClick={() => onToggleCategory(cat.id)}
-                >
-                  {cat.name}
-                </ChoiceChip>
-              ))}
+              {categories.map((cat) => {
+                const isSelected = selectedCategoryIds.some(
+                  (id) => id.toLowerCase() === cat.id.toLowerCase(),
+                );
+                if (!onDeleteCategory) {
+                  return (
+                    <ChoiceChip
+                      key={cat.id}
+                      selected={isSelected}
+                      indicator="plus-check"
+                      size="sm"
+                      disabled={isSaving}
+                      onClick={() => onToggleCategory(cat.id)}
+                    >
+                      {cat.name}
+                    </ChoiceChip>
+                  );
+                }
+
+                return (
+                  <div
+                    key={cat.id}
+                    className={[
+                      "inline-flex items-stretch overflow-hidden rounded-base border transition-colors",
+                      isSelected
+                        ? "border-brand bg-brand text-white"
+                        : "border-default-medium bg-neutral-primary-soft text-heading hover:border-brand",
+                    ].join(" ")}
+                  >
+                    <button
+                      type="button"
+                      aria-pressed={isSelected}
+                      disabled={isSaving}
+                      onClick={() => onToggleCategory(cat.id)}
+                      className="inline-flex min-h-8 items-center gap-1.5 px-2.5 py-1 text-[11px] font-semibold tracking-wider uppercase focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:cursor-not-allowed disabled:opacity-45"
+                    >
+                      <span>{cat.name}</span>
+                      <Icon name={isSelected ? "check" : "plus"} size="xs" />
+                    </button>
+                    <button
+                      type="button"
+                      disabled={isSaving}
+                      aria-label={formatMessage(
+                        t.profile.hooks.deleteCategoryAriaLabel,
+                        { name: cat.name },
+                      )}
+                      title={t.profile.hooks.deleteCategoryTitle}
+                      onClick={() => {
+                        void onDeleteCategory(cat.id);
+                      }}
+                      className={[
+                        "inline-flex min-h-8 items-center justify-center border-l px-2 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-focus-ring disabled:cursor-not-allowed disabled:opacity-45",
+                        isSelected
+                          ? "border-white/25 text-white/80 hover:bg-white/15 hover:text-white"
+                          : "border-default-medium text-muted hover:bg-neutral-secondary-soft hover:text-heading",
+                      ].join(" ")}
+                    >
+                      <Icon name="close" size="xs" />
+                    </button>
+                  </div>
+                );
+              })}
             </div>
+          )}
+
+          {onDeleteCategory && categories.length > 0 && (
+            <Text variant="caption" tone="muted">
+              {t.profile.hooks.categoriesHelpHint}
+            </Text>
           )}
 
           {onAddCustomCategory && (

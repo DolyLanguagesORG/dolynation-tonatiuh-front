@@ -8,6 +8,15 @@ import { backendInternalUrl } from "@/lib/server/backend-url";
 const REFRESH_GRACE_TTL_MS = 15_000;
 const MAX_GRACE_CACHE_ENTRIES = 500;
 
+export interface BffRefreshContext {
+  clientIp?: string | null;
+  forwardedFor?: string | null;
+  cfConnectingIp?: string | null;
+  cfIpCountry?: string | null;
+  userAgent?: string | null;
+  requestId?: string | null;
+}
+
 export type BffRefreshResult =
   | {
       ok: true;
@@ -15,6 +24,7 @@ export type BffRefreshResult =
       status: number;
       rawBody: string;
       contentType: string;
+      requestId: string | null;
     }
   | {
       ok: false;
@@ -22,6 +32,7 @@ export type BffRefreshResult =
       status: number;
       rawBody: string | null;
       contentType: string | null;
+      requestId: string | null;
     };
 
 interface CachedRefreshEntry {
@@ -112,6 +123,7 @@ export function invalidateRefreshCache(refreshToken?: string | null): void {
  */
 export async function refreshTokensOnServer(
   refreshToken: string,
+  context?: BffRefreshContext,
 ): Promise<BffRefreshResult> {
   if (!refreshToken.trim()) {
     return {
@@ -120,6 +132,7 @@ export async function refreshTokensOnServer(
       status: 401,
       rawBody: null,
       contentType: null,
+      requestId: context?.requestId ?? null,
     };
   }
 
@@ -135,6 +148,7 @@ export async function refreshTokensOnServer(
       status: 200,
       rawBody: cached.rawBody,
       contentType: cached.contentType,
+      requestId: context?.requestId ?? null,
     };
   }
 
@@ -146,18 +160,41 @@ export async function refreshTokensOnServer(
   const promise = (async (): Promise<BffRefreshResult> => {
     try {
       const base = backendInternalUrl.replace(/\/+$/, "");
+      const headers: Record<string, string> = {
+        "content-type": "application/json",
+        accept: "application/json",
+      };
+      if (context?.forwardedFor) {
+        headers["x-forwarded-for"] = context.forwardedFor;
+      } else if (context?.clientIp) {
+        headers["x-forwarded-for"] = context.clientIp;
+      }
+      if (context?.clientIp) {
+        headers["x-real-ip"] = context.clientIp;
+      }
+      if (context?.cfConnectingIp) {
+        headers["cf-connecting-ip"] = context.cfConnectingIp;
+      }
+      if (context?.cfIpCountry) {
+        headers["cf-ipcountry"] = context.cfIpCountry;
+      }
+      if (context?.userAgent) {
+        headers["user-agent"] = context.userAgent;
+      }
+      if (context?.requestId) {
+        headers["x-request-id"] = context.requestId;
+      }
+
       const upstream = await fetch(`${base}/auth/refresh`, {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          accept: "application/json",
-        },
+        headers,
         body: JSON.stringify({ refreshToken }),
         cache: "no-store",
       });
 
       const contentType =
         upstream.headers.get("content-type") ?? "application/json";
+      const upstreamRequestId = upstream.headers.get("x-request-id");
       const rawBody = await upstream.text();
 
       if (!upstream.ok) {
@@ -167,6 +204,7 @@ export async function refreshTokensOnServer(
           status: upstream.status,
           rawBody: rawBody || null,
           contentType,
+          requestId: upstreamRequestId,
         };
       }
 
@@ -185,6 +223,7 @@ export async function refreshTokensOnServer(
           status: 502,
           rawBody: rawBody || null,
           contentType,
+          requestId: upstreamRequestId,
         };
       }
 
@@ -201,6 +240,7 @@ export async function refreshTokensOnServer(
         status: upstream.status,
         rawBody,
         contentType,
+        requestId: upstreamRequestId,
       };
     } catch {
       return {
@@ -209,6 +249,7 @@ export async function refreshTokensOnServer(
         status: 503,
         rawBody: null,
         contentType: null,
+        requestId: context?.requestId ?? null,
       };
     }
   })().finally(() => {

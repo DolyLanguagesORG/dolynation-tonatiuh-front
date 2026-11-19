@@ -86,10 +86,13 @@ export interface ApiTransport {
 /** Cantidad mínima de categorías temáticas requeridas para configurar el perfil y generar lecturas. */
 export const MIN_USER_CATEGORIES = 3;
 
+export type UserRole = "student" | "admin";
+
 export interface AuthUser {
   id: number;
   email: string;
   fullName: string | null;
+  role?: UserRole;
   subscriptionTier: SubscriptionTier | null;
   currentStreak: number;
   lastStreakDate: string | null;
@@ -457,6 +460,45 @@ export interface ChatResponse {
 }
 
 // ============================================================================
+// Solicitudes de Acceso y Lista de Espera (`/access-requests`)
+// ============================================================================
+
+export type AccessRequestType = "subscription" | "language_unlock";
+export type AccessRequestStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "cancelled";
+
+export interface AccessRequestItem {
+  id: number;
+  userId: number;
+  requestType: AccessRequestType;
+  requestedTier: SubscriptionTier | null;
+  currentTier: SubscriptionTier | null;
+  userMessage: string | null;
+  status: AccessRequestStatus;
+  rejectionReason: string | null;
+  reviewedByUserId: number | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MyAccessRequestsResponse {
+  enabled: boolean;
+  requests: AccessRequestItem[];
+  pendingSubscriptionRequest: AccessRequestItem | null;
+  pendingLanguageUnlockRequest: AccessRequestItem | null;
+}
+
+export interface CreateAccessRequestInput {
+  type: AccessRequestType;
+  tier?: SubscriptionTier;
+  message?: string;
+}
+
+// ============================================================================
 // Administración (`/admin`)
 // ============================================================================
 
@@ -470,7 +512,61 @@ export interface AdminUserRow {
   id: number;
   email: string;
   fullName: string | null;
+  role: UserRole;
+  subscriptionTier: SubscriptionTier | null;
+  emailVerifiedAt: string | null;
+  locale: string;
+  pendingRequestsCount: number;
   createdAt: string;
+}
+
+export interface AdminUsersQuery extends QueryParams {
+  search?: string;
+  role?: UserRole;
+}
+
+export interface AdminAccessRequest {
+  id: number;
+  userId: number;
+  userEmail: string;
+  userFullName: string | null;
+  userLocale: string;
+  userEmailVerifiedAt: string | null;
+  userCurrentTier: SubscriptionTier | null;
+  requestType: AccessRequestType;
+  requestedTier: SubscriptionTier | null;
+  currentTier: SubscriptionTier | null;
+  userMessage: string | null;
+  status: AccessRequestStatus;
+  rejectionReason: string | null;
+  reviewedByUserId: number | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminRequestsQuery extends QueryParams {
+  status?: AccessRequestStatus;
+  type?: AccessRequestType;
+  search?: string;
+}
+
+export interface ApproveAccessRequestInput {
+  note?: string;
+}
+
+export interface RejectAccessRequestInput {
+  reason: string;
+}
+
+export interface ReviewAccessRequestResponse {
+  request: AdminAccessRequest;
+  emailSent: boolean;
+}
+
+export interface AdminUserDetail {
+  user: AdminUserRow;
+  requests: AdminAccessRequest[];
 }
 
 // ============================================================================

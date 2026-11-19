@@ -21,6 +21,8 @@ export interface InputProps
    * Etiqueta visible obligatoria asociada mediante `htmlFor` e `id`.
    */
   label: string;
+  /** Oculta visualmente la etiqueta manteniendo accesibilidad `sr-only` (útil en barras de filtros). */
+  visuallyHiddenLabel?: boolean;
   /**
    * Texto de ayuda opcional colocado sobre el control y vinculado con `aria-describedby`.
    */
@@ -54,6 +56,7 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
   {
     id: providedId,
     label,
+    visuallyHiddenLabel = false,
     hint,
     error,
     labelAction,
@@ -92,14 +95,20 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(function Input(
 
   return (
     <div className={`flex flex-col gap-1.5 ${containerClassName}`.trim()}>
-      <FieldLabelRow
-        htmlFor={inputId}
-        label={label}
-        required={required}
-        disabled={disabled}
-        hasError={hasError}
-        labelAction={labelAction}
-      />
+      {visuallyHiddenLabel ? (
+        <label htmlFor={inputId} className="sr-only">
+          {label}
+        </label>
+      ) : (
+        <FieldLabelRow
+          htmlFor={inputId}
+          label={label}
+          required={required}
+          disabled={disabled}
+          hasError={hasError}
+          labelAction={labelAction}
+        />
+      )}
 
       {hasHint && <FieldHint id={hintId}>{hint}</FieldHint>}
 

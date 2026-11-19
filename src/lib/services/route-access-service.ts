@@ -18,6 +18,7 @@ export type AccountAccessPhase =
   | "unauthenticated"
   | "unverified_email"
   | "plan_required"
+  | "admin"
   | "ready";
 
 export interface RoutePolicyEntry {
@@ -37,7 +38,9 @@ export type RouteAccessReason =
   | "email_verification_required"
   | "subscription_plan_required"
   | "authentication_required"
-  | "already_authenticated";
+  | "already_authenticated"
+  | "admin_only"
+  | "admin_access_required";
 
 export interface RouteAccessDecision {
   allowed: boolean;
@@ -48,6 +51,14 @@ export interface RouteAccessDecision {
 export const ROUTE_VERIFY_EMAIL = "/verify-email";
 export const ROUTE_SELECT_PLAN = "/select-plan";
 export const ROUTE_SETUP_PREFERENCES = "/setup-preferences";
+export const ROUTE_ADMIN = "/admin";
+
+/**
+ * Únicas rutas operativas accesibles para cuentas con rol `admin`.
+ */
+export const ROUTES_ALLOWED_FOR_ADMIN: readonly RoutePolicyEntry[] = [
+  { path: ROUTE_ADMIN, match: "prefix" },
+];
 
 /**
  * Únicas rutas accesibles mientras el usuario no haya confirmado su correo electrónico.
@@ -154,6 +165,7 @@ export function matchesRoutePolicy(
 export interface RouteAccessPolicyConfig {
   routesAllowedWithoutPlan?: readonly RoutePolicyEntry[];
   routesAllowedWhenUnverifiedEmail?: readonly RoutePolicyEntry[];
+  routesAllowedForAdmin?: readonly RoutePolicyEntry[];
   publicRoutes?: readonly RoutePolicyEntry[];
 }
 
@@ -166,10 +178,12 @@ export function createRouteAccessPolicy(config: RouteAccessPolicyConfig = {}) {
   const unverifiedEmail =
     config.routesAllowedWhenUnverifiedEmail ??
     ROUTES_ALLOWED_WHEN_UNVERIFIED_EMAIL;
+  const adminRoutes = config.routesAllowedForAdmin ?? ROUTES_ALLOWED_FOR_ADMIN;
   const publicRoutes = config.publicRoutes ?? PUBLIC_ROUTES;
 
   const fallbackPlanRoute = withoutPlan[0]?.path ?? ROUTE_SELECT_PLAN;
   const fallbackVerifyRoute = unverifiedEmail[0]?.path ?? ROUTE_VERIFY_EMAIL;
+  const fallbackAdminRoute = adminRoutes[0]?.path ?? ROUTE_ADMIN;
 
   return {
     getAllowedRoutesWithoutPlan(): readonly RoutePolicyEntry[] {
@@ -272,7 +286,25 @@ export function createRouteAccessPolicy(config: RouteAccessPolicyConfig = {}) {
           };
         }
 
+        case "admin": {
+          if (matchesRoutePolicy(normalized, adminRoutes)) {
+            return { allowed: true, redirectTo: null, reason: "allowed" };
+          }
+          return {
+            allowed: false,
+            redirectTo: fallbackAdminRoute,
+            reason: "admin_only",
+          };
+        }
+
         case "ready": {
+          if (matchesRoutePolicy(normalized, adminRoutes)) {
+            return {
+              allowed: false,
+              redirectTo: "/",
+              reason: "admin_access_required",
+            };
+          }
           if (
             matchesRoutePolicy(normalized, ONBOARDING_AUTH_ONLY_ROUTES) ||
             normalized === ROUTE_VERIFY_EMAIL

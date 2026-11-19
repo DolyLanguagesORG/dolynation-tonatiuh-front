@@ -6,7 +6,7 @@ import { useEffect, type ReactNode } from "react";
 import { Container, SkeletonCard } from "@/components/ui";
 import { useAuth } from "@/context";
 import { useLocale } from "@/i18n";
-import { ROUTE_SELECT_PLAN, ROUTE_VERIFY_EMAIL } from "@/lib";
+import { ROUTE_ADMIN, ROUTE_SELECT_PLAN, ROUTE_VERIFY_EMAIL } from "@/lib";
 
 export interface RequireAuthProps {
   children: ReactNode;
@@ -26,6 +26,10 @@ export function RequireAuth({ children }: RequireAuthProps) {
 
   useEffect(() => {
     if (accessPhase === "loading") {
+      return;
+    }
+    if (accessPhase === "admin") {
+      router.replace(ROUTE_ADMIN);
       return;
     }
     if (accessPhase === "unverified_email") {

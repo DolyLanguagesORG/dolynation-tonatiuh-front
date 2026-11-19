@@ -3,6 +3,7 @@ import { describe, expect, it } from "@jest/globals";
 import {
   createRouteAccessPolicy,
   INFORMATIONAL_ROUTES,
+  ROUTE_ADMIN,
   ROUTE_SELECT_PLAN,
   ROUTE_VERIFY_EMAIL,
   routeAccessService,
@@ -199,5 +200,63 @@ describe("routeAccessService", () => {
     expect(routeAccessService.isImmersiveReadingRoute("/readings")).toBe(false);
     expect(routeAccessService.isImmersiveReadingRoute("/readings/")).toBe(false);
     expect(routeAccessService.isImmersiveReadingRoute("/generate")).toBe(false);
+  });
+
+  it("isolates admin phase exclusively to /admin and blocks /admin for non-admin phases", () => {
+    for (const studentPath of [
+      "/",
+      "/generate",
+      "/readings",
+      "/glossary",
+      "/profile",
+      "/select-plan",
+      "/setup-preferences",
+      "/login",
+      "/register",
+    ]) {
+      expect(
+        routeAccessService.evaluate({
+          pathname: studentPath,
+          phase: "admin",
+        }),
+      ).toEqual({
+        allowed: false,
+        redirectTo: ROUTE_ADMIN,
+        reason: "admin_only",
+      });
+    }
+
+    expect(
+      routeAccessService.evaluate({
+        pathname: ROUTE_ADMIN,
+        phase: "admin",
+      }),
+    ).toEqual({
+      allowed: true,
+      redirectTo: null,
+      reason: "allowed",
+    });
+
+    expect(
+      routeAccessService.evaluate({
+        pathname: ROUTE_ADMIN,
+        phase: "ready",
+      }),
+    ).toEqual({
+      allowed: false,
+      redirectTo: "/",
+      reason: "admin_access_required",
+    });
+
+    expect(
+      routeAccessService.evaluate({
+        pathname: ROUTE_ADMIN,
+        phase: "plan_required",
+      }),
+    ).toEqual({
+      allowed: false,
+      redirectTo: ROUTE_SELECT_PLAN,
+      reason: "subscription_plan_required",
+    });
   });
 });

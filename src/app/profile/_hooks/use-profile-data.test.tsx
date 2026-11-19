@@ -199,4 +199,57 @@ describe("useProfileData toast notifications", () => {
 
     expect(mockToastSuccess).toHaveBeenCalledTimes(1);
   });
+
+  it("blocks deleting one of the last 3 active categories and deletes deselected ones via API", async () => {
+    jest.spyOn(settingsService, "getCategories").mockResolvedValueOnce({
+      message: "OK",
+      data: {
+        catalog: [
+          { id: "technology", name: "technology" },
+          { id: "history", name: "history" },
+          { id: "science", name: "science" },
+          { id: "Astronomy", name: "Astronomy" },
+        ],
+        selected: ["technology", "history", "science"],
+      },
+    });
+    const deleteSpy = jest
+      .spyOn(settingsService, "deleteCategory")
+      .mockResolvedValueOnce({
+        message: "Removed",
+        data: {
+          catalog: [
+            { id: "technology", name: "technology" },
+            { id: "history", name: "history" },
+            { id: "science", name: "science" },
+          ],
+          selected: ["technology", "history", "science"],
+        },
+      });
+
+    const { result } = renderHook(() => useProfileData(), { wrapper: Wrapper });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      const blocked = await result.current.handleDeleteCategory("technology");
+      expect(blocked).toBe(false);
+    });
+    expect(deleteSpy).not.toHaveBeenCalled();
+    expect(mockToastWarning).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      const removed = await result.current.handleDeleteCategory("Astronomy");
+      expect(removed).toBe(true);
+    });
+    expect(deleteSpy).toHaveBeenCalledWith("Astronomy");
+    expect(mockToastSuccess).toHaveBeenCalledTimes(1);
+    expect(result.current.resolvedCategories.map((c) => c.id)).toEqual([
+      "technology",
+      "history",
+      "science",
+    ]);
+  });
 });
