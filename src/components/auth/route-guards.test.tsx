@@ -30,6 +30,7 @@ jest.mock("@/i18n", () => {
   };
 });
 
+import { RequireAdmin } from "@/components/auth/require-admin";
 import { RequireAuth } from "@/components/auth/require-auth";
 import { RouteAccessGuard } from "@/components/auth/route-access-guard";
 
@@ -163,5 +164,64 @@ describe("RouteAccessGuard & RequireAuth", () => {
 
     expect(mockReplace).toHaveBeenCalledWith("/setup-preferences");
     expect(screen.queryByText("Select Plan")).not.toBeInTheDocument();
+  });
+
+  it("isolates admin users to /admin via RouteAccessGuard, RequireAuth and RequireAdmin", () => {
+    mockAuthState = {
+      isLoading: false,
+      isAuthenticated: true,
+      accessPhase: "admin",
+      user: {
+        id: 99,
+        email: "admin@example.com",
+        role: "admin",
+      },
+    };
+    mockPathname = "/profile";
+
+    const { unmount } = render(
+      <RouteAccessGuard>
+        <RequireAuth>
+          <div>Student Profile</div>
+        </RequireAuth>
+      </RouteAccessGuard>,
+    );
+
+    expect(mockReplace).toHaveBeenCalledWith("/admin");
+    expect(screen.queryByText("Student Profile")).not.toBeInTheDocument();
+    unmount();
+
+    mockReplace.mockClear();
+    mockPathname = "/admin";
+    render(
+      <RequireAdmin>
+        <div>Admin Panel</div>
+      </RequireAdmin>,
+    );
+    expect(mockReplace).not.toHaveBeenCalled();
+    expect(screen.getByText("Admin Panel")).toBeInTheDocument();
+  });
+
+  it("blocks ready student users from RequireAdmin and redirects to /", () => {
+    mockAuthState = {
+      isLoading: false,
+      isAuthenticated: true,
+      accessPhase: "ready",
+      user: {
+        id: 1,
+        email: "student@example.com",
+        role: "student",
+      },
+    };
+    mockPathname = "/admin";
+
+    render(
+      <RequireAdmin>
+        <div>Admin Panel</div>
+      </RequireAdmin>,
+    );
+
+    expect(mockReplace).toHaveBeenCalledWith("/");
+    expect(screen.queryByText("Admin Panel")).not.toBeInTheDocument();
   });
 });

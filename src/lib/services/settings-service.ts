@@ -16,14 +16,14 @@ export type SettingsRequestOptions = Omit<ApiRequestOptions, "method" | "body">;
  */
 export function createSettingsService(transport: ApiTransport) {
   return {
-    /** Obtiene el catálogo predefinido y las categorías elegidas por el usuario. */
+    /** Obtiene la biblioteca privada de categorías y las categorías activas del usuario. */
     getCategories(
       options?: SettingsRequestOptions,
     ): Promise<ApiResponse<CategoriesSettings>> {
       return transport.get<CategoriesSettings>("/settings/categories", options);
     },
 
-    /** Reemplaza la lista de categorías favoritas respetando la cuota del plan. */
+    /** Reemplaza la lista de categorías activas respetando la cuota del plan. */
     updateCategories(
       input: UpdateCategoriesInput,
       options?: SettingsRequestOptions,
@@ -33,6 +33,17 @@ export function createSettingsService(transport: ApiTransport) {
         input,
         options,
       );
+    },
+
+    /** Elimina una categoría del perfil del usuario sin borrarla del caché de moderación. */
+    deleteCategory(
+      category: string,
+      options?: SettingsRequestOptions,
+    ): Promise<ApiResponse<CategoriesSettings>> {
+      return transport.delete<CategoriesSettings>("/settings/categories", {
+        ...options,
+        query: { category },
+      });
     },
 
     /** Obtiene los idiomas elegidos, activos, bloqueos anuales y créditos disponibles. */

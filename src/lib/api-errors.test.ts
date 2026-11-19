@@ -20,6 +20,11 @@ const BACKEND_FLOW_ERROR_CODES = [
   ErrorCode.AUTH_EMAIL_NOT_VERIFIED,
   ErrorCode.AUTH_EMAIL_TOKEN_INVALID,
   ErrorCode.AUTH_TOKEN_INVALID,
+  ErrorCode.ACCESS_REQUEST_REQUIRED,
+  ErrorCode.ACCESS_REQUESTS_DISABLED,
+  ErrorCode.ACCESS_REQUEST_ALREADY_PENDING,
+  ErrorCode.ACCESS_REQUEST_ALREADY_REVIEWED,
+  ErrorCode.AI_RATE_LIMITED,
 ] as const;
 
 describe("api-errors catalog", () => {
@@ -76,5 +81,18 @@ describe("api-errors catalog", () => {
     expect(err.getRejectedCategories()).toHaveLength(2);
     expect(err.getUserMessage("es")).toContain('"spam", "gore"');
     expect(err.getUserMessage("en")).toContain('"spam", "gore"');
+  });
+
+  it("avoids internal infrastructure jargon across all localized error messages", () => {
+    const locales = ["es", "en", "fr", "it"] as const;
+    for (const locale of locales) {
+      for (const code of Object.values(ErrorCode)) {
+        const msg = resolveErrorMessage(code, locale);
+        expect(msg.toLowerCase()).not.toContain("proxy");
+        expect(msg.toLowerCase()).not.toContain("backend");
+        expect(msg.toLowerCase()).not.toContain("token");
+        expect(msg).not.toContain(code);
+      }
+    }
   });
 });

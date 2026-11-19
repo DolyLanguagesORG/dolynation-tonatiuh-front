@@ -1,3 +1,7 @@
+import {
+  accessRequestsService,
+  createAccessRequestsService,
+} from "@/lib/services/access-requests-service";
 import { adminService, createAdminService } from "@/lib/services/admin-service";
 import { authService, createAuthService } from "@/lib/services/auth-service";
 import {
@@ -31,6 +35,7 @@ import {
 } from "@/lib/services/system-service";
 import { createUsersService, usersService } from "@/lib/services/users-service";
 
+export * from "@/lib/services/access-requests-service";
 export * from "@/lib/services/admin-service";
 export * from "@/lib/services/auth-service";
 export * from "@/lib/services/content-service";
@@ -58,6 +63,7 @@ export const apiServices = {
   history: historyService,
   ia: iaService,
   admin: adminService,
+  accessRequests: accessRequestsService,
   system: systemService,
 } as const;
 
@@ -72,5 +78,6 @@ export const serviceFactories = {
   createHistoryService,
   createIaService,
   createAdminService,
+  createAccessRequestsService,
   createSystemService,
 } as const;

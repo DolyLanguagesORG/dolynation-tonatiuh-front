@@ -2,16 +2,56 @@ import type { BrowserContext, Page, Route } from "@playwright/test";
 
 export type SubscriptionTier = "dolly" | "dolly_plus" | "dolly_pro";
 export type TargetLanguageCode = "es" | "en" | "fr" | "it";
+export type UserRole = "student" | "admin";
+export type AccessRequestType = "subscription" | "language_unlock";
+export type AccessRequestStatus =
+  | "pending"
+  | "approved"
+  | "rejected"
+  | "cancelled";
 
 export interface MockUserState {
   id: number;
   email: string;
   fullName: string | null;
+  role?: UserRole;
   subscriptionTier: SubscriptionTier | null;
   currentStreak: number;
   lastStreakDate: string | null;
   emailVerifiedAt: string | null;
   locale: TargetLanguageCode;
+  createdAt: string;
+}
+
+export interface MockAccessRequest {
+  id: number;
+  userId: number;
+  userEmail: string;
+  userFullName: string | null;
+  userLocale: TargetLanguageCode;
+  userEmailVerifiedAt: string | null;
+  userCurrentTier: SubscriptionTier | null;
+  requestType: AccessRequestType;
+  requestedTier: SubscriptionTier | null;
+  currentTier: SubscriptionTier | null;
+  userMessage: string | null;
+  status: AccessRequestStatus;
+  rejectionReason: string | null;
+  reviewedByUserId: number | null;
+  reviewedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MockAdminUser {
+  id: number;
+  email: string;
+  fullName: string | null;
+  role: UserRole;
+  subscriptionTier: SubscriptionTier | null;
+  emailVerifiedAt: string | null;
+  locale: TargetLanguageCode;
+  pendingRequestsCount: number;
   createdAt: string;
 }
 
@@ -64,6 +104,7 @@ export interface MockGlossaryEntry {
 
 export interface MockBackendConfig {
   emailVerificationRequired?: boolean;
+  accessRequestsEnabled?: boolean;
   validVerificationToken?: string;
   validResetToken?: string;
   categoryDailyLimit?: number;
@@ -75,6 +116,8 @@ export interface MockBackendConfig {
   initialLanguageChangeCredits?: number;
   initialReadings?: MockReading[];
   initialExplanations?: MockGlossaryEntry[];
+  initialAccessRequests?: MockAccessRequest[];
+  initialAdminUsers?: MockAdminUser[];
   initialReadingsCreatedToday?: number;
   initialCategoriesEvaluatedToday?: string[];
 }
@@ -166,6 +209,7 @@ export interface MockBackendHandle {
   state: {
     user: MockUserState | null;
     sessionActive: boolean;
+    accessRequestsEnabled: boolean;
     selectedLanguages: TargetLanguageCode[];
     selectedCategories: string[];
     lastLanguageChangeAt: string | null;
@@ -174,6 +218,8 @@ export interface MockBackendHandle {
     readingsCreatedToday: number;
     categoriesEvaluatedToday: string[];
     explanations: MockGlossaryEntry[];
+    accessRequests: MockAccessRequest[];
+    adminUsers: MockAdminUser[];
     requests: { method: string; path: string; body: unknown }[];
   };
   setSessionCookie: (active: boolean) => Promise<void>;
@@ -191,6 +237,7 @@ export async function attachMockBackend(
   config: MockBackendConfig = {},
 ): Promise<MockBackendHandle> {
   const emailVerificationRequired = config.emailVerificationRequired ?? true;
+  const accessRequestsEnabled = config.accessRequestsEnabled ?? false;
   const validVerificationToken =
     config.validVerificationToken ?? "valid-verify-token";
   const validResetToken = config.validResetToken ?? "valid-reset-token";
@@ -200,6 +247,7 @@ export async function attachMockBackend(
     id: 101,
     email: "student@example.com",
     fullName: "Ada Lovelace",
+    role: "student",
     subscriptionTier: null,
     currentStreak: 3,
     lastStreakDate: "2026-11-13",
@@ -212,10 +260,34 @@ export async function attachMockBackend(
   let nextReadingId =
     Math.max(100, ...(config.initialReadings ?? []).map((r) => r.id)) + 1;
   let nextExplanationId = 500;
+  let nextAccessRequestId =
+    Math.max(10, ...(config.initialAccessRequests ?? []).map((r) => r.id)) + 1;
+
+  const seededAdminUsers: MockAdminUser[] =
+    config.initialAdminUsers ??
+    (config.initialAuthenticated
+      ? [
+          {
+            id: defaultUser.id,
+            email: defaultUser.email,
+            fullName: defaultUser.fullName,
+            role: defaultUser.role ?? "student",
+            subscriptionTier: defaultUser.subscriptionTier,
+            emailVerifiedAt: defaultUser.emailVerifiedAt,
+            locale: defaultUser.locale,
+            pendingRequestsCount: (config.initialAccessRequests ?? []).filter(
+              (req) =>
+                req.userId === defaultUser.id && req.status === "pending",
+            ).length,
+            createdAt: defaultUser.createdAt,
+          },
+        ]
+      : []);
 
   const state: MockBackendHandle["state"] = {
     user: config.initialAuthenticated ? defaultUser : null,
     sessionActive: Boolean(config.initialAuthenticated),
+    accessRequestsEnabled,
     selectedLanguages: [...(config.initialSelectedLanguages ?? [])],
     selectedCategories: [...(config.initialSelectedCategories ?? [])],
     lastLanguageChangeAt: config.initialLastLanguageChangeAt ?? null,
@@ -224,6 +296,8 @@ export async function attachMockBackend(
     readingsCreatedToday: config.initialReadingsCreatedToday ?? 0,
     categoriesEvaluatedToday: [...(config.initialCategoriesEvaluatedToday ?? [])],
     explanations: [...(config.initialExplanations ?? [])],
+    accessRequests: [...(config.initialAccessRequests ?? [])],
+    adminUsers: seededAdminUsers,
     requests: [],
   };
 
@@ -472,7 +546,244 @@ export async function attachMockBackend(
     }
 
     if (apiPath === "/auth/me" && method === "GET") {
-      return okResponse(route, state.user);
+      return okResponse(route, {
+        ...state.user,
+        role: state.user.role ?? "student",
+      });
+    }
+
+    if (apiPath.startsWith("/admin")) {
+      if ((state.user.role ?? "student") !== "admin") {
+        return errorResponse(
+          route,
+          403,
+          "RESOURCE_FORBIDDEN",
+          "Admin role required",
+        );
+      }
+
+      if (apiPath === "/admin/categories" && method === "GET") {
+        return okResponse(route, []);
+      }
+
+      if (apiPath === "/admin/users" && method === "GET") {
+        const usersWithPending = state.adminUsers.map((entry) => ({
+          ...entry,
+          pendingRequestsCount: state.accessRequests.filter(
+            (r) => r.userId === entry.id && r.status === "pending",
+          ).length,
+        }));
+        return okResponse(route, usersWithPending);
+      }
+
+      const userDetailMatch = /^\/admin\/users\/(\d+)$/.exec(apiPath);
+      if (userDetailMatch && method === "GET") {
+        const userId = Number(userDetailMatch[1]);
+        const found = state.adminUsers.find((entry) => entry.id === userId);
+        if (!found) {
+          return errorResponse(route, 404, "RESOURCE_NOT_FOUND", "Not found");
+        }
+        const userRequests = state.accessRequests.filter(
+          (r) => r.userId === userId,
+        );
+        return okResponse(route, {
+          user: {
+            ...found,
+            pendingRequestsCount: userRequests.filter(
+              (r) => r.status === "pending",
+            ).length,
+          },
+          requests: userRequests,
+        });
+      }
+
+      if (apiPath === "/admin/requests" && method === "GET") {
+        return okResponse(route, [...state.accessRequests]);
+      }
+
+      const approveMatch = /^\/admin\/requests\/(\d+)\/approve$/.exec(apiPath);
+      if (approveMatch && method === "POST") {
+        const reqId = Number(approveMatch[1]);
+        const target = state.accessRequests.find((r) => r.id === reqId);
+        if (!target) {
+          return errorResponse(route, 404, "RESOURCE_NOT_FOUND", "Not found");
+        }
+        if (target.status !== "pending") {
+          return errorResponse(
+            route,
+            409,
+            "ACCESS_REQUEST_ALREADY_REVIEWED",
+            "Already reviewed",
+          );
+        }
+        const nowIso = new Date().toISOString();
+        target.status = "approved";
+        target.reviewedByUserId = state.user.id;
+        target.reviewedAt = nowIso;
+        target.updatedAt = nowIso;
+
+        if (target.requestType === "subscription" && target.requestedTier) {
+          target.userCurrentTier = target.requestedTier;
+          state.adminUsers = state.adminUsers.map((u) =>
+            u.id === target.userId
+              ? { ...u, subscriptionTier: target.requestedTier }
+              : u,
+          );
+          if (state.user.id === target.userId) {
+            state.user = {
+              ...state.user,
+              subscriptionTier: target.requestedTier,
+            };
+          }
+        } else if (target.requestType === "language_unlock") {
+          state.languageChangeCredits += 1;
+        }
+
+        return okResponse(route, {
+          request: { ...target },
+          emailSent: true,
+        });
+      }
+
+      const rejectMatch = /^\/admin\/requests\/(\d+)\/reject$/.exec(apiPath);
+      if (rejectMatch && method === "POST") {
+        const reqId = Number(rejectMatch[1]);
+        const body = (parsedBody ?? {}) as { reason?: string };
+        const cleanReason = body.reason?.trim() ?? "";
+        if (cleanReason.length < 5) {
+          return errorResponse(
+            route,
+            400,
+            "VALIDATION_ERROR",
+            "Rejection reason must be at least 5 characters.",
+          );
+        }
+        const target = state.accessRequests.find((r) => r.id === reqId);
+        if (!target) {
+          return errorResponse(route, 404, "RESOURCE_NOT_FOUND", "Not found");
+        }
+        if (target.status !== "pending") {
+          return errorResponse(
+            route,
+            409,
+            "ACCESS_REQUEST_ALREADY_REVIEWED",
+            "Already reviewed",
+          );
+        }
+        const nowIso = new Date().toISOString();
+        target.status = "rejected";
+        target.rejectionReason = cleanReason;
+        target.reviewedByUserId = state.user.id;
+        target.reviewedAt = nowIso;
+        target.updatedAt = nowIso;
+
+        return okResponse(route, {
+          request: { ...target },
+          emailSent: true,
+        });
+      }
+    }
+
+    if ((state.user.role ?? "student") === "admin") {
+      return errorResponse(
+        route,
+        403,
+        "RESOURCE_FORBIDDEN",
+        "Admin accounts are isolated to administrative endpoints.",
+      );
+    }
+
+    if (apiPath === "/access-requests/me" && method === "GET") {
+      const mine = state.accessRequests.filter(
+        (r) => r.userId === state.user?.id,
+      );
+      return okResponse(route, {
+        enabled: state.accessRequestsEnabled,
+        requests: mine,
+        pendingSubscriptionRequest:
+          mine.find(
+            (r) => r.requestType === "subscription" && r.status === "pending",
+          ) ?? null,
+        pendingLanguageUnlockRequest:
+          mine.find(
+            (r) =>
+              r.requestType === "language_unlock" && r.status === "pending",
+          ) ?? null,
+      });
+    }
+
+    if (apiPath === "/access-requests" && method === "POST") {
+      if (!state.accessRequestsEnabled) {
+        return errorResponse(
+          route,
+          403,
+          "ACCESS_REQUESTS_DISABLED",
+          "Access requests are disabled.",
+        );
+      }
+      const body = (parsedBody ?? {}) as {
+        type?: AccessRequestType;
+        tier?: SubscriptionTier;
+        message?: string;
+      };
+      const reqType = body.type;
+      if (
+        !reqType ||
+        (reqType !== "subscription" && reqType !== "language_unlock")
+      ) {
+        return errorResponse(route, 400, "VALIDATION_ERROR", "Invalid type");
+      }
+      if (
+        state.accessRequests.some(
+          (r) =>
+            r.userId === state.user?.id &&
+            r.requestType === reqType &&
+            r.status === "pending",
+        )
+      ) {
+        return errorResponse(
+          route,
+          409,
+          "ACCESS_REQUEST_ALREADY_PENDING",
+          "Pending request already exists.",
+        );
+      }
+      const nowIso = new Date().toISOString();
+      const created: MockAccessRequest = {
+        id: nextAccessRequestId++,
+        userId: state.user.id,
+        userEmail: state.user.email,
+        userFullName: state.user.fullName,
+        userLocale: state.user.locale,
+        userEmailVerifiedAt: state.user.emailVerifiedAt,
+        userCurrentTier: state.user.subscriptionTier,
+        requestType: reqType,
+        requestedTier: reqType === "subscription" ? (body.tier ?? "dolly") : null,
+        currentTier: state.user.subscriptionTier,
+        userMessage: body.message?.trim() || null,
+        status: "pending",
+        rejectionReason: null,
+        reviewedByUserId: null,
+        reviewedAt: null,
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
+      state.accessRequests.unshift(created);
+      return okResponse(route, created, 201);
+    }
+
+    const cancelReqMatch = /^\/access-requests\/(\d+)$/.exec(apiPath);
+    if (cancelReqMatch && method === "DELETE") {
+      const reqId = Number(cancelReqMatch[1]);
+      const target = state.accessRequests.find(
+        (r) => r.id === reqId && r.userId === state.user?.id,
+      );
+      if (!target) {
+        return errorResponse(route, 404, "RESOURCE_NOT_FOUND", "Not found");
+      }
+      target.status = "cancelled";
+      target.updatedAt = new Date().toISOString();
+      return okResponse(route, { ...target });
     }
 
     if (apiPath === "/user/profile" && method === "GET") {
@@ -515,6 +826,14 @@ export async function attachMockBackend(
     }
 
     if (apiPath === "/user/subscription" && method === "POST") {
+      if (state.accessRequestsEnabled) {
+        return errorResponse(
+          route,
+          403,
+          "ACCESS_REQUEST_REQUIRED",
+          "Waitlist enabled: submit an access request.",
+        );
+      }
       const body = (parsedBody ?? {}) as { tier?: SubscriptionTier };
       if (!body.tier || !PLAN_CATALOG.some((p) => p.id === body.tier)) {
         return errorResponse(route, 400, "VALIDATION_ERROR", "Invalid plan");
@@ -635,6 +954,14 @@ export async function attachMockBackend(
     }
 
     if (apiPath === "/settings/languages/unlock-change" && method === "POST") {
+      if (state.accessRequestsEnabled) {
+        return errorResponse(
+          route,
+          403,
+          "ACCESS_REQUEST_REQUIRED",
+          "Waitlist enabled: submit a language unlock request.",
+        );
+      }
       state.languageChangeCredits += 1;
       return okResponse(route, buildLanguagesDto());
     }

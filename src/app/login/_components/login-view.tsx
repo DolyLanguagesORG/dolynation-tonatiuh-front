@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { AuthShell } from "@/components/auth";
+import { FloatingLocaleSelector } from "@/components/layout/floating-locale-selector";
 import {
   Alert,
   Button,
@@ -45,6 +46,7 @@ export function LoginView() {
       title={t.auth.login.title}
       subtitle={t.auth.login.subtitle}
       maxWidthClass="max-w-[460px]"
+      headerAction={<FloatingLocaleSelector />}
       footerPrompt={
         <>
           {t.auth.login.noAccountPrompt}{" "}
@@ -66,7 +68,6 @@ export function LoginView() {
         <Alert
           variant="info"
           title={infoNotice.title}
-          code="AUTH_NOTICE"
           onDismiss={() => setInfoNotice(null)}
         >
           {infoNotice.message}
@@ -77,7 +78,6 @@ export function LoginView() {
         <Alert
           variant="error"
           title={t.auth.login.errorBannerTitle}
-          code={apiError.code}
           onDismiss={() => setApiError(null)}
         >
           {apiError.message}

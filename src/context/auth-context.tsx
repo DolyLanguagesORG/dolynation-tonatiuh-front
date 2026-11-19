@@ -12,15 +12,19 @@ import {
 } from "react";
 
 import {
+  type AccessRequestItem,
+  accessRequestsService,
   type AccountAccessPhase,
   ApiClientError,
   authService,
   type AuthUser,
   type CategoriesSettings,
+  type CreateAccessRequestInput,
   ErrorCode,
   type LanguagesSettings,
   type LoginInput,
   MIN_USER_CATEGORIES,
+  type MyAccessRequestsResponse,
   registerAuthLifecycleHandlers,
   type RegisterInput,
   settingsService,
@@ -67,6 +71,8 @@ export interface AuthContextValue {
   subscription: UserSubscriptionResponse | null;
   languagesSettings: LanguagesSettings | null;
   categoriesSettings: CategoriesSettings | null;
+  accessRequests: MyAccessRequestsResponse | null;
+  accessRequestsEnabled: boolean;
   status: AuthStatus;
   accessPhase: AccountAccessPhase;
   isAuthenticated: boolean;
@@ -83,6 +89,11 @@ export interface AuthContextValue {
   refreshSession: () => Promise<boolean>;
   reloadAccountState: () => Promise<void>;
   refreshPreferences: () => Promise<void>;
+  refreshAccessRequests: () => Promise<void>;
+  submitAccessRequest: (
+    input: CreateAccessRequestInput,
+  ) => Promise<AccessRequestItem>;
+  cancelAccessRequest: (id: number) => Promise<AccessRequestItem>;
   selectPlan: (plan: SubscriptionPlanId) => Promise<UserSubscriptionResponse>;
   selectLanguages: (
     languages: TargetLanguageCode[],
@@ -255,6 +266,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     useState<LanguagesSettings | null>(null);
   const [categoriesSettings, setCategoriesSettings] =
     useState<CategoriesSettings | null>(null);
+  const [accessRequestsState, setAccessRequestsState] =
+    useState<MyAccessRequestsResponse | null>(null);
   const [status, setStatus] = useState<AuthStatus>("loading");
   const [subscriptionRequired, setSubscriptionRequired] = useState(false);
   const [pendingVerificationEmail, setPendingVerificationEmailState] = useState<
@@ -266,6 +279,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isBootstrappedRef = useRef(false);
   const isUnloadingRef = useRef(false);
   const authTransitionEpochRef = useRef(0);
+  const lastVisibilitySyncRef = useRef(0);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -303,6 +317,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSubscription(null);
       setLanguagesSettings(null);
       setCategoriesSettings(null);
+      setAccessRequestsState(null);
       setSubscriptionRequired(false);
       if (!options?.preservePendingEmail) {
         setPendingVerificationEmailState(null);
@@ -383,32 +398,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applySubscribedAccountSettings, fetchSubscribedAccountSettings],
   );
 
+  const fetchStudentAccessRequests = useCallback(async (): Promise<
+    MyAccessRequestsResponse | null
+  > => {
+    try {
+      const response = await accessRequestsService.getMyRequests();
+      return response.data;
+    } catch {
+      // Compatibilidad con mocks heredados que aún no stubbean `/access-requests/me`.
+      return null;
+    }
+  }, []);
+
   const applyAuthenticatedUser = useCallback(
     async (authenticatedUser: AuthUser): Promise<void> => {
       const transitionEpoch = ++authTransitionEpochRef.current;
 
-      if (authenticatedUser.subscriptionTier) {
-        // Publicamos usuario, estado `authenticated` y onboarding completo en el mismo
-        // commit tras resolver suscripción/idiomas/categorías para evitar destellos de gates en `/`.
-        const settingsSnapshot =
-          await fetchSubscribedAccountSettings(authenticatedUser);
-        if (authTransitionEpochRef.current !== transitionEpoch) {
-          return;
-        }
+      if (authenticatedUser.role === "admin") {
+        // Las cuentas admin están aisladas: nunca cargan datos ni solicitudes estudiantiles.
         updatePendingVerificationEmail(null);
         saveUserSnapshot(authenticatedUser);
-        applySubscribedAccountSettings(settingsSnapshot);
+        setSubscription(null);
+        setLanguagesSettings(null);
+        setCategoriesSettings(null);
+        setAccessRequestsState(null);
+        setOnboarding(EMPTY_ONBOARDING);
         setUser(authenticatedUser);
         setSubscriptionRequired(false);
         setStatus("authenticated");
         return;
       }
 
+      if (authenticatedUser.subscriptionTier) {
+        // Publicamos usuario, estado `authenticated` y onboarding completo en el mismo
+        // commit tras resolver suscripción/idiomas/categorías para evitar destellos de gates en `/`.
+        const [settingsSnapshot, requestsSnapshot] = await Promise.all([
+          fetchSubscribedAccountSettings(authenticatedUser),
+          fetchStudentAccessRequests(),
+        ]);
+        if (authTransitionEpochRef.current !== transitionEpoch) {
+          return;
+        }
+        updatePendingVerificationEmail(null);
+        saveUserSnapshot(authenticatedUser);
+        applySubscribedAccountSettings(settingsSnapshot);
+        setAccessRequestsState(requestsSnapshot);
+        setUser(authenticatedUser);
+        setSubscriptionRequired(false);
+        setStatus("authenticated");
+        return;
+      }
+
+      const requestsSnapshot = await fetchStudentAccessRequests();
+      if (authTransitionEpochRef.current !== transitionEpoch) {
+        return;
+      }
       updatePendingVerificationEmail(null);
       saveUserSnapshot(authenticatedUser);
       setSubscription(null);
       setLanguagesSettings(null);
       setCategoriesSettings(null);
+      setAccessRequestsState(requestsSnapshot);
       setOnboarding(
         buildOnboardingState({
           emailVerified: true,
@@ -423,6 +473,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [
       applySubscribedAccountSettings,
+      fetchStudentAccessRequests,
       fetchSubscribedAccountSettings,
       updatePendingVerificationEmail,
     ],
@@ -457,11 +508,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           : user
             ? { ...user, subscriptionTier: null }
             : null;
+        const requestsSnapshot = await fetchStudentAccessRequests();
         updatePendingVerificationEmail(null);
         setUser(resolvedUser);
         setSubscription(null);
         setLanguagesSettings(null);
         setCategoriesSettings(null);
+        setAccessRequestsState(requestsSnapshot);
         setSubscriptionRequired(true);
         setStatus("authenticated");
         setOnboarding(
@@ -519,9 +572,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [
     applyAuthenticatedUser,
     clearSessionState,
+    fetchStudentAccessRequests,
     updatePendingVerificationEmail,
     user,
   ]);
+
+  const refreshAccessRequests = useCallback(async (): Promise<void> => {
+    if (user?.role === "admin") {
+      setAccessRequestsState(null);
+      return;
+    }
+    const requestsSnapshot = await fetchStudentAccessRequests();
+    if (requestsSnapshot !== null) {
+      setAccessRequestsState(requestsSnapshot);
+    }
+  }, [fetchStudentAccessRequests, user?.role]);
+
+  const submitAccessRequest = useCallback(
+    async (input: CreateAccessRequestInput): Promise<AccessRequestItem> => {
+      const response = await accessRequestsService.createRequest(input);
+      await refreshAccessRequests();
+      return response.data;
+    },
+    [refreshAccessRequests],
+  );
+
+  const cancelAccessRequest = useCallback(
+    async (id: number): Promise<AccessRequestItem> => {
+      const response = await accessRequestsService.cancelRequest(id);
+      await refreshAccessRequests();
+      return response.data;
+    },
+    [refreshAccessRequests],
+  );
 
   const refreshPreferences = useCallback(async (): Promise<void> => {
     if (!user?.subscriptionTier) {
@@ -578,6 +661,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
   }, [reloadAccountState]);
+
+  // Al volver a enfocar la pestaña, resincroniza solicitudes y posible aprobación del plan.
+  useEffect(() => {
+    if (status !== "authenticated" || user?.role === "admin") {
+      return;
+    }
+
+    const handleVisibilityOrFocus = (): void => {
+      if (document.visibilityState === "hidden") {
+        return;
+      }
+      const now = Date.now();
+      if (now - lastVisibilitySyncRef.current < 5_000) {
+        return;
+      }
+      lastVisibilitySyncRef.current = now;
+
+      if (
+        subscriptionRequired ||
+        !user?.subscriptionTier ||
+        Boolean(accessRequestsState?.pendingSubscriptionRequest)
+      ) {
+        void reloadAccountState();
+      } else {
+        void refreshAccessRequests();
+      }
+    };
+
+    window.addEventListener("focus", handleVisibilityOrFocus);
+    document.addEventListener("visibilitychange", handleVisibilityOrFocus);
+    return () => {
+      window.removeEventListener("focus", handleVisibilityOrFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
+    };
+  }, [
+    accessRequestsState?.pendingSubscriptionRequest,
+    refreshAccessRequests,
+    reloadAccountState,
+    status,
+    subscriptionRequired,
+    user?.role,
+    user?.subscriptionTier,
+  ]);
 
   // Hidratación inicial desde cookies `HttpOnly` + estado de verificación pendiente.
   useEffect(() => {
@@ -830,13 +956,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return "unverified_email";
     }
     if (status === "authenticated") {
+      if (user?.role === "admin") {
+        return "admin";
+      }
       if (subscriptionRequired || !user?.subscriptionTier) {
         return "plan_required";
       }
       return "ready";
     }
     return "unauthenticated";
-  }, [pendingVerificationEmail, status, subscriptionRequired, user?.subscriptionTier]);
+  }, [
+    pendingVerificationEmail,
+    status,
+    subscriptionRequired,
+    user?.role,
+    user?.subscriptionTier,
+  ]);
 
   const value = useMemo<AuthContextValue>(
     () => ({
@@ -844,6 +979,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       subscription,
       languagesSettings,
       categoriesSettings,
+      accessRequests: accessRequestsState,
+      accessRequestsEnabled: accessRequestsState?.enabled ?? false,
       status,
       accessPhase,
       isAuthenticated,
@@ -860,6 +997,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshSession,
       reloadAccountState,
       refreshPreferences,
+      refreshAccessRequests,
+      submitAccessRequest,
+      cancelAccessRequest,
       selectPlan,
       selectLanguages,
       savePreferences,
@@ -870,6 +1010,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       subscription,
       languagesSettings,
       categoriesSettings,
+      accessRequestsState,
       status,
       accessPhase,
       isAuthenticated,
@@ -885,6 +1026,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshSession,
       reloadAccountState,
       refreshPreferences,
+      refreshAccessRequests,
+      submitAccessRequest,
+      cancelAccessRequest,
       selectPlan,
       selectLanguages,
       savePreferences,

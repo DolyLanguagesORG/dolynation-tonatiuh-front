@@ -80,7 +80,6 @@ export function useRegisterFlow() {
   }>({});
 
   const [apiError, setApiError] = useState<{
-    code: string;
     message: string;
   } | null>(null);
 
@@ -204,7 +203,7 @@ export function useRegisterFlow() {
     } catch (error) {
       if (error instanceof ApiClientError) {
         const userMessage = error.getUserMessage(locale);
-        setApiError({ code: error.code, message: userMessage });
+        setApiError({ message: userMessage });
 
         if (error.code === ErrorCode.AUTH_EMAIL_ALREADY_EXISTS) {
           setFieldErrors((prev) => ({ ...prev, email: userMessage }));
@@ -219,19 +218,18 @@ export function useRegisterFlow() {
           setFieldErrors((prev) => ({
             ...prev,
             ...(error.fieldErrors.fullName
-              ? { firstName: error.fieldErrors.fullName }
+              ? { firstName: t.auth.register.validationFirstNameMaxLength }
               : {}),
             ...(error.fieldErrors.email
-              ? { email: error.fieldErrors.email }
+              ? { email: t.auth.register.validationEmailInvalid }
               : {}),
             ...(error.fieldErrors.password
-              ? { password: error.fieldErrors.password }
+              ? { password: t.auth.register.validationPasswordMinLength }
               : {}),
           }));
         }
       } else {
         setApiError({
-          code: ErrorCode.UNKNOWN_ERROR,
           message: t.auth.register.fallbackError,
         });
       }

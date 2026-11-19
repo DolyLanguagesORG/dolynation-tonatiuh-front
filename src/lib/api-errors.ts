@@ -39,8 +39,17 @@ export const ErrorCode = {
   CATEGORY_MODERATION_REJECTED: "CATEGORY_MODERATION_REJECTED",
   CATEGORY_DAILY_LIMIT_REACHED: "CATEGORY_DAILY_LIMIT_REACHED",
 
+  // Solicitudes de acceso y lista de espera (4xx)
+  ACCESS_REQUEST_REQUIRED: "ACCESS_REQUEST_REQUIRED",
+  ACCESS_REQUESTS_DISABLED: "ACCESS_REQUESTS_DISABLED",
+  ACCESS_REQUEST_ALREADY_PENDING: "ACCESS_REQUEST_ALREADY_PENDING",
+  ACCESS_REQUEST_ALREADY_REVIEWED: "ACCESS_REQUEST_ALREADY_REVIEWED",
+
   // Validación (4xx)
   VALIDATION_ERROR: "VALIDATION_ERROR",
+
+  // Alta demanda (429)
+  AI_RATE_LIMITED: "AI_RATE_LIMITED",
 
   // Servidor (5xx)
   INTERNAL_ERROR: "INTERNAL_ERROR",
@@ -77,25 +86,25 @@ export interface ApiResponse<T = unknown> {
 
 const ERROR_MESSAGES_ES: Record<KnownErrorCode, string> = {
   AUTH_INVALID_CREDENTIALS:
-    "Las credenciales ingresadas no son válidas. Verifica tu correo y contraseña.",
+    "El correo o la contraseña no son correctos. Verifica tus datos e intenta de nuevo.",
   AUTH_TOKEN_EXPIRED:
-    "Tu sesión académica ha expirado. Renovando credenciales o vuelve a iniciar sesión.",
+    "Tu sesión ha expirado. Inicia sesión nuevamente para continuar.",
   AUTH_TOKEN_INVALID:
-    "La sesión actual no es válida. Inicia sesión nuevamente para continuar.",
+    "Tu sesión actual ya no es válida. Inicia sesión nuevamente para continuar.",
   AUTH_EMAIL_ALREADY_EXISTS:
     "Ya existe una cuenta registrada con este correo electrónico.",
   AUTH_PASSWORD_TOO_WEAK:
     "La contraseña no cumple con los requisitos mínimos de seguridad.",
   AUTH_UNAUTHORIZED:
-    "Necesitas iniciar sesión para acceder a este recurso académico.",
+    "Necesitas iniciar sesión para acceder a esta sección.",
   AUTH_EMAIL_NOT_VERIFIED:
     "Debes confirmar tu correo electrónico antes de poder continuar.",
   AUTH_EMAIL_TOKEN_INVALID:
-    "El enlace de verificación es inválido, ya fue usado o expiró. Solicita uno nuevo.",
+    "Este enlace no es válido, ya fue utilizado o expiró. Solicita uno nuevo.",
   RESOURCE_NOT_FOUND:
-    "El recurso solicitado no fue encontrado o ya no está disponible.",
+    "No encontramos el contenido solicitado o ya no está disponible.",
   RESOURCE_FORBIDDEN:
-    "No cuentas con permisos suficientes para realizar esta acción.",
+    "No tienes permisos para realizar esta acción.",
   READING_PENDING_LIMIT_REACHED:
     "Alcanzaste el límite de lecturas pendientes. Completa tus evaluaciones activas antes de generar un nuevo texto.",
   READING_ALREADY_EVALUATED:
@@ -107,7 +116,7 @@ const ERROR_MESSAGES_ES: Record<KnownErrorCode, string> = {
   SUBSCRIPTION_REQUIRED:
     "Necesitas seleccionar un plan de suscripción activo antes de usar las herramientas de estudio.",
   SUBSCRIPTION_INVALID_TIER:
-    "El plan de suscripción especificado no es válido. Elige Dolly, Dolly Plus o Dolly Pro.",
+    "El plan de suscripción seleccionado no es válido. Elige Dolly, Dolly Plus o Dolly Pro.",
   SUBSCRIPTION_CATEGORY_LIMIT_EXCEEDED:
     "Superaste el máximo de categorías de estudio permitido por tu plan de suscripción.",
   SUBSCRIPTION_LANGUAGE_LIMIT_EXCEEDED:
@@ -119,42 +128,52 @@ const ERROR_MESSAGES_ES: Record<KnownErrorCode, string> = {
   LANGUAGE_CHANGE_LOCKED:
     "Tu selección de idiomas está bloqueada. Puedes modificarla una vez al año o adquirir un desbloqueo inmediato.",
   CATEGORY_MODERATION_REJECTED:
-    "Una o más categorías propuestas no superaron las políticas de moderación de contenido.",
+    "Una o más categorías propuestas no superaron nuestras políticas de contenido.",
   CATEGORY_DAILY_LIMIT_REACHED:
     "Alcanzaste el límite diario para evaluar o añadir nuevas categorías personalizadas. Intenta mañana.",
+  ACCESS_REQUEST_REQUIRED:
+    "El acceso manual está activo: debes enviar una solicitud y esperar la aprobación del equipo administrador.",
+  ACCESS_REQUESTS_DISABLED:
+    "Las solicitudes de acceso no están disponibles en este momento.",
+  ACCESS_REQUEST_ALREADY_PENDING:
+    "Ya tienes una solicitud pendiente en revisión para este tipo de acceso.",
+  ACCESS_REQUEST_ALREADY_REVIEWED:
+    "Esta solicitud de acceso ya fue revisada anteriormente.",
   VALIDATION_ERROR:
     "Algunos campos del formulario contienen errores. Revisa los datos marcados.",
+  AI_RATE_LIMITED:
+    "Estamos atendiendo muchas solicitudes en este momento. Intenta nuevamente en unos minutos.",
   INTERNAL_ERROR:
-    "Ocurrió un error interno en el servidor. Intenta nuevamente en unos momentos.",
+    "Ocurrió un problema inesperado. Por favor, intenta nuevamente en unos momentos.",
   SERVICE_UNAVAILABLE:
-    "El servicio lingüístico no está disponible temporalmente. Intenta más tarde.",
+    "El servicio no está disponible temporalmente. Por favor, intenta más tarde.",
   NETWORK_ERROR:
-    "No fue posible conectar con el servidor. Verifica tu conexión o el estado del backend.",
+    "No pudimos conectarnos en este momento. Verifica tu conexión a internet e intenta de nuevo.",
   CONFIG_ERROR:
-    "El proxy interno del servidor no está configurado correctamente en este entorno.",
+    "El servicio no está disponible en este momento. Por favor, intenta más tarde.",
   UNKNOWN_ERROR:
-    "Se produjo un error inesperado al procesar la solicitud.",
+    "No pudimos completar tu solicitud en este momento. Intenta nuevamente.",
 };
 
 const ERROR_MESSAGES_EN: Record<KnownErrorCode, string> = {
   AUTH_INVALID_CREDENTIALS:
-    "Invalid email or password. Please verify your academic credentials.",
+    "Incorrect email or password. Please check your details and try again.",
   AUTH_TOKEN_EXPIRED:
-    "Your academic session has expired. Please sign in again.",
+    "Your session has expired. Please sign in again to continue.",
   AUTH_TOKEN_INVALID:
-    "Your current session token is invalid. Please sign in again.",
+    "Your current session is no longer valid. Please sign in again.",
   AUTH_EMAIL_ALREADY_EXISTS:
     "An account with this email address is already registered.",
   AUTH_PASSWORD_TOO_WEAK:
     "The password does not meet the minimum security requirements.",
   AUTH_UNAUTHORIZED:
-    "You must be signed in to access this academic resource.",
+    "You must be signed in to access this section.",
   AUTH_EMAIL_NOT_VERIFIED:
     "Please confirm your email address before continuing.",
   AUTH_EMAIL_TOKEN_INVALID:
-    "This verification link is invalid, already used, or expired. Request a new confirmation email.",
+    "This link is invalid, has already been used, or has expired. Please request a new one.",
   RESOURCE_NOT_FOUND:
-    "The requested resource could not be found.",
+    "The requested content could not be found or is no longer available.",
   RESOURCE_FORBIDDEN:
     "You do not have permission to perform this action.",
   READING_PENDING_LIMIT_REACHED:
@@ -180,28 +199,38 @@ const ERROR_MESSAGES_EN: Record<KnownErrorCode, string> = {
   LANGUAGE_CHANGE_LOCKED:
     "Your selected languages are locked. You can change them once per year or unlock an immediate change.",
   CATEGORY_MODERATION_REJECTED:
-    "One or more custom categories were rejected by content moderation.",
+    "One or more custom categories did not meet our content guidelines.",
   CATEGORY_DAILY_LIMIT_REACHED:
     "Daily limit for adding or evaluating new custom categories has been reached. Try again tomorrow.",
+  ACCESS_REQUEST_REQUIRED:
+    "Waitlist review is active: submit an access request and wait for admin approval.",
+  ACCESS_REQUESTS_DISABLED:
+    "Access requests are not available at this time.",
+  ACCESS_REQUEST_ALREADY_PENDING:
+    "You already have a pending access request of this type awaiting review.",
+  ACCESS_REQUEST_ALREADY_REVIEWED:
+    "This access request has already been reviewed.",
   VALIDATION_ERROR:
     "Some form fields contain validation errors. Please check the highlighted inputs.",
+  AI_RATE_LIMITED:
+    "We are handling a high volume of requests right now. Please try again in a few minutes.",
   INTERNAL_ERROR:
-    "An internal server error occurred. Please try again shortly.",
+    "Something unexpected happened. Please try again shortly.",
   SERVICE_UNAVAILABLE:
-    "The linguistic service is temporarily unavailable. Please try again later.",
+    "The service is temporarily unavailable. Please try again later.",
   NETWORK_ERROR:
-    "Could not reach the backend server. Check your network connection.",
+    "Could not connect right now. Please check your internet connection and try again.",
   CONFIG_ERROR:
-    "The internal server proxy is not properly configured in this environment.",
+    "The service is currently unavailable. Please try again later.",
   UNKNOWN_ERROR:
-    "An unexpected error occurred while processing the request.",
+    "We could not complete your request right now. Please try again.",
 };
 
 const ERROR_MESSAGES_FR: Record<KnownErrorCode, string> = {
   AUTH_INVALID_CREDENTIALS:
-    "E-mail ou mot de passe invalide. Vérifiez vos identifiants académiques.",
+    "L'adresse e-mail ou le mot de passe est incorrect. Vérifiez vos informations et réessayez.",
   AUTH_TOKEN_EXPIRED:
-    "Votre session académique a expiré. Veuillez vous reconnecter.",
+    "Votre session a expiré. Veuillez vous reconnecter pour continuer.",
   AUTH_TOKEN_INVALID:
     "Votre session actuelle n'est plus valide. Veuillez vous reconnecter.",
   AUTH_EMAIL_ALREADY_EXISTS:
@@ -209,13 +238,13 @@ const ERROR_MESSAGES_FR: Record<KnownErrorCode, string> = {
   AUTH_PASSWORD_TOO_WEAK:
     "Le mot de passe ne respecte pas les exigences minimales de sécurité.",
   AUTH_UNAUTHORIZED:
-    "Vous devez vous connecter pour accéder à cette ressource académique.",
+    "Vous devez vous connecter pour accéder à cette section.",
   AUTH_EMAIL_NOT_VERIFIED:
     "Veuillez confirmer votre adresse e-mail avant de continuer.",
   AUTH_EMAIL_TOKEN_INVALID:
-    "Ce lien de vérification est invalide, déjà utilisé ou expiré. Demandez-en un nouveau.",
+    "Ce lien n'est pas valide, a déjà été utilisé ou a expiré. Demandez-en un nouveau.",
   RESOURCE_NOT_FOUND:
-    "La ressource demandée est introuvable ou n'est plus disponible.",
+    "Le contenu demandé est introuvable ou n'est plus disponible.",
   RESOURCE_FORBIDDEN:
     "Vous ne disposez pas des autorisations nécessaires pour effectuer cette action.",
   READING_PENDING_LIMIT_REACHED:
@@ -241,42 +270,52 @@ const ERROR_MESSAGES_FR: Record<KnownErrorCode, string> = {
   LANGUAGE_CHANGE_LOCKED:
     "Votre sélection de langues est verrouillée. Vous pouvez la modifier une fois par an ou débloquer un changement immédiat.",
   CATEGORY_MODERATION_REJECTED:
-    "Une ou plusieurs catégories proposées ont été refusées par la modération de contenu.",
+    "Une ou plusieurs catégories proposées ne respectent pas nos règles de contenu.",
   CATEGORY_DAILY_LIMIT_REACHED:
     "Limite quotidienne atteinte pour évaluer ou ajouter de nouvelles catégories. Réessayez demain.",
+  ACCESS_REQUEST_REQUIRED:
+    "La liste d'attente est active : soumettez une demande d'accès et attendez la validation d'un administrateur.",
+  ACCESS_REQUESTS_DISABLED:
+    "Les demandes d'accès ne sont pas disponibles pour le moment.",
+  ACCESS_REQUEST_ALREADY_PENDING:
+    "Vous avez déjà une demande d'accès de ce type en attente de validation.",
+  ACCESS_REQUEST_ALREADY_REVIEWED:
+    "Cette demande d'accès a déjà été examinée.",
   VALIDATION_ERROR:
     "Certains champs du formulaire contiennent des erreurs. Vérifiez les données saisies.",
+  AI_RATE_LIMITED:
+    "Nous recevons beaucoup de demandes en ce moment. Veuillez réessayer dans quelques minutes.",
   INTERNAL_ERROR:
-    "Une erreur interne du serveur est survenue. Veuillez réessayer dans quelques instants.",
+    "Un problème inattendu est survenu. Veuillez réessayer dans quelques instants.",
   SERVICE_UNAVAILABLE:
-    "Le service linguistique est temporairement indisponible. Veuillez réessayer plus tard.",
+    "Le service est temporairement indisponible. Veuillez réessayer plus tard.",
   NETWORK_ERROR:
-    "Impossible de joindre le serveur. Vérifiez votre connexion réseau.",
+    "Impossible d'établir la connexion pour le moment. Vérifiez votre connexion internet et réessayez.",
   CONFIG_ERROR:
-    "Le proxy interne du serveur n'est pas correctement configuré dans cet environnement.",
+    "Le service est momentanément indisponible. Veuillez réessayer plus tard.",
   UNKNOWN_ERROR:
-    "Une erreur inattendue est survenue lors du traitement de la demande.",
+    "Nous n'avons pas pu traiter votre demande pour le moment. Veuillez réessayer.",
 };
 
 const ERROR_MESSAGES_IT: Record<KnownErrorCode, string> = {
   AUTH_INVALID_CREDENTIALS:
-    "E-mail o password non validi. Verifica le tue credenziali accademiche.",
+    "L'e-mail o la password non sono corretti. Verifica i dati inseriti e riprova.",
   AUTH_TOKEN_EXPIRED:
-    "La tua sessione accademica è scaduta. Accedi nuovamente.",
+    "La tua sessione è scaduta. Accedi nuovamente per continuare.",
   AUTH_TOKEN_INVALID:
-    "Il token della sessione attuale non è valido. Accedi di nuovo.",
+    "La tua sessione attuale non è più valida. Accedi di nuovo.",
   AUTH_EMAIL_ALREADY_EXISTS:
     "Esiste già un account registrato con questo indirizzo e-mail.",
   AUTH_PASSWORD_TOO_WEAK:
     "La password non soddisfa i requisiti minimi di sicurezza.",
   AUTH_UNAUTHORIZED:
-    "Devi accedere per poter consultare questa risorsa accademica.",
+    "Devi accedere per poter consultare questa sezione.",
   AUTH_EMAIL_NOT_VERIFIED:
     "Conferma il tuo indirizzo e-mail prima di continuare.",
   AUTH_EMAIL_TOKEN_INVALID:
-    "Il link di verifica non è valido, è già stato utilizzato o è scaduto. Richiedine uno nuovo.",
+    "Questo link non è valido, è già stato utilizzato o è scaduto. Richiedine uno nuovo.",
   RESOURCE_NOT_FOUND:
-    "La risorsa richiesta non è stata trovata o non è più disponibile.",
+    "Il contenuto richiesto non è stato trovato o non è più disponibile.",
   RESOURCE_FORBIDDEN:
     "Non disponi dei permessi necessari per eseguire questa operazione.",
   READING_PENDING_LIMIT_REACHED:
@@ -302,21 +341,31 @@ const ERROR_MESSAGES_IT: Record<KnownErrorCode, string> = {
   LANGUAGE_CHANGE_LOCKED:
     "La selezione delle lingue è bloccata. Puoi modificarla una volta all'anno o sbloccare una modifica immediata.",
   CATEGORY_MODERATION_REJECTED:
-    "Una o più categorie inserite non hanno superato i controlli di moderazione.",
+    "Una o più categorie inserite non rispettano le nostre linee guida sui contenuti.",
   CATEGORY_DAILY_LIMIT_REACHED:
     "Hai raggiunto il limite giornaliero per valutare o aggiungere nuove categorie. Riprova domani.",
+  ACCESS_REQUEST_REQUIRED:
+    "La lista d'attesa è attiva: invia una richiesta di accesso e attendi l'approvazione dell'amministratore.",
+  ACCESS_REQUESTS_DISABLED:
+    "Le richieste di accesso non sono disponibili al momento.",
+  ACCESS_REQUEST_ALREADY_PENDING:
+    "Hai già una richiesta di accesso di questo tipo in attesa di revisione.",
+  ACCESS_REQUEST_ALREADY_REVIEWED:
+    "Questa richiesta di accesso è già stata esaminata.",
   VALIDATION_ERROR:
     "Alcuni campi del modulo contengono errori. Controlla i dati evidenziati.",
+  AI_RATE_LIMITED:
+    "Stiamo gestendo molte richieste in questo momento. Riprova tra qualche minuto.",
   INTERNAL_ERROR:
-    "Si è verificato un errore interno del server. Riprova tra qualche istante.",
+    "Si è verificato un problema imprevisto. Riprova tra qualche istante.",
   SERVICE_UNAVAILABLE:
-    "Il servizio linguistico è temporaneamente non disponibile. Riprova più tardi.",
+    "Il servizio è temporaneamente non disponibile. Riprova più tardi.",
   NETWORK_ERROR:
-    "Impossibile connettersi al server. Verifica la tua connessione di rete.",
+    "Impossibile connettersi al momento. Verifica la tua connessione internet e riprova.",
   CONFIG_ERROR:
-    "Il proxy interno del server non è configurato correttamente in questo ambiente.",
+    "Il servizio non è al momento disponibile. Riprova più tardi.",
   UNKNOWN_ERROR:
-    "Si è verificato un errore imprevisto durante l'elaborazione della richiesta.",
+    "Non è stato possibile completare la richiesta al momento. Riprova.",
 };
 
 export type ErrorMessageLanguage = "es" | "en" | "fr" | "it";

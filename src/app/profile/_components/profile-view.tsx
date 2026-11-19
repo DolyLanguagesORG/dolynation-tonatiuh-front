@@ -70,11 +70,20 @@ function ProfileContent() {
             selectedCategoryIds={data.selectedCategoryIds}
             isSaving={data.isSavingPreferences}
             isUnlockingLanguage={data.isUnlockingLanguage}
+            accessRequestsEnabled={data.accessRequestsEnabled}
+            pendingLanguageUnlockRequest={data.pendingLanguageUnlockRequest}
+            latestRejectedLanguageUnlockRequest={
+              data.latestRejectedLanguageUnlockRequest
+            }
+            isCancellingRequest={data.isCancellingRequest}
             onPromoteLanguage={data.handlePromoteLanguage}
             onUpdateLanguages={data.handleUpdateLanguages}
             onUnlockLanguageChange={data.handleUnlockLanguageChange}
+            onCancelAccessRequest={data.handleCancelAccessRequest}
+            onRefreshAccessRequests={data.handleRefreshAccessRequests}
             onToggleCategory={data.handleToggleCategory}
             onAddCustomCategory={data.handleAddCustomCategory}
+            onDeleteCategory={data.handleDeleteCategory}
           />
 
           <SubscriptionPlanCard
@@ -86,7 +95,15 @@ function ProfileContent() {
             plansError={data.plansError}
             isSavingPlan={data.isSavingPlan}
             isLoggingOutAll={data.isLoggingOutAll}
+            accessRequestsEnabled={data.accessRequestsEnabled}
+            pendingSubscriptionRequest={data.pendingSubscriptionRequest}
+            latestRejectedSubscriptionRequest={
+              data.latestRejectedSubscriptionRequest
+            }
+            isCancellingRequest={data.isCancellingRequest}
             onSelectPlan={data.handleSelectPlan}
+            onCancelAccessRequest={data.handleCancelAccessRequest}
+            onRefreshAccessRequests={data.handleRefreshAccessRequests}
             onLogoutAll={data.handleLogoutAll}
           />
         </>

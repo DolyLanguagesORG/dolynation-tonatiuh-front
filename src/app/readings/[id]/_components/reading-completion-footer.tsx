@@ -83,6 +83,24 @@ export function ReadingCompletionFooter({
             {t.readings.backToConfigButton}
           </ActionLink>
 
+          <ActionLink
+            href="/"
+            variant="ghost"
+            size="sm"
+            leftIcon={<Icon name="home" size="xs" />}
+          >
+            {t.readings.goToHomeButton}
+          </ActionLink>
+
+          <ActionLink
+            href="/readings"
+            variant="ghost"
+            size="sm"
+            leftIcon={<Icon name="book-open" size="xs" />}
+          >
+            {t.readings.goToReadingsButton}
+          </ActionLink>
+
           {isCompleted ? (
             <ActionLink
               href={`/readings/${reading.id}/result`}

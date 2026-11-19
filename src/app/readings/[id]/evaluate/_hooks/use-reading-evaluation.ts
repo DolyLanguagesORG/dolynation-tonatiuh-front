@@ -48,12 +48,6 @@ function removeDraft(readingId: number) {
   }
 }
 
-function formatDuration(totalSeconds: number): string {
-  const mins = Math.floor(totalSeconds / 60);
-  const secs = totalSeconds % 60;
-  return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
-}
-
 /**
  * Hook de sesión, autoguardado local y envío a evaluación IA (`/readings/[id]/evaluate`).
  */
@@ -80,7 +74,6 @@ export function useReadingEvaluation(rawId: string) {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [draftNotice, setDraftNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
 
   const fetchKey =
     isAuthenticated && isValidId
@@ -127,14 +120,6 @@ export function useReadingEvaluation(rawId: string) {
       cancelled = true;
     };
   }, [fetchKey, locale, readingId]);
-
-  useEffect(() => {
-    if (!reading) return;
-    const intervalId = window.setInterval(() => {
-      setElapsedSeconds((prev) => prev + 1);
-    }, 1000);
-    return () => window.clearInterval(intervalId);
-  }, [reading]);
 
   const wordCount = useMemo(() => countWords(responseText), [responseText]);
   const charCount = responseText.length;
@@ -224,7 +209,6 @@ export function useReadingEvaluation(rawId: string) {
     charCount,
     wordProgress,
     suggestedTerms,
-    elapsedLabel: formatDuration(elapsedSeconds),
     validationError,
     submitError,
     draftNotice,

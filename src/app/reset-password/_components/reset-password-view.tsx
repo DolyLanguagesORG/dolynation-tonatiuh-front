@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 
+import { FloatingLocaleSelector } from "@/components/layout/floating-locale-selector";
 import {
   ActionLink,
   Alert,
@@ -119,7 +120,10 @@ export function ResetPasswordView() {
     !token || apiError?.code === ErrorCode.AUTH_EMAIL_TOKEN_INVALID;
 
   return (
-    <Container size="sm" className="flex flex-col items-center py-6 sm:py-10">
+    <>
+      <FloatingLocaleSelector />
+
+      <Container size="sm" className="flex flex-col items-center pt-20 pb-6 sm:pt-10 sm:pb-10">
       <div className="mb-8 flex flex-col items-center gap-2 text-center">
         <Eyebrow tone="muted">{rp.eyebrow}</Eyebrow>
         <Heading as="h1" id="main-heading" variant="display">
@@ -154,7 +158,6 @@ export function ResetPasswordView() {
           {!token && !isSuccess && (
             <Alert
               variant="error"
-              code={ErrorCode.AUTH_EMAIL_TOKEN_INVALID}
               title={rp.missingTokenTitle}
             >
               {rp.missingTokenBody}
@@ -165,7 +168,6 @@ export function ResetPasswordView() {
             <Alert
               variant="error"
               title={rp.errorTitle}
-              code={apiError.code}
               onDismiss={() => setApiError(null)}
             >
               {apiError.message}
@@ -291,5 +293,6 @@ export function ResetPasswordView() {
         </Link>
       </div>
     </Container>
+    </>
   );
 }

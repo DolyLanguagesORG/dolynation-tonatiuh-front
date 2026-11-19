@@ -6,6 +6,7 @@ import { RegisterStepper } from "@/app/register/_components/register-stepper";
 import { StepAccountForm } from "@/app/register/_components/step-account-form";
 import { useRegisterFlow } from "@/app/register/_hooks/use-register-flow";
 import { AuthShell } from "@/components/auth";
+import { FloatingLocaleSelector } from "@/components/layout/floating-locale-selector";
 import { Badge } from "@/components/ui";
 
 /**
@@ -21,6 +22,7 @@ export function RegisterFlow() {
       title={t.auth.register.title}
       subtitle={t.auth.register.subtitle}
       maxWidthClass="max-w-3xl"
+      headerAction={<FloatingLocaleSelector />}
       topSlot={
         <div className="flex flex-col gap-3">
           <RegisterStepper

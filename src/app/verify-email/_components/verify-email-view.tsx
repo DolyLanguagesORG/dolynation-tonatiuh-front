@@ -9,6 +9,7 @@ import {
   type VerifyEmailTokenState,
 } from "@/app/register/_components/step-verify-email";
 import { AuthShell } from "@/components/auth";
+import { FloatingLocaleSelector } from "@/components/layout/floating-locale-selector";
 import { Badge, Container, SkeletonCard } from "@/components/ui";
 import { useAuth } from "@/context";
 import { useLocale } from "@/i18n";
@@ -76,7 +77,11 @@ export function VerifyEmailView() {
       .then((payload) => {
         if (!active) return;
         const nextRoute =
-          payload.user.subscriptionTier !== null ? "/" : "/select-plan";
+          payload.user.role === "admin"
+            ? "/admin"
+            : payload.user.subscriptionTier !== null
+              ? "/"
+              : "/select-plan";
         setTokenOutcome({
           token: tokenParam,
           status: "verified",
@@ -217,6 +222,7 @@ export function VerifyEmailView() {
       title={s2.title}
       subtitle={s2.subtitle}
       maxWidthClass="max-w-3xl"
+      headerAction={<FloatingLocaleSelector />}
       topSlot={
         <div className="flex flex-col gap-3">
           <RegisterStepper

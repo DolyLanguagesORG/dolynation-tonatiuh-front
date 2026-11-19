@@ -7,7 +7,9 @@ import {
   REFRESH_COOKIE_NAME,
 } from "@/lib/server/auth-cookies";
 import { backendInternalUrl } from "@/lib/server/backend-url";
+import { sanitizeUpstreamErrorForBrowser } from "@/lib/server/bff-error-sanitizer";
 import {
+  type BffRefreshContext,
   extractSessionTokensFromEnvelope,
   invalidateRefreshCache,
   refreshTokensOnServer,
@@ -33,12 +35,18 @@ const FORWARDED_REQUEST_HEADERS = [
   "accept-language",
   "authorization",
   "content-type",
+  "user-agent",
+  "cf-connecting-ip",
+  "cf-ipcountry",
+  "x-real-ip",
+  "x-request-id",
 ] as const;
 
 const FORWARDED_RESPONSE_HEADERS = [
   "content-type",
   "cache-control",
   "x-app-version",
+  "x-request-id",
 ] as const;
 
 const ALLOWED_METHODS = new Set([
@@ -69,7 +77,6 @@ function apiError(
 ): Response {
   const headers = new Headers(extraHeaders);
   headers.set("content-type", "application/json; charset=utf-8");
-  headers.set("x-dolynation-proxy", "nextjs");
 
   return new Response(
     JSON.stringify({
@@ -216,8 +223,24 @@ function copyUpstreamHeaders(upstream: Response): Headers {
       headers.set(name, value);
     }
   }
-  headers.set("x-dolynation-proxy", "nextjs");
   return headers;
+}
+
+function extractRefreshContext(request: NextRequest): BffRefreshContext {
+  const cfConnectingIp = request.headers.get("cf-connecting-ip");
+  const realIp = request.headers.get("x-real-ip");
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  const rawCandidate = cfConnectingIp ?? realIp ?? forwardedFor;
+  const clientIp = rawCandidate ? (rawCandidate.split(",")[0]?.trim() ?? null) : null;
+
+  return {
+    clientIp,
+    forwardedFor,
+    cfConnectingIp,
+    cfIpCountry: request.headers.get("cf-ipcountry"),
+    userAgent: request.headers.get("user-agent"),
+    requestId: request.headers.get("x-request-id"),
+  };
 }
 
 async function handleRefreshRoute(
@@ -229,42 +252,54 @@ async function handleRefreshRoute(
   const tokenToUse = explicitToken ?? cookieToken;
 
   const responseHeaders = new Headers();
-  responseHeaders.set("x-dolynation-proxy", "nextjs");
 
   if (!tokenToUse) {
     clearSessionCookies(responseHeaders);
     return apiError(
       401,
       "AUTH_UNAUTHORIZED",
-      "Authentication is required to refresh the session.",
+      "Debes iniciar sesión para continuar.",
       responseHeaders,
     );
   }
 
-  const refreshResult = await refreshTokensOnServer(tokenToUse);
+  const refreshResult = await refreshTokensOnServer(
+    tokenToUse,
+    extractRefreshContext(request),
+  );
+
+  if (refreshResult.requestId) {
+    responseHeaders.set("x-request-id", refreshResult.requestId);
+  }
 
   if (!refreshResult.ok) {
     if (refreshResult.invalidSession) {
       clearSessionCookies(responseHeaders);
     }
 
-    if (refreshResult.rawBody) {
-      responseHeaders.set(
-        "content-type",
-        refreshResult.contentType ?? "application/json; charset=utf-8",
+    if (
+      refreshResult.rawBody &&
+      (refreshResult.contentType ?? "").includes("application/json")
+    ) {
+      responseHeaders.set("content-type", "application/json; charset=utf-8");
+      return new Response(
+        sanitizeUpstreamErrorForBrowser(
+          refreshResult.rawBody,
+          refreshResult.status,
+        ),
+        {
+          status: refreshResult.status,
+          headers: responseHeaders,
+        },
       );
-      return new Response(refreshResult.rawBody, {
-        status: refreshResult.status,
-        headers: responseHeaders,
-      });
     }
 
     return apiError(
       refreshResult.status,
       refreshResult.invalidSession ? "AUTH_TOKEN_INVALID" : "SERVICE_UNAVAILABLE",
       refreshResult.invalidSession
-        ? "Refresh token is invalid or expired."
-        : "No se pudo contactar con el servicio de autenticación.",
+        ? "Tu sesión actual ya no es válida. Inicia sesión nuevamente."
+        : "El servicio no está disponible temporalmente. Intenta de nuevo en unos momentos.",
       responseHeaders,
     );
   }
@@ -288,7 +323,7 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
     return apiError(
       405,
       "METHOD_NOT_ALLOWED",
-      `El metodo ${method} no esta permitido en el proxy.`,
+      "Operación no permitida.",
     );
   }
 
@@ -297,7 +332,7 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
     return apiError(
       400,
       "VALIDATION_ERROR",
-      "La ruta solicitada no es valida.",
+      "La solicitud no es válida.",
     );
   }
 
@@ -308,7 +343,7 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
     return apiError(
       500,
       "CONFIG_ERROR",
-      "No se pudo construir la URL del backend.",
+      "El servicio no está disponible en este momento.",
     );
   }
 
@@ -340,10 +375,17 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
     headers.set("authorization", `Bearer ${cookieAccessToken}`);
   }
 
+  const cfConnectingIp = request.headers.get("cf-connecting-ip");
+  const realIp = request.headers.get("x-real-ip");
   const forwardedFor = request.headers.get("x-forwarded-for");
-  const clientIp = request.headers.get("x-real-ip") ?? forwardedFor;
-  if (clientIp) {
-    headers.set("x-forwarded-for", clientIp);
+  const resolvedClientIp = cfConnectingIp ?? realIp ?? forwardedFor;
+  if (forwardedFor) {
+    headers.set("x-forwarded-for", forwardedFor);
+  } else if (resolvedClientIp) {
+    headers.set("x-forwarded-for", resolvedClientIp);
+  }
+  if (resolvedClientIp && !headers.has("x-real-ip")) {
+    headers.set("x-real-ip", resolvedClientIp.split(",")[0]?.trim() ?? resolvedClientIp);
   }
   headers.set("x-forwarded-proto", request.nextUrl.protocol.replace(":", ""));
 
@@ -358,7 +400,6 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
     if (!activeRefreshToken) {
       const responseHeaders = new Headers();
       responseHeaders.set("content-type", "application/json; charset=utf-8");
-      responseHeaders.set("x-dolynation-proxy", "nextjs");
       clearSessionCookies(responseHeaders);
       return new Response(
         JSON.stringify({ message: "Logged out", data: null, error: null }),
@@ -383,7 +424,7 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
     return apiError(
       503,
       "SERVICE_UNAVAILABLE",
-      "No se pudo contactar con el servicio de lectura. Intenta de nuevo en unos segundos.",
+      "El servicio no está disponible temporalmente. Intenta de nuevo en unos momentos.",
     );
   }
 
@@ -396,7 +437,10 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
     !request.headers.get("authorization") &&
     cookieRefreshToken
   ) {
-    const refreshed = await refreshTokensOnServer(cookieRefreshToken);
+    const refreshed = await refreshTokensOnServer(
+      cookieRefreshToken,
+      extractRefreshContext(request),
+    );
     if (refreshed.ok) {
       rotatedTokensHeaders = new Headers();
       appendSessionCookies(rotatedTokensHeaders, refreshed.tokens);
@@ -421,7 +465,7 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
         return apiError(
           503,
           "SERVICE_UNAVAILABLE",
-          "No se pudo contactar con el servicio tras renovar la sesión.",
+          "El servicio no está disponible temporalmente. Intenta de nuevo en unos momentos.",
           rotatedTokensHeaders,
         );
       }
@@ -489,6 +533,28 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
     upstream.status === 204 ||
     upstream.status === 205 ||
     upstream.status === 304;
+
+  if (!upstream.ok && !isNullBodyStatus) {
+    if (contentType.includes("application/json")) {
+      const rawJson = await upstream.text();
+      responseHeaders.set("content-type", "application/json; charset=utf-8");
+      return new Response(
+        sanitizeUpstreamErrorForBrowser(rawJson, upstream.status),
+        {
+          status: upstream.status,
+          statusText: upstream.statusText,
+          headers: responseHeaders,
+        },
+      );
+    }
+
+    return apiError(
+      upstream.status,
+      upstream.status >= 500 ? "INTERNAL_ERROR" : "UNKNOWN_ERROR",
+      "No se pudo completar tu solicitud en este momento.",
+      responseHeaders,
+    );
+  }
 
   return new Response(isNullBodyStatus ? null : upstream.body, {
     status: upstream.status,

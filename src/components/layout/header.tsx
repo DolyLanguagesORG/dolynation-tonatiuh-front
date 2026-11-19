@@ -51,6 +51,8 @@ export function Header({
     }
   };
 
+  const isAdminSession =
+    accessPhase === "admin" || user?.role === "admin";
   const streakCount = user?.currentStreak ?? 0;
   const dynamicStreakLabel = formatMessage(t.meta.streakTemplate, {
     count: streakCount,
@@ -62,7 +64,11 @@ export function Header({
     const isPlanLock = accessPhase === "plan_required";
     const isIsolatedShowcase = pathname === "/design-system";
     const hideBrandLink = isUnverifiedLock || isIsolatedShowcase;
-    const brandHref = isPlanLock ? "/select-plan" : "/";
+    const brandHref = isPlanLock
+      ? "/select-plan"
+      : isAdminSession
+        ? "/admin"
+        : "/";
 
     return (
       <header className="sticky top-0 z-30 flex h-14 w-full shrink-0 items-center justify-between border-b border-border bg-surface px-3 sm:px-8 lg:px-12">
@@ -164,7 +170,7 @@ export function Header({
           />
 
           <Link
-            href="/"
+            href={isAdminSession ? "/admin" : "/"}
             className="font-serif text-base font-bold tracking-tight text-ink sm:text-xl"
           >
             DolyNation
@@ -194,14 +200,21 @@ export function Header({
         <LocaleSelector />
 
         <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
-          <div className="inline-flex min-w-0 items-center gap-1 rounded-base border border-border-strong bg-surface px-2 py-1 text-[11px] font-semibold text-ink sm:gap-1.5 sm:px-2.5 sm:text-xs">
-            <Icon name="flame" size="sm" className="shrink-0" />
-            <span className="whitespace-nowrap tabular-nums">
-              {dynamicStreakLabel}
-            </span>
-          </div>
+          {isAdminSession ? (
+            <div className="inline-flex min-w-0 items-center gap-1 rounded-base border border-border-strong bg-surface px-2 py-1 text-[11px] font-semibold text-ink sm:gap-1.5 sm:px-2.5 sm:text-xs">
+              <Icon name="shield" size="sm" className="shrink-0" />
+              <span className="whitespace-nowrap">{t.nav.adminRole}</span>
+            </div>
+          ) : (
+            <div className="inline-flex min-w-0 items-center gap-1 rounded-base border border-border-strong bg-surface px-2 py-1 text-[11px] font-semibold text-ink sm:gap-1.5 sm:px-2.5 sm:text-xs">
+              <Icon name="flame" size="sm" className="shrink-0" />
+              <span className="whitespace-nowrap tabular-nums">
+                {dynamicStreakLabel}
+              </span>
+            </div>
+          )}
 
-          {isAuthenticated && (
+          {isAuthenticated && !isAdminSession && (
             <div className="hidden items-center gap-1 sm:flex">
               <ActionLink
                 href="/glossary"

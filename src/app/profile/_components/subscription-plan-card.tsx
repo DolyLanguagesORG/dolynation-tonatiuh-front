@@ -14,9 +14,11 @@ import {
   ProgressBar,
   SkeletonCard,
   Text,
+  Textarea,
 } from "@/components/ui";
 import { type Dictionary, formatMessage, type Locale } from "@/i18n";
 import {
+  type AccessRequestItem,
   type SubscriptionPlanItem,
   type SubscriptionTier,
   type SubscriptionUsage,
@@ -33,7 +35,13 @@ export interface SubscriptionPlanCardProps {
   plansError: string | null;
   isSavingPlan: boolean;
   isLoggingOutAll: boolean;
-  onSelectPlan: (tier: SubscriptionTier) => Promise<boolean>;
+  accessRequestsEnabled?: boolean;
+  pendingSubscriptionRequest?: AccessRequestItem | null;
+  latestRejectedSubscriptionRequest?: AccessRequestItem | null;
+  isCancellingRequest?: boolean;
+  onSelectPlan: (tier: SubscriptionTier, message?: string) => Promise<boolean>;
+  onCancelAccessRequest?: (requestId: number) => Promise<boolean>;
+  onRefreshAccessRequests?: () => Promise<void>;
   onLogoutAll: () => Promise<void>;
 }
 
@@ -112,10 +120,21 @@ export function SubscriptionPlanCard({
   plansError,
   isSavingPlan,
   isLoggingOutAll,
+  accessRequestsEnabled = false,
+  pendingSubscriptionRequest = null,
+  latestRejectedSubscriptionRequest = null,
+  isCancellingRequest = false,
   onSelectPlan,
+  onCancelAccessRequest,
+  onRefreshAccessRequests,
   onLogoutAll,
 }: SubscriptionPlanCardProps) {
   const [confirmingLogoutAll, setConfirmingLogoutAll] = useState(false);
+  const [confirmingCancelRequest, setConfirmingCancelRequest] = useState(false);
+  const [requestingTier, setRequestingTier] = useState<SubscriptionTier | null>(
+    null,
+  );
+  const [switchMessage, setSwitchMessage] = useState("");
 
   const activeTier = currentSubscription?.tier ?? null;
   const activePlan = currentSubscription?.plan ?? null;
@@ -123,6 +142,21 @@ export function SubscriptionPlanCard({
   const activeFormatted = activePlan
     ? formatPlanFromBackend(activePlan, locale)
     : null;
+
+  const formatTierLabel = (tier: SubscriptionTier | null): string =>
+    tier ? t.plans.tiers[tier].name : "-";
+
+  const handleConfirmSwitchRequest = async (): Promise<void> => {
+    if (!requestingTier) return;
+    const ok = await onSelectPlan(
+      requestingTier,
+      switchMessage.trim() || undefined,
+    );
+    if (ok) {
+      setRequestingTier(null);
+      setSwitchMessage("");
+    }
+  };
 
   return (
     <Card
@@ -199,6 +233,98 @@ export function SubscriptionPlanCard({
           </Text>
         </div>
 
+        {accessRequestsEnabled && pendingSubscriptionRequest && (
+          <Alert
+            variant="info"
+            title={t.profile.subscription.pendingSwitchTitle}
+          >
+            <div className="flex flex-col gap-2">
+              <span>
+                {formatMessage(t.profile.subscription.pendingSwitchDesc, {
+                  plan: formatTierLabel(
+                    pendingSubscriptionRequest.requestedTier,
+                  ),
+                })}
+              </span>
+              {pendingSubscriptionRequest.userMessage && (
+                <span className="italic">
+                  “{pendingSubscriptionRequest.userMessage}”
+                </span>
+              )}
+              <div className="flex flex-wrap items-center gap-2 pt-1">
+                {onRefreshAccessRequests && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    size="xs"
+                    leftIcon={<Icon name="refresh" size="xs" />}
+                    onClick={() => {
+                      void onRefreshAccessRequests();
+                    }}
+                  >
+                    {t.auth.stepper.step3Plan.refreshStatusButton}
+                  </Button>
+                )}
+                {onCancelAccessRequest && (
+                  !confirmingCancelRequest ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="xs"
+                      disabled={isCancellingRequest}
+                      onClick={() => setConfirmingCancelRequest(true)}
+                    >
+                      {t.auth.stepper.step3Plan.cancelRequestButton}
+                    </Button>
+                  ) : (
+                    <>
+                      <Button
+                        type="button"
+                        variant="danger"
+                        size="xs"
+                        isLoading={isCancellingRequest}
+                        onClick={() => {
+                          void onCancelAccessRequest(
+                            pendingSubscriptionRequest.id,
+                          ).then((ok) => {
+                            if (ok) {
+                              setConfirmingCancelRequest(false);
+                            }
+                          });
+                        }}
+                      >
+                        {t.auth.stepper.step3Plan.cancelConfirmButton}
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="xs"
+                        disabled={isCancellingRequest}
+                        onClick={() => setConfirmingCancelRequest(false)}
+                      >
+                        {t.profile.cancelButton}
+                      </Button>
+                    </>
+                  )
+                )}
+              </div>
+            </div>
+          </Alert>
+        )}
+
+        {accessRequestsEnabled &&
+          !pendingSubscriptionRequest &&
+          latestRejectedSubscriptionRequest?.rejectionReason && (
+            <Alert variant="warning">
+              {formatMessage(t.profile.subscription.rejectedSwitchNotice, {
+                plan: formatTierLabel(
+                  latestRejectedSubscriptionRequest.requestedTier,
+                ),
+                reason: latestRejectedSubscriptionRequest.rejectionReason,
+              })}
+            </Alert>
+          )}
+
         {isLoadingPlans ? (
           <SkeletonCard
             lines={3}
@@ -216,6 +342,10 @@ export function SubscriptionPlanCard({
             {plans.map((plan) => {
               const summary = formatPlanFromBackend(plan, locale);
               const isCurrent = activeTier === plan.id;
+              const isRequestedPending = Boolean(
+                accessRequestsEnabled &&
+                  pendingSubscriptionRequest?.requestedTier === plan.id,
+              );
 
               return (
                 <div
@@ -224,7 +354,9 @@ export function SubscriptionPlanCard({
                     "flex flex-col justify-between gap-4 rounded-base border p-4 transition-colors",
                     isCurrent
                       ? "border-2 border-brand bg-neutral-primary-soft shadow-xs"
-                      : "border-default bg-surface",
+                      : isRequestedPending
+                        ? "border-2 border-brand/70 bg-neutral-primary-soft"
+                        : "border-default bg-surface",
                   ].join(" ")}
                 >
                   <div className="flex flex-col gap-2">
@@ -232,10 +364,20 @@ export function SubscriptionPlanCard({
                       <span className="font-mono text-xs font-bold tracking-wider text-heading uppercase">
                         {summary.name}
                       </span>
-                      <Badge variant={isCurrent ? "primary" : "secondary"}>
+                      <Badge
+                        variant={
+                          isCurrent
+                            ? "primary"
+                            : isRequestedPending
+                              ? "warning"
+                              : "secondary"
+                        }
+                      >
                         {isCurrent
                           ? t.profile.subscription.currentBadge
-                          : summary.quotaHeadline}
+                          : isRequestedPending
+                            ? t.profile.subscription.pendingBadge
+                            : summary.quotaHeadline}
                       </Badge>
                     </div>
 
@@ -265,24 +407,87 @@ export function SubscriptionPlanCard({
                     variant={isCurrent ? "outline" : "primary"}
                     size="sm"
                     fullWidth
-                    disabled={isCurrent || isSavingPlan}
-                    isLoading={isSavingPlan && !isCurrent}
+                    disabled={
+                      isCurrent ||
+                      isSavingPlan ||
+                      Boolean(
+                        accessRequestsEnabled && pendingSubscriptionRequest,
+                      )
+                    }
+                    isLoading={isSavingPlan && !isCurrent && !accessRequestsEnabled}
                     onClick={() => {
+                      if (accessRequestsEnabled) {
+                        setRequestingTier(plan.id);
+                        return;
+                      }
                       void onSelectPlan(plan.id);
                     }}
                   >
                     {isCurrent
                       ? t.profile.subscription.activePlanButton
-                      : formatMessage(
-                          t.profile.subscription.switchToPlanButton,
-                          { name: summary.name },
-                        )}
+                      : isRequestedPending
+                        ? t.profile.subscription.pendingPlanButton
+                        : accessRequestsEnabled
+                          ? formatMessage(
+                              t.profile.subscription.requestSwitchToPlanButton,
+                              { name: summary.name },
+                            )
+                          : formatMessage(
+                              t.profile.subscription.switchToPlanButton,
+                              { name: summary.name },
+                            )}
                   </Button>
                 </div>
               );
             })}
           </div>
         )}
+
+        {accessRequestsEnabled &&
+          requestingTier &&
+          !pendingSubscriptionRequest && (
+            <div className="flex flex-col gap-3 rounded-base border border-strong bg-neutral-primary-soft p-4">
+              <Textarea
+                label={t.profile.subscription.switchMessageLabel}
+                placeholder={t.profile.subscription.switchMessagePlaceholder}
+                maxLength={1000}
+                rows={2}
+                value={switchMessage}
+                onChange={(event) => setSwitchMessage(event.target.value)}
+              />
+              <div className="flex flex-wrap items-center gap-2">
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="sm"
+                  isLoading={isSavingPlan}
+                  leftIcon={<Icon name="check" size="xs" />}
+                  onClick={() => {
+                    void handleConfirmSwitchRequest();
+                  }}
+                >
+                  {formatMessage(
+                    t.profile.subscription.submitSwitchRequestButton,
+                    {
+                      name: formatTierLabel(requestingTier),
+                    },
+                  )}
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={isSavingPlan}
+                  onClick={() => {
+                    setRequestingTier(null);
+                    setSwitchMessage("");
+                  }}
+                >
+                  {t.profile.cancelButton}
+                </Button>
+              </div>
+            </div>
+          )}
       </div>
 
       <Divider />

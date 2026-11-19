@@ -6,6 +6,7 @@ import {
   ChoiceCard,
   Icon,
   SkeletonCard,
+  Textarea,
 } from "@/components/ui";
 import { type SubscriptionPlanId } from "@/context";
 import { type Dictionary, useLocale } from "@/i18n";
@@ -19,6 +20,11 @@ export interface StepPlanSelectionProps {
   planError: string | null;
   isSubmittingPlan: boolean;
   plans?: readonly SubscriptionPlanItem[];
+  disabled?: boolean;
+  submitLabel?: string;
+  showMessageInput?: boolean;
+  messageValue?: string;
+  onMessageChange?: (value: string) => void;
   onDismissError: () => void;
   onSelectPlan: (plan: SubscriptionPlanId) => void;
   onBack?: () => void;
@@ -35,6 +41,11 @@ export function StepPlanSelection({
   planError,
   isSubmittingPlan,
   plans: providedPlans,
+  disabled = false,
+  submitLabel,
+  showMessageInput = false,
+  messageValue = "",
+  onMessageChange,
   onDismissError,
   onSelectPlan,
   onBack,
@@ -108,7 +119,12 @@ export function StepPlanSelection({
                   }
                   meta={plan.quotaHeadline}
                   description={plan.description}
-                  onClick={() => onSelectPlan(plan.id)}
+                  disabled={disabled}
+                  onClick={() => {
+                    if (!disabled) {
+                      onSelectPlan(plan.id);
+                    }
+                  }}
                 >
                   <ul className="mt-auto flex w-full flex-col gap-1.5 border-t border-default pt-3 text-xs text-heading">
                     {plan.features.map((feature, index) => (
@@ -133,6 +149,18 @@ export function StepPlanSelection({
             })}
       </div>
 
+      {showMessageInput && !disabled && (
+        <Textarea
+          label={s3.messageLabel}
+          placeholder={s3.messagePlaceholder}
+          hint={s3.messageHint}
+          maxLength={1000}
+          rows={3}
+          value={messageValue}
+          onChange={(event) => onMessageChange?.(event.target.value)}
+        />
+      )}
+
       <div
         className={`flex flex-wrap items-center gap-3 pt-2 ${
           onBack ? "justify-between" : "justify-end"
@@ -154,12 +182,13 @@ export function StepPlanSelection({
           type="button"
           variant="primary"
           size="lg"
+          disabled={disabled || isSubmittingPlan}
           isLoading={isSubmittingPlan}
           onClick={onSubmit}
           rightIcon={<Icon name="arrow-right" size="md" />}
           className="normal-case tracking-normal"
         >
-          {s3.submitButton}
+          {submitLabel ?? s3.submitButton}
         </Button>
       </div>
     </div>

@@ -24,6 +24,13 @@ export interface AuthShellProps {
   showSignOutWhenAuthenticated?: boolean;
   /** Contenido opcional sobre la tarjeta principal (p. ej. stepper de registro). */
   topSlot?: ReactNode;
+  /**
+   * Acción de utilidad flotante (p. ej. `<FloatingLocaleSelector />`) anclada a
+   * la esquina superior derecha de la pantalla, **fuera** de la tarjeta.
+   * El shell la renderiza tal cual y reserva holgura superior para que el
+   * contenido nunca quede debajo. No se muestra si no se pasa.
+   */
+  headerAction?: ReactNode;
   /** Contenido principal de la tarjeta. */
   children: ReactNode;
   /** Mensaje y enlace debajo de la tarjeta (p. ej. "¿No tienes cuenta? Regístrate"). */
@@ -44,6 +51,7 @@ export function AuthShell({
   maxWidthClass = "max-w-[460px]",
   showSignOutWhenAuthenticated = true,
   topSlot,
+  headerAction,
   children,
   footerPrompt,
   legalLinks,
@@ -68,11 +76,17 @@ export function AuthShell({
   };
 
   return (
-    <Container
-      size="none"
-      className={`flex w-full ${maxWidthClass} flex-col items-center gap-6 px-0`}
-    >
-      {topSlot && <div className="w-full">{topSlot}</div>}
+    <>
+      {headerAction}
+
+      <Container
+        size="none"
+        className={`flex w-full ${maxWidthClass} flex-col items-center gap-6 px-0`}
+      >
+        {/* Holgura superior: evita que la tarjeta quede bajo la acción flotante. */}
+        {headerAction && <div aria-hidden="true" className="h-8 w-full shrink-0" />}
+
+        {topSlot && <div className="w-full">{topSlot}</div>}
 
       <Card padding="lg" className="w-full border-default bg-surface sm:p-8">
         <div className="flex flex-col gap-6">
@@ -130,5 +144,6 @@ export function AuthShell({
         </div>
       )}
     </Container>
+    </>
   );
 }

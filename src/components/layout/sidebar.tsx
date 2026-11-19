@@ -38,30 +38,44 @@ interface NavItem {
 function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
   const pathname = usePathname();
   const { t } = useLocale();
+  const { accessPhase, user } = useAuth();
+  const isAdminSession =
+    accessPhase === "admin" || user?.role === "admin";
 
-  const navItems: NavItem[] = [
-    {
-      id: "home",
-      label: t.nav.home,
-      href: "/",
-      isActive: pathname === "/",
-      icon: "home",
-    },
-    {
-      id: "readings",
-      label: t.nav.myReadings,
-      href: "/readings",
-      isActive: pathname.startsWith("/readings") || pathname.startsWith("/history"),
-      icon: "book-open",
-    },
-    {
-      id: "glossary",
-      label: t.nav.glossary,
-      href: "/glossary",
-      isActive: pathname.startsWith("/glossary"),
-      icon: "bookmark",
-    },
-  ];
+  const navItems: NavItem[] = isAdminSession
+    ? [
+        {
+          id: "admin",
+          label: t.nav.adminDashboard,
+          href: "/admin",
+          isActive: pathname.startsWith("/admin"),
+          icon: "user",
+        },
+      ]
+    : [
+        {
+          id: "home",
+          label: t.nav.home,
+          href: "/",
+          isActive: pathname === "/",
+          icon: "home",
+        },
+        {
+          id: "readings",
+          label: t.nav.myReadings,
+          href: "/readings",
+          isActive:
+            pathname.startsWith("/readings") || pathname.startsWith("/history"),
+          icon: "book-open",
+        },
+        {
+          id: "glossary",
+          label: t.nav.glossary,
+          href: "/glossary",
+          isActive: pathname.startsWith("/glossary"),
+          icon: "bookmark",
+        },
+      ];
 
   return (
     <FlowbiteSidebar
@@ -73,17 +87,19 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
       }}
     >
       <div className="flex flex-col gap-2.5 p-2.5">
-        <ActionLink
-          href="/generate"
-          variant="primary"
-          size="sm"
-          fullWidth
-          onClick={onItemClick}
-          leftIcon={<Icon name="sparkles" size="sm" />}
-          className="whitespace-nowrap px-2.5 text-[11px] tracking-wide"
-        >
-          {t.nav.newReadingCta}
-        </ActionLink>
+        {!isAdminSession && (
+          <ActionLink
+            href="/generate"
+            variant="primary"
+            size="sm"
+            fullWidth
+            onClick={onItemClick}
+            leftIcon={<Icon name="sparkles" size="sm" />}
+            className="whitespace-nowrap px-2.5 text-[11px] tracking-wide"
+          >
+            {t.nav.newReadingCta}
+          </ActionLink>
+        )}
 
         <SidebarItems>
           <SidebarItemGroup>
@@ -119,18 +135,21 @@ function MobileDrawerAccountSection({
 }) {
   const pathname = usePathname();
   const { t } = useLocale();
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, accessPhase, isAuthenticated, logout } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   if (!isAuthenticated) {
     return null;
   }
 
+  const isAdminSession =
+    accessPhase === "admin" || user?.role === "admin";
   const { displayName, email, initials, isVerified } = getUserAccountSummary(
     user,
-    t.nav.studentRole,
+    isAdminSession ? t.nav.adminRole : t.nav.studentRole,
   );
   const isProfileActive = pathname.startsWith("/profile");
+  const isAdminActive = pathname.startsWith("/admin");
 
   const handleLogout = async (): Promise<void> => {
     setIsLoggingOut(true);
@@ -178,25 +197,47 @@ function MobileDrawerAccountSection({
       </div>
 
       <div className="mt-2 flex flex-col gap-1">
-        <Link
-          href="/profile"
-          onClick={onClose}
-          aria-current={isProfileActive ? "page" : undefined}
-          className={[
-            "flex min-h-9 items-center gap-2.5 rounded-base px-2.5 py-1.5 text-[13px] transition-colors",
-            isProfileActive
-              ? "bg-neutral-secondary-medium font-semibold text-heading"
-              : "font-medium text-heading hover:bg-neutral-secondary-medium",
-          ].join(" ")}
-        >
-          <Icon
-            name="user"
-            size="sm"
-            aria-hidden="true"
-            className="shrink-0 text-muted"
-          />
-          <span>{t.nav.profileAndProgress}</span>
-        </Link>
+        {isAdminSession ? (
+          <Link
+            href="/admin"
+            onClick={onClose}
+            aria-current={isAdminActive ? "page" : undefined}
+            className={[
+              "flex min-h-9 items-center gap-2.5 rounded-base px-2.5 py-1.5 text-[13px] transition-colors",
+              isAdminActive
+                ? "bg-neutral-secondary-medium font-semibold text-heading"
+                : "font-medium text-heading hover:bg-neutral-secondary-medium",
+            ].join(" ")}
+          >
+            <Icon
+              name="shield"
+              size="sm"
+              aria-hidden="true"
+              className="shrink-0 text-muted"
+            />
+            <span>{t.nav.adminDashboard}</span>
+          </Link>
+        ) : (
+          <Link
+            href="/profile"
+            onClick={onClose}
+            aria-current={isProfileActive ? "page" : undefined}
+            className={[
+              "flex min-h-9 items-center gap-2.5 rounded-base px-2.5 py-1.5 text-[13px] transition-colors",
+              isProfileActive
+                ? "bg-neutral-secondary-medium font-semibold text-heading"
+                : "font-medium text-heading hover:bg-neutral-secondary-medium",
+            ].join(" ")}
+          >
+            <Icon
+              name="user"
+              size="sm"
+              aria-hidden="true"
+              className="shrink-0 text-muted"
+            />
+            <span>{t.nav.profileAndProgress}</span>
+          </Link>
+        )}
 
         <button
           type="button"
@@ -227,6 +268,9 @@ export function Sidebar({
   isDesktopOpen = true,
 }: SidebarProps) {
   const { t } = useLocale();
+  const { accessPhase, user } = useAuth();
+  const isAdminSession =
+    accessPhase === "admin" || user?.role === "admin";
 
   useEffect(() => {
     if (!isOpen) return;
@@ -268,7 +312,7 @@ export function Sidebar({
           >
             <div className="flex h-14 shrink-0 items-center justify-between border-b border-default bg-surface px-4">
               <Link
-                href="/"
+                href={isAdminSession ? "/admin" : "/"}
                 onClick={onClose}
                 className="font-serif text-lg font-bold tracking-tight text-ink"
               >

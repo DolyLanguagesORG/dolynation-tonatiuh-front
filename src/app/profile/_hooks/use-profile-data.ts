@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/context";
 import { useToast } from "@/context/toast-context";
@@ -38,8 +38,13 @@ export function useProfileData() {
   const {
     user,
     isAuthenticated,
+    accessRequests,
+    accessRequestsEnabled = false,
     reloadAccountState,
     refreshPreferences,
+    refreshAccessRequests,
+    submitAccessRequest,
+    cancelAccessRequest,
     selectPlan,
     selectLanguages,
     logoutAll,
@@ -74,10 +79,16 @@ export function useProfileData() {
   const [isSavingPreferences, setIsSavingPreferences] = useState(false);
   const [isUnlockingLanguage, setIsUnlockingLanguage] = useState(false);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
+  const [isCancellingRequest, setIsCancellingRequest] = useState(false);
   const [isLoggingOutAll, setIsLoggingOutAll] = useState(false);
 
   const fetchKey = isAuthenticated ? `${user?.id ?? "me"}-${locale}` : null;
   const isLoading = Boolean(fetchKey && loadedKey !== fetchKey);
+  const refreshAccessRequestsRef = useRef(refreshAccessRequests);
+
+  useEffect(() => {
+    refreshAccessRequestsRef.current = refreshAccessRequests;
+  }, [refreshAccessRequests]);
 
   const reportSuccess = (message: string, title?: string): void => {
     setErrorMessage(null);
@@ -109,6 +120,9 @@ export function useProfileData() {
       settingsService.getLanguages(),
       settingsService.getCategories(),
       subscriptionsService.getCurrentSubscription(),
+      refreshAccessRequestsRef.current
+        ? refreshAccessRequestsRef.current()
+        : Promise.resolve(),
     ])
       .then(
         ([
@@ -309,6 +323,77 @@ export function useProfileData() {
     return ok;
   };
 
+  const handleDeleteCategory = async (categoryId: string): Promise<boolean> => {
+    if (isSavingPreferences) return false;
+
+    const normalizedTarget = categoryId.trim().toLowerCase();
+    if (!normalizedTarget) return false;
+
+    const savedCategories = categoriesSettings?.selected ?? [];
+    const currentSelected = draftCategoryIds ?? savedCategories;
+    const isCurrentlySelected = currentSelected.some(
+      (id) => id.toLowerCase() === normalizedTarget,
+    );
+    const inServerCatalog = (categoriesSettings?.catalog ?? []).some(
+      (item) => item.id.toLowerCase() === normalizedTarget,
+    );
+    const inServerSelected = savedCategories.some(
+      (id) => id.toLowerCase() === normalizedTarget,
+    );
+
+    if (
+      (isCurrentlySelected && currentSelected.length <= MIN_USER_CATEGORIES && inServerSelected) ||
+      (inServerSelected && savedCategories.length <= MIN_USER_CATEGORIES)
+    ) {
+      const msg = t.profile.hooks.deleteMinCategoriesNotice;
+      setErrorMessage(msg);
+      toast.warning(msg);
+      return false;
+    }
+
+    if (!inServerCatalog && !inServerSelected) {
+      setCustomCategoryItems((prev) =>
+        prev.filter((item) => item.id.toLowerCase() !== normalizedTarget),
+      );
+      if (draftCategoryIds !== null) {
+        setDraftCategoryIds((prev) =>
+          prev
+            ? prev.filter((id) => id.toLowerCase() !== normalizedTarget)
+            : null,
+        );
+      }
+      setErrorMessage(null);
+      reportSuccess(
+        t.profile.hooks.deletedCategoryNotice,
+        t.profile.hooks.prefsSavedTitle,
+      );
+      return true;
+    }
+
+    setIsSavingPreferences(true);
+    setErrorMessage(null);
+    setNotice(null);
+    try {
+      const res = await settingsService.deleteCategory(categoryId);
+      setCategoriesSettings(res.data);
+      setCustomCategoryItems((prev) =>
+        prev.filter((item) => item.id.toLowerCase() !== normalizedTarget),
+      );
+      setDraftCategoryIds(null);
+      await refreshPreferences();
+      reportSuccess(
+        t.profile.hooks.deletedCategoryNotice,
+        t.profile.hooks.prefsSavedTitle,
+      );
+      return true;
+    } catch (err) {
+      reportError(err, t.profile.hooks.deleteCategoryError);
+      return false;
+    } finally {
+      setIsSavingPreferences(false);
+    }
+  };
+
   const handlePromoteLanguage = async (
     code: TargetLanguageCode,
   ): Promise<void> => {
@@ -386,13 +471,25 @@ export function useProfileData() {
     }
   };
 
-  const handleUnlockLanguageChange = async (): Promise<boolean> => {
+  const handleUnlockLanguageChange = async (
+    message?: string,
+  ): Promise<boolean> => {
     if (isUnlockingLanguage) return false;
 
     setIsUnlockingLanguage(true);
     setErrorMessage(null);
     setNotice(null);
     try {
+      if (accessRequestsEnabled) {
+        const trimmed = message?.trim();
+        await submitAccessRequest({
+          type: "language_unlock",
+          ...(trimmed ? { message: trimmed } : {}),
+        });
+        reportSuccess(t.profile.hooks.unlockRequestSuccess);
+        return true;
+      }
+
       const res = await settingsService.unlockLanguageChange();
       setLanguagesSettings(res.data);
       await refreshPreferences();
@@ -408,6 +505,7 @@ export function useProfileData() {
 
   const handleSelectPlan = async (
     tier: SubscriptionTier,
+    message?: string,
   ): Promise<boolean> => {
     if (isSavingPlan) return false;
 
@@ -415,6 +513,25 @@ export function useProfileData() {
     setErrorMessage(null);
     setNotice(null);
     try {
+      if (accessRequestsEnabled) {
+        const trimmed = message?.trim();
+        await submitAccessRequest({
+          type: "subscription",
+          tier,
+          ...(trimmed ? { message: trimmed } : {}),
+        });
+        const planDisplayName =
+          t.plans.tiers[tier]?.name ??
+          plans.find((item) => item.id === tier)?.name ??
+          tier;
+        reportSuccess(
+          formatMessage(t.profile.hooks.planRequestSuccess, {
+            name: planDisplayName,
+          }),
+        );
+        return true;
+      }
+
       const updatedSub = await selectPlan(tier);
       setCurrentSubscription(updatedSub);
 
@@ -452,6 +569,29 @@ export function useProfileData() {
     } finally {
       setIsSavingPlan(false);
     }
+  };
+
+  const handleCancelAccessRequest = async (
+    requestId: number,
+  ): Promise<boolean> => {
+    if (isCancellingRequest) return false;
+    setIsCancellingRequest(true);
+    setErrorMessage(null);
+    setNotice(null);
+    try {
+      await cancelAccessRequest(requestId);
+      reportSuccess(t.profile.hooks.cancelRequestSuccess);
+      return true;
+    } catch (err) {
+      reportError(err, t.profile.hooks.cancelRequestError);
+      return false;
+    } finally {
+      setIsCancellingRequest(false);
+    }
+  };
+
+  const handleRefreshAccessRequests = async (): Promise<void> => {
+    await refreshAccessRequests?.();
   };
 
   const handleLogoutAll = async (): Promise<void> => {
@@ -501,6 +641,23 @@ export function useProfileData() {
     isPrimary: index === 0,
   }));
 
+  const pendingSubscriptionRequest =
+    accessRequests?.pendingSubscriptionRequest ?? null;
+  const pendingLanguageUnlockRequest =
+    accessRequests?.pendingLanguageUnlockRequest ?? null;
+  const latestRejectedSubscriptionRequest = !pendingSubscriptionRequest
+    ? (accessRequests?.requests.find(
+        (item) =>
+          item.requestType === "subscription" && item.status === "rejected",
+      ) ?? null)
+    : null;
+  const latestRejectedLanguageUnlockRequest = !pendingLanguageUnlockRequest
+    ? (accessRequests?.requests.find(
+        (item) =>
+          item.requestType === "language_unlock" && item.status === "rejected",
+      ) ?? null)
+    : null;
+
   return {
     locale,
     t,
@@ -516,11 +673,17 @@ export function useProfileData() {
     resolvedCategories,
     selectedCategoryIds,
     activeLanguageItems,
+    accessRequestsEnabled,
+    pendingSubscriptionRequest,
+    pendingLanguageUnlockRequest,
+    latestRejectedSubscriptionRequest,
+    latestRejectedLanguageUnlockRequest,
     isLoading,
     isSavingProfile,
     isSavingPreferences,
     isUnlockingLanguage,
     isSavingPlan,
+    isCancellingRequest,
     isLoggingOutAll,
     notice,
     setNotice,
@@ -529,10 +692,13 @@ export function useProfileData() {
     handleUpdateFullName,
     handleToggleCategory,
     handleAddCustomCategory,
+    handleDeleteCategory,
     handlePromoteLanguage,
     handleUpdateLanguages,
     handleUnlockLanguageChange,
     handleSelectPlan,
+    handleCancelAccessRequest,
+    handleRefreshAccessRequests,
     handleLogoutAll,
   };
 }
