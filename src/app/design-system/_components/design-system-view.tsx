@@ -356,7 +356,6 @@ export function DesignSystemView() {
             <Alert
               variant="success"
               title={t.designSystem.successAlertTitle}
-              code="HTTP_200"
             >
               {t.designSystem.successAlertBody}
             </Alert>

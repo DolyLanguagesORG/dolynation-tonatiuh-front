@@ -20,12 +20,16 @@ test.describe("Live Backend Smoke Suite (E2E_TARGET=backend)", () => {
       .getByRole("button", { name: "Iniciar sesión en DolyNation" })
       .click();
 
-    // El codigo vive en el badge del banner de error (`role="alert"`). Un locator
-    // laxo sobre la palabra "credenciales" tambien matchea el subtitulo del
-    // formulario y el boton en estado de carga, y Playwright falla en modo estricto.
+    // El banner de error (`role="alert"`) muestra únicamente el mensaje amigable para el cliente,
+    // sin exponer códigos técnicos internos como AUTH_INVALID_CREDENTIALS.
     await expect(
-      page.getByRole("alert").getByText("AUTH_INVALID_CREDENTIALS", { exact: true }),
+      page
+        .getByRole("alert")
+        .getByText(/El correo o la contraseña no son correctos/i),
     ).toBeVisible({ timeout: 10_000 });
+    await expect(
+      page.getByText("AUTH_INVALID_CREDENTIALS", { exact: true }),
+    ).toHaveCount(0);
   });
 
   test("unauthenticated navigation to /generate redirects to /login with live BFF", async ({

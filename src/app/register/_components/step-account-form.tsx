@@ -37,7 +37,7 @@ export interface StepAccountFormProps {
     password?: string;
     acceptTerms?: string;
   };
-  apiError: { code: string; message: string } | null;
+  apiError: { message: string } | null;
   isSubmitting: boolean;
   activeStrengthSegments: number;
   strengthLabel: string;
@@ -92,7 +92,6 @@ export function StepAccountForm({
         <Alert
           variant="error"
           title={t.auth.register.errorBannerTitle}
-          code={apiError.code}
           onDismiss={onDismissError}
         >
           {apiError.message}

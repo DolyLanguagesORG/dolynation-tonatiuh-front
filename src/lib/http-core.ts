@@ -223,7 +223,6 @@ export async function executeEnvelopeFetch<T>(
     throw new ApiClientError({
       code: ErrorCode.NETWORK_ERROR,
       status: 0,
-      details: error instanceof Error ? { cause: error.message } : undefined,
     });
   } finally {
     clearTimeout(timeoutId);

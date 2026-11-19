@@ -16,7 +16,7 @@ export function useLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { locale, t } = useLocale();
-  const { login, isAuthenticated } = useAuth();
+  const { login, isAuthenticated, user } = useAuth();
 
   const redirectTarget = sanitizeRedirectPath(
     searchParams.get("redirect"),
@@ -41,7 +41,6 @@ export function useLoginForm() {
   }>({});
 
   const [apiError, setApiError] = useState<{
-    code: string;
     message: string;
   } | null>(null);
 
@@ -63,9 +62,9 @@ export function useLoginForm() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace(redirectTarget);
+      router.replace(user?.role === "admin" ? "/admin" : redirectTarget);
     }
-  }, [isAuthenticated, redirectTarget, router]);
+  }, [isAuthenticated, redirectTarget, router, user?.role]);
 
   const validateEmail = (value: string): string | undefined => {
     const trimmed = value.trim();
@@ -149,7 +148,9 @@ export function useLoginForm() {
     setIsSubmitting(true);
     try {
       const loggedUser = await login({ email, password });
-      if (loggedUser.subscriptionTier === null) {
+      if (loggedUser.role === "admin") {
+        router.replace("/admin");
+      } else if (loggedUser.subscriptionTier === null) {
         router.replace("/select-plan");
       } else {
         router.replace(redirectTarget);
@@ -161,7 +162,6 @@ export function useLoginForm() {
           return;
         }
         setApiError({
-          code: error.code,
           message: error.getUserMessage(locale),
         });
 
@@ -172,16 +172,15 @@ export function useLoginForm() {
           setFieldErrors((prev) => ({
             ...prev,
             ...(error.fieldErrors.email
-              ? { email: error.fieldErrors.email }
+              ? { email: t.auth.login.validationEmailInvalid }
               : {}),
             ...(error.fieldErrors.password
-              ? { password: error.fieldErrors.password }
+              ? { password: t.auth.login.validationPasswordRequired }
               : {}),
           }));
         }
       } else {
         setApiError({
-          code: ErrorCode.UNKNOWN_ERROR,
           message: t.auth.login.unexpectedError,
         });
       }

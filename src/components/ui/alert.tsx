@@ -13,10 +13,6 @@ export interface AlertProps extends HTMLAttributes<HTMLDivElement> {
   variant?: AlertVariant;
   title?: string;
   /**
-   * Código técnico opcional (p. ej. `error.code` del backend o referencia editorial).
-   */
-  code?: string;
-  /**
    * Bloque de cita o sugerencia destacada en recuadro interior blanco,
    * siguiendo el patrón de retroalimentación académica de los wireframes.
    */
@@ -31,28 +27,23 @@ const VARIANT_TO_FLOWBITE: Record<
   {
     color: "info" | "success" | "warning" | "failure";
     titleClass: string;
-    badgeClass: string;
   }
 > = {
   info: {
     color: "info",
     titleClass: "text-heading",
-    badgeClass: "bg-neutral-primary-soft text-heading border-brand",
   },
   success: {
     color: "success",
     titleClass: "text-fg-success",
-    badgeClass: "bg-neutral-primary-soft text-fg-success border-success-subtle",
   },
   warning: {
     color: "warning",
     titleClass: "text-fg-warning",
-    badgeClass: "bg-neutral-primary-soft text-fg-warning border-warning-subtle",
   },
   error: {
     color: "failure",
     titleClass: "text-fg-danger",
-    badgeClass: "bg-neutral-primary-soft text-fg-danger border-danger-subtle",
   },
 };
 
@@ -77,7 +68,6 @@ function AlertIcon({ variant }: { variant: AlertVariant }) {
 export function Alert({
   variant = "info",
   title,
-  code,
   quote,
   quoteLabel = "SUGERENCIA DE INTEGRACIÓN:",
   onDismiss,
@@ -101,21 +91,14 @@ export function Alert({
     >
       <div className="flex w-full items-start justify-between gap-3">
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-          {(title || code) && (
+          {title && (
             <div className="flex flex-wrap items-center gap-2">
               <span
                 className={`inline-flex items-center gap-1.5 text-xs font-bold tracking-wider uppercase ${mapped.titleClass}`}
               >
                 <AlertIcon variant={variant} />
-                {title && <span>{title}</span>}
+                <span>{title}</span>
               </span>
-              {code && (
-                <code
-                  className={`rounded-base border px-1.5 py-0.5 font-mono text-[11px] ${mapped.badgeClass}`}
-                >
-                  {code}
-                </code>
-              )}
             </div>
           )}
 

@@ -40,7 +40,6 @@ export default function GlobalError({
         <Alert
           variant="error"
           title={t.errors.unexpectedBadge}
-          code={error.digest ?? "UI_RUNTIME_ERROR"}
         >
           {t.errors.unexpectedDescription}
         </Alert>

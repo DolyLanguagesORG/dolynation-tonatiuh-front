@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { type FormEvent, useState } from "react";
 
+import { FloatingLocaleSelector } from "@/components/layout/floating-locale-selector";
 import {
   ActionLink,
   Alert,
@@ -35,7 +36,6 @@ export function ForgotPasswordView() {
   const [email, setEmail] = useState("");
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<{
-    code: string;
     message: string;
   } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -59,12 +59,10 @@ export function ForgotPasswordView() {
     } catch (err) {
       if (err instanceof ApiClientError) {
         setApiError({
-          code: err.code,
           message: err.getUserMessage(locale),
         });
       } else {
         setApiError({
-          code: ErrorCode.UNKNOWN_ERROR,
           message: resolveErrorMessage(ErrorCode.UNKNOWN_ERROR, locale),
         });
       }
@@ -74,7 +72,10 @@ export function ForgotPasswordView() {
   };
 
   return (
-    <Container size="sm" className="flex flex-col items-center py-6 sm:py-10">
+    <>
+      <FloatingLocaleSelector />
+
+      <Container size="sm" className="flex flex-col items-center pt-20 pb-6 sm:pt-10 sm:pb-10">
       <div className="mb-8 flex flex-col items-center gap-2 text-center">
         <Eyebrow tone="muted">{fp.eyebrow}</Eyebrow>
         <Heading as="h1" id="main-heading" variant="display">
@@ -98,7 +99,6 @@ export function ForgotPasswordView() {
             <Alert
               variant="error"
               title={fp.errorTitle}
-              code={apiError.code}
               onDismiss={() => setApiError(null)}
             >
               {apiError.message}
@@ -178,5 +178,6 @@ export function ForgotPasswordView() {
         </Link>
       </div>
     </Container>
+    </>
   );
 }

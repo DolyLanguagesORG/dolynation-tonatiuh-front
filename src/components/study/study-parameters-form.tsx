@@ -208,7 +208,6 @@ export function StudyParametersForm({
         {study.validationError && (
           <Alert
             variant="error"
-            code={study.validationErrorCode ?? undefined}
             title={
               study.validationErrorCode
                 ? t.study.errorTitle
@@ -264,7 +263,6 @@ export function StudyParametersForm({
           <Alert
             variant="info"
             title={t.study.sessionReadyTitle}
-            code="STUDY_READY"
             onDismiss={() => study.setGenerationNotice(null)}
           >
             {study.generationNotice}

@@ -47,14 +47,17 @@ test.describe("Auth Session Revocation (T6), Password Reset & Q1 Core Loop", () 
     await expect(page.getByText("CORREO ENVIADO")).toBeVisible();
     await expect(page.getByText("ada@example.com")).toBeVisible();
 
-    // Invalid reset token surfaces AUTH_EMAIL_TOKEN_INVALID
+    // Invalid reset token surfaces user-friendly message without exposing internal error codes
     await page.goto("/reset-password?token=expired-reset-token");
     await page.locator("#reset-password-new").fill("NewStrongPass123!");
     await page.locator("#reset-password-confirm").fill("NewStrongPass123!");
     await page
       .getByRole("button", { name: "Guardar nueva contraseña" })
       .click();
-    await expect(page.getByText("AUTH_EMAIL_TOKEN_INVALID")).toBeVisible();
+    await expect(
+      page.getByRole("alert").getByText(/Este enlace no es válido/i),
+    ).toBeVisible();
+    await expect(page.getByText("AUTH_EMAIL_TOKEN_INVALID")).toHaveCount(0);
 
     // Valid token updates password
     await page.goto("/reset-password?token=reset-token-valid-999");
