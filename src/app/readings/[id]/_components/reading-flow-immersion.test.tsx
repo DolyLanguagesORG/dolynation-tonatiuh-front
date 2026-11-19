@@ -152,6 +152,16 @@ describe("Immersive reading flow localization", () => {
     expect(screen.getByText("CONTINUER L'ÉVALUATION")).toBeInTheDocument();
     expect(screen.getByText("Revenir à la configuration")).toBeInTheDocument();
 
+    // Atajos de navegacion junto al boton de volver a la configuracion.
+    expect(screen.getByText("Aller à l'accueil")).toBeInTheDocument();
+    expect(screen.getByText("Aller aux lectures")).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Aller à l'accueil/i }),
+    ).toHaveAttribute("href", "/");
+    expect(
+      screen.getByRole("link", { name: /Aller aux lectures/i }),
+    ).toHaveAttribute("href", "/readings");
+
     expect(screen.queryByText("VOLVER A LECTURAS")).not.toBeInTheDocument();
     expect(screen.queryByText(/FÁCIL|BÁSICO/)).not.toBeInTheDocument();
     expect(
@@ -216,6 +226,10 @@ describe("Immersive reading flow localization", () => {
     expect(
       screen.getByRole("button", { name: "Salva bozza" }),
     ).toBeInTheDocument();
+    // El indicador de sesion activa y su temporizador se eliminaron: el
+    // backend nunca recibio esa medicion.
+    expect(screen.queryByText(/SESSIONE ATTIVA/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/\d{2}:\d{2}/)).not.toBeInTheDocument();
     expect(screen.getByRole("textbox")).toHaveAttribute("lang", "it");
     expect(document.documentElement.lang).toBe("it");
   });

@@ -86,12 +86,6 @@ export function EvaluationView({ readingId }: EvaluationViewProps) {
                   </Badge>
                 </>
               }
-              actions={
-                <Badge variant="secondary" className="font-mono">
-                  {evaluation.flowT.readings.eval.activeSessionBadge} •{" "}
-                  {evaluation.elapsedLabel}
-                </Badge>
-              }
             />
 
             <EvaluationCriteriaCard

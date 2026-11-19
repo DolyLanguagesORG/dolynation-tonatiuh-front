@@ -37,6 +37,8 @@ describe("readingFlowDictionaries", () => {
       expect(dict.readings.backToReadings).toBeTruthy();
       expect(dict.readings.continueEvaluationButton).toBeTruthy();
       expect(dict.readings.backToConfigButton).toBeTruthy();
+      expect(dict.readings.goToHomeButton).toBeTruthy();
+      expect(dict.readings.goToReadingsButton).toBeTruthy();
       expect(dict.readings.literalMeaningLabel).toBeTruthy();
       expect(dict.readings.meaningInTextLabel).toBeTruthy();
       expect(dict.readings.wordBreakdownTitle).toBeTruthy();
@@ -78,6 +80,8 @@ describe("readingFlowDictionaries", () => {
     expect(fr.readings.otherWaysTitle).toBe("Autres façons de le dire");
     expect(fr.readings.continueEvaluationButton).toBe("CONTINUER L'ÉVALUATION");
     expect(fr.readings.backToConfigButton).toBe("Revenir à la configuration");
+    expect(fr.readings.goToHomeButton).toBe("Aller à l'accueil");
+    expect(fr.readings.goToReadingsButton).toBe("Aller aux lectures");
     expect(fr.readings.eval.submitButton).toMatch(/Envoyer le résumé/i);
     expect(fr.readings.result.sessionFooterStandard).toBe("");
     expect(fr.glossary.savedBadge).toBe("ENREGISTRÉ");
@@ -93,6 +97,8 @@ describe("readingFlowDictionaries", () => {
       "CONTINUA CON LA VALUTAZIONE",
     );
     expect(itDict.readings.backToConfigButton).toBe("Torna alla configurazione");
+    expect(itDict.readings.goToHomeButton).toBe("Vai alla home");
+    expect(itDict.readings.goToReadingsButton).toBe("Vai alle letture");
     expect(itDict.readings.eval.submitButton).toMatch(/Invia riassunto/i);
     expect(itDict.readings.result.sessionFooterStandard).toBe("");
     expect(itDict.glossary.savedBadge).toBe("SALVATO");
