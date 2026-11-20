@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuth } from "@/context";
 import { useToast } from "@/context/toast-context";
@@ -26,8 +26,11 @@ export function useAdminDashboard() {
   const [requests, setRequests] = useState<AdminAccessRequest[]>([]);
   const [hasInitialLoad, setHasInitialLoad] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const toastRef = useRef(toast);
+
+  useEffect(() => {
+    toastRef.current = toast;
+  }, [toast]);
 
   const [statusFilter, setStatusFilter] = useState<AccessRequestStatus | "all">(
     "all",
@@ -53,7 +56,6 @@ export function useAdminDashboard() {
     }
 
     setIsRefreshing(true);
-    setErrorMessage(null);
 
     try {
       const [usersRes, requestsRes] = await Promise.all([
@@ -67,7 +69,7 @@ export function useAdminDashboard() {
         error instanceof ApiClientError
           ? error.getUserMessage(locale)
           : t.admin.syncErrorTitle;
-      setErrorMessage(msg);
+      toastRef.current.error(msg, { title: t.admin.syncErrorTitle });
     } finally {
       setHasInitialLoad(true);
       setIsRefreshing(false);
@@ -86,7 +88,6 @@ export function useAdminDashboard() {
         if (cancelled) return;
         setUsers(usersRes.data);
         setRequests(requestsRes.data);
-        setErrorMessage(null);
       })
       .catch((error) => {
         if (cancelled) return;
@@ -94,7 +95,7 @@ export function useAdminDashboard() {
           error instanceof ApiClientError
             ? error.getUserMessage(locale)
             : t.admin.syncErrorTitle;
-        setErrorMessage(msg);
+        toastRef.current.error(msg, { title: t.admin.syncErrorTitle });
       })
       .finally(() => {
         if (!cancelled) {
@@ -187,8 +188,6 @@ export function useAdminDashboard() {
   ): Promise<boolean> => {
     if (reviewingId !== null) return false;
     setReviewingId(request.id);
-    setErrorMessage(null);
-    setNotice(null);
 
     try {
       const response = await adminService.approveRequest(request.id, {});
@@ -198,7 +197,6 @@ export function useAdminDashboard() {
           : t.admin.requests.approveSuccessNoMailNotice,
         { email: request.userEmail },
       );
-      setNotice(message);
       toast.success(message);
       await loadData();
       return true;
@@ -207,7 +205,6 @@ export function useAdminDashboard() {
         error instanceof ApiClientError
           ? error.getUserMessage(locale)
           : t.admin.requests.actionErrorFallback;
-      setErrorMessage(msg);
       toast.error(msg);
       return false;
     } finally {
@@ -226,8 +223,6 @@ export function useAdminDashboard() {
     }
 
     setReviewingId(request.id);
-    setErrorMessage(null);
-    setNotice(null);
 
     try {
       const response = await adminService.rejectRequest(request.id, {
@@ -239,7 +234,6 @@ export function useAdminDashboard() {
           : t.admin.requests.rejectSuccessNoMailNotice,
         { email: request.userEmail },
       );
-      setNotice(message);
       toast.success(message);
       await loadData();
       return true;
@@ -248,7 +242,6 @@ export function useAdminDashboard() {
         error instanceof ApiClientError
           ? error.getUserMessage(locale)
           : t.admin.requests.actionErrorFallback;
-      setErrorMessage(msg);
       toast.error(msg);
       return false;
     } finally {
@@ -279,10 +272,6 @@ export function useAdminDashboard() {
     stats,
     isLoading,
     isRefreshing,
-    errorMessage,
-    setErrorMessage,
-    notice,
-    setNotice,
     statusFilter,
     setStatusFilter,
     typeFilter,

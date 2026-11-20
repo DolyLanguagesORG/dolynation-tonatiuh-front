@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/context";
 import { useToast } from "@/context/toast-context";
@@ -22,9 +22,12 @@ export function useAdminUserDetail(userId: number) {
   const [hasInitialLoad, setHasInitialLoad] = useState(false);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [notFound, setNotFound] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
   const [reviewingId, setReviewingId] = useState<number | null>(null);
+  const toastRef = useRef(toast);
+
+  useEffect(() => {
+    toastRef.current = toast;
+  }, [toast]);
 
   const canLoad =
     isAuthenticated &&
@@ -39,7 +42,6 @@ export function useAdminUserDetail(userId: number) {
     if (!canLoad) return;
 
     setIsRefreshing(true);
-    setErrorMessage(null);
     setNotFound(false);
 
     try {
@@ -53,11 +55,11 @@ export function useAdminUserDetail(userId: number) {
         setNotFound(true);
         setDetail(null);
       } else {
-        setErrorMessage(
+        const msg =
           error instanceof ApiClientError
             ? error.getUserMessage(locale)
-            : t.admin.syncErrorTitle,
-        );
+            : t.admin.syncErrorTitle;
+        toastRef.current.error(msg, { title: t.admin.syncErrorTitle });
       }
     } finally {
       setHasInitialLoad(true);
@@ -76,7 +78,6 @@ export function useAdminUserDetail(userId: number) {
         if (cancelled) return;
         setDetail(response.data);
         setNotFound(false);
-        setErrorMessage(null);
       })
       .catch((error) => {
         if (cancelled) return;
@@ -87,11 +88,11 @@ export function useAdminUserDetail(userId: number) {
           setNotFound(true);
           setDetail(null);
         } else {
-          setErrorMessage(
+          const msg =
             error instanceof ApiClientError
               ? error.getUserMessage(locale)
-              : t.admin.syncErrorTitle,
-          );
+              : t.admin.syncErrorTitle;
+          toastRef.current.error(msg, { title: t.admin.syncErrorTitle });
         }
       })
       .finally(() => {
@@ -110,8 +111,6 @@ export function useAdminUserDetail(userId: number) {
   ): Promise<boolean> => {
     if (reviewingId !== null) return false;
     setReviewingId(request.id);
-    setErrorMessage(null);
-    setNotice(null);
 
     try {
       const response = await adminService.approveRequest(request.id, {});
@@ -121,7 +120,6 @@ export function useAdminUserDetail(userId: number) {
           : t.admin.requests.approveSuccessNoMailNotice,
         { email: request.userEmail },
       );
-      setNotice(message);
       toast.success(message);
       await reload();
       return true;
@@ -130,7 +128,6 @@ export function useAdminUserDetail(userId: number) {
         error instanceof ApiClientError
           ? error.getUserMessage(locale)
           : t.admin.requests.actionErrorFallback;
-      setErrorMessage(msg);
       toast.error(msg);
       return false;
     } finally {
@@ -149,8 +146,6 @@ export function useAdminUserDetail(userId: number) {
     }
 
     setReviewingId(request.id);
-    setErrorMessage(null);
-    setNotice(null);
 
     try {
       const response = await adminService.rejectRequest(request.id, {
@@ -162,7 +157,6 @@ export function useAdminUserDetail(userId: number) {
           : t.admin.requests.rejectSuccessNoMailNotice,
         { email: request.userEmail },
       );
-      setNotice(message);
       toast.success(message);
       await reload();
       return true;
@@ -171,7 +165,6 @@ export function useAdminUserDetail(userId: number) {
         error instanceof ApiClientError
           ? error.getUserMessage(locale)
           : t.admin.requests.actionErrorFallback;
-      setErrorMessage(msg);
       toast.error(msg);
       return false;
     } finally {
@@ -186,10 +179,6 @@ export function useAdminUserDetail(userId: number) {
     isLoading,
     isRefreshing,
     notFound,
-    errorMessage,
-    setErrorMessage,
-    notice,
-    setNotice,
     reviewingId,
     reload,
     approveRequest,

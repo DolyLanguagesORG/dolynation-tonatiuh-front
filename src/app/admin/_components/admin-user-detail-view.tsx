@@ -8,7 +8,6 @@ import { AdminRequestCard } from "@/app/admin/_components/admin-request-card";
 import { useAdminUserDetail } from "@/app/admin/_hooks/use-admin-user-detail";
 import { RequireAdmin } from "@/components/auth";
 import {
-  Alert,
   Badge,
   Button,
   Card,
@@ -29,10 +28,6 @@ function AdminUserDetailContent({ userId }: { userId: number }) {
     isLoading,
     isRefreshing,
     notFound,
-    errorMessage,
-    setErrorMessage,
-    notice,
-    setNotice,
     reviewingId,
     reload,
     approveRequest,
@@ -95,22 +90,6 @@ function AdminUserDetailContent({ userId }: { userId: number }) {
           </Button>
         }
       />
-
-      {notice && (
-        <Alert variant="success" onDismiss={() => setNotice(null)}>
-          {notice}
-        </Alert>
-      )}
-
-      {errorMessage && (
-        <Alert
-          variant="error"
-          title={t.admin.syncErrorTitle}
-          onDismiss={() => setErrorMessage(null)}
-        >
-          {errorMessage}
-        </Alert>
-      )}
 
       {isLoading ? (
         <SkeletonCard lines={6} label={t.admin.users.detail.titleFallback} />
