@@ -16,6 +16,15 @@
     "languageSwitcherLabel": "Interface language",
     "siteTitle": "DolyNation — Academic Reading & AI Comprehension",
     "siteDescription": "Minimalist editorial platform for language acquisition through deep contextual reading and AI-assisted evaluation.",
+    "ogImageAlt": "DolyNation — Editorial platform for language learning through reading and AI evaluation",
+    "seoKeywords": [
+      "DolyNation",
+      "learn languages by reading",
+      "AI reading comprehension",
+      "contextual vocabulary",
+      "CEFR language learning",
+      "reading evaluation"
+    ],
     "streakTemplate": "Streak: {count} {unit}",
     "daySingular": "day",
     "dayPlural": "days",

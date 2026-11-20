@@ -5,6 +5,7 @@ import { DesignSystemView } from "@/app/design-system/_components/design-system-
 import { getDictionary } from "@/i18n";
 import { getServerLocale } from "@/i18n/server-locale";
 import { isDesignSystemEnabled } from "@/lib/feature-flags";
+import { NOINDEX_ROBOTS } from "@/lib/seo";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: t.designSystem.title,
     description: t.designSystem.subtitle,
+    robots: NOINDEX_ROBOTS,
   };
 }
 

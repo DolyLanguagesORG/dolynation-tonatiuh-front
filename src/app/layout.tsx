@@ -1,5 +1,5 @@
 import { ThemeProvider } from "flowbite-react";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Newsreader } from "next/font/google";
 
 import { AppShell } from "@/components/layout";
@@ -9,7 +9,9 @@ import { AuthProvider, ToastProvider } from "@/context";
 import { getDictionary, LocaleProvider } from "@/i18n";
 import { getServerLocale } from "@/i18n/server-locale";
 import { isDesignSystemEnabled } from "@/lib/feature-flags";
+import { buildRootMetadata, buildSiteStructuredData } from "@/lib/seo";
 import { getServerInitialAuthState } from "@/lib/server";
+import { getRequestSiteUrl } from "@/lib/server/site-url";
 
 import "./globals.css";
 
@@ -29,25 +31,37 @@ const editorialSerif = Newsreader({
   style: ["normal", "italic"],
 });
 
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#fafafa" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
+  colorScheme: "light",
+};
+
 export async function generateMetadata(): Promise<Metadata> {
-  const locale = await getServerLocale();
+  const [locale, siteUrl] = await Promise.all([
+    getServerLocale(),
+    getRequestSiteUrl(),
+  ]);
   const dict = getDictionary(locale);
 
-  return {
-    title: {
-      default: dict.meta.siteTitle,
-      template: "%s | DolyNation Editorial",
-    },
-    description: dict.meta.siteDescription,
-  };
+  return buildRootMetadata(dict, locale, siteUrl);
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const [initialLocale, initialAuth] = await Promise.all([
+  const [initialLocale, initialAuth, siteUrl] = await Promise.all([
     getServerLocale(),
     getServerInitialAuthState(),
+    getRequestSiteUrl(),
   ]);
   const designSystemEnabled = isDesignSystemEnabled();
+  const dict = getDictionary(initialLocale);
+  const structuredDataJson = JSON.stringify(
+    buildSiteStructuredData(dict, initialLocale, siteUrl),
+  ).replace(/</g, "\\u003c");
 
   return (
     <html
@@ -55,6 +69,10 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} ${editorialSerif.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-neutral-secondary-soft text-heading font-sans">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: structuredDataJson }}
+        />
         <ThemeProvider theme={dolyFlowbiteTheme}>
           <LocaleProvider initialLocale={initialLocale}>
             <ToastProvider>

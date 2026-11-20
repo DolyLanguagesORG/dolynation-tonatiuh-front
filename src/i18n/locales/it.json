@@ -10,6 +10,15 @@
     "languageSwitcherLabel": "Lingua dell'interfaccia",
     "siteTitle": "DolyNation — Lettura Accademica e Comprensione con IA",
     "siteDescription": "Piattaforma editoriale minimalista per l'apprendimento delle lingue tramite lettura comprensiva e valutazione contestuale assistita dall'intelligenza artificiale.",
+    "ogImageAlt": "DolyNation — Piattaforma editoriale per imparare le lingue leggendo con valutazione IA",
+    "seoKeywords": [
+      "DolyNation",
+      "imparare le lingue leggendo",
+      "comprensione del testo IA",
+      "vocabolario contestuale",
+      "livelli QCER",
+      "lettura guidata"
+    ],
     "skipToContent": "Vai al contenuto principale",
     "openMenu": "Apri menu di navigazione",
     "closeMenu": "Chiudi menu di navigazione",

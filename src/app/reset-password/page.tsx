@@ -5,6 +5,7 @@ import { ResetPasswordView } from "@/app/reset-password/_components/reset-passwo
 import { Container, LocalizedSkeletonCard } from "@/components/ui";
 import { getDictionary } from "@/i18n";
 import { getServerLocale } from "@/i18n/server-locale";
+import { NOINDEX_ROBOTS } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getServerLocale();
@@ -12,6 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: t.auth.resetPassword.title,
     description: t.auth.resetPassword.subtitle,
+    robots: NOINDEX_ROBOTS,
   };
 }
 

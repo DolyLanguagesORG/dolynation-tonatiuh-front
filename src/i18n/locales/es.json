@@ -16,6 +16,15 @@
     "languageSwitcherLabel": "Idioma de interfaz",
     "siteTitle": "DolyNation — Lectura Académica y Retención por IA",
     "siteDescription": "Plataforma editorial minimalista para el aprendizaje de idiomas mediante lectura comprensiva y evaluación contextual asistida por inteligencia artificial.",
+    "ogImageAlt": "DolyNation — Plataforma editorial para aprender idiomas leyendo con evaluación por IA",
+    "seoKeywords": [
+      "DolyNation",
+      "aprender idiomas leyendo",
+      "lectura comprensiva IA",
+      "vocabulario contextual",
+      "evaluación CEFR",
+      "comprensión lectora"
+    ],
     "streakTemplate": "Racha: {count} {unit}",
     "daySingular": "día",
     "dayPlural": "días",
