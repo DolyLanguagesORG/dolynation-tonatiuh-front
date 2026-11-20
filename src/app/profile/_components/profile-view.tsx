@@ -83,7 +83,6 @@ function ProfileContent() {
             isCancellingRequest={data.isCancellingRequest}
             onSelectPlan={data.handleSelectPlan}
             onCancelAccessRequest={data.handleCancelAccessRequest}
-            onRefreshAccessRequests={data.handleRefreshAccessRequests}
             onLogoutAll={data.handleLogoutAll}
           />
         </>

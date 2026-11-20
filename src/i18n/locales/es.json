@@ -689,7 +689,7 @@
       "pendingPlanButton": "Solicitud pendiente (en revisión)",
       "switchToPlanButton": "Cambiar a {name}",
       "pendingSwitchTitle": "Cambio de plan en lista de espera",
-      "pendingSwitchDesc": "Tu solicitud para cambiar a {plan} está pendiente de revisión. Tu suscripción actual sigue activa mientras tanto.",
+      "pendingSwitchDesc": "Hay una solicitud pendiente para cambiar a {plan}.",
       "requestSwitchToPlanButton": "Solicitar cambio a {name}",
       "switchMessageLabel": "Mensaje opcional para revisión",
       "switchMessagePlaceholder": "Agrega un mensaje opcional explicando por qué deseas este plan...",
