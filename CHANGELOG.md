@@ -11,6 +11,13 @@ un PR de release contra `develop` que sube la versión y escribe esta sección; 
 mergearlo se crean el tag anotado y la GitHub Release. Ver
 [`conventions/versioning.md`](https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs/blob/develop/conventions/versioning.md).
 
+## [0.8.1](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.8.0...v0.8.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **ui:** mejora hidratacion SSR, drawer de glosario y calendario ([#120](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/120)) ([d830c3b](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/d830c3bc17ce9e48a68793748564a187efc0cc8f))
+
 ## [0.8.0](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.7.4...v0.8.0) (2026-11-19)
 
 
