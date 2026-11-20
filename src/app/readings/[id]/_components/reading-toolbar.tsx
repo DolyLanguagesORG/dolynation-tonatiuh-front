@@ -22,23 +22,27 @@ export interface ReadingToolbarProps {
   displayLanguage: TargetLanguageCode;
   reading: ReadingDto;
   fontScale: 0 | 1 | 2;
+  consultedCount: number;
   onDecreaseFont: () => void;
   onIncreaseFont: () => void;
   onPronounceTitle: () => void;
+  onOpenGlossary: () => void;
 }
 
 /**
- * Cabecera editorial y controles tipográficos (`A-` / `A+` y audio) para el detalle
- * de lectura (`/readings/[id]` - Figma #06).
+ * Cabecera editorial y controles tipográficos (`A-` / `A+`, audio y acceso al glosario)
+ * para el detalle de lectura (`/readings/[id]` - Figma #06).
  */
 export function ReadingToolbar({
   t,
   displayLanguage,
   reading,
   fontScale,
+  consultedCount,
   onDecreaseFont,
   onIncreaseFont,
   onPronounceTitle,
+  onOpenGlossary,
 }: ReadingToolbarProps) {
   const diffMeta = getDifficultyMeta(reading.difficulty, displayLanguage);
   const estMinutes = estimateReadingMinutes(reading.wordCount, reading.content);
@@ -66,7 +70,7 @@ export function ReadingToolbar({
           </>
         }
         actions={
-          <div className="flex items-center gap-1.5 rounded-base border border-default-medium bg-neutral-primary-soft p-1">
+          <div className="flex flex-wrap items-center gap-1.5 rounded-base border border-default-medium bg-neutral-primary-soft p-1">
             <Button
               variant="ghost"
               size="xs"
@@ -92,6 +96,18 @@ export function ReadingToolbar({
               aria-label={t.readings.pronounceButton}
               onClick={onPronounceTitle}
             />
+            <span aria-hidden="true" className="h-4 w-px bg-border" />
+            <Button
+              variant="secondary"
+              size="xs"
+              leftIcon={<Icon name="bookmark" size="xs" />}
+              onClick={onOpenGlossary}
+              aria-label={t.readings.openGlossaryAria}
+              className="normal-case tracking-normal"
+            >
+              {t.readings.glossaryDrawerButton}
+              {consultedCount > 0 ? ` (${consultedCount})` : ""}
+            </Button>
           </div>
         }
       />
