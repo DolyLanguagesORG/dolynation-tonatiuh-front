@@ -86,6 +86,7 @@ export function LearningPreferencesCard({
     TargetLanguageCode[] | null
   >(null);
   const [confirmingUnlock, setConfirmingUnlock] = useState(false);
+  const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
   const [unlockMessage, setUnlockMessage] = useState("");
 
   const isMissingMinCategories =
@@ -425,9 +426,14 @@ export function LearningPreferencesCard({
                               type="button"
                               variant="secondary"
                               size="xs"
+                              isLoading={isRefreshingStatus}
                               leftIcon={<Icon name="refresh" size="xs" />}
                               onClick={() => {
-                                void onRefreshAccessRequests();
+                                if (isRefreshingStatus) return;
+                                setIsRefreshingStatus(true);
+                                void onRefreshAccessRequests().finally(() => {
+                                  setIsRefreshingStatus(false);
+                                });
                               }}
                             >
                               {t.auth.stepper.step3Plan.refreshStatusButton}

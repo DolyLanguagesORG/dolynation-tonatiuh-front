@@ -6,6 +6,7 @@ const mockToastSuccess = jest.fn();
 const mockToastError = jest.fn();
 const mockToastWarning = jest.fn();
 const mockToastInfo = jest.fn();
+const mockReloadAccountState = jest.fn(async () => {});
 
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ replace: jest.fn(), push: jest.fn() }),
@@ -25,7 +26,7 @@ jest.mock("@/context", () => ({
       createdAt: "2026-11-10T00:00:00.000Z",
     },
     isAuthenticated: true,
-    reloadAccountState: async () => {},
+    reloadAccountState: mockReloadAccountState,
     refreshPreferences: async () => {},
     selectPlan: jest.fn(),
     selectLanguages: jest.fn(),
@@ -251,5 +252,45 @@ describe("useProfileData toast notifications", () => {
       "history",
       "science",
     ]);
+  });
+
+  it("refreshes subscription, languages, and account state on handleRefreshAccessRequests", async () => {
+    const { result } = renderHook(() => useProfileData(), { wrapper: Wrapper });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.currentSubscription?.tier).toBe("dolly_plus");
+
+    jest
+      .spyOn(subscriptionsService, "getCurrentSubscription")
+      .mockResolvedValueOnce({
+        message: "OK",
+        data: {
+          hasSubscription: true,
+          tier: "dolly_pro",
+          plan: null,
+          usage: {
+            categoriesCount: 3,
+            categoriesLimit: null,
+            languagesCount: 4,
+            languagesLimit: 4,
+            readingsCreatedToday: 0,
+            readingsLimit: null,
+            readingsRemainingToday: null,
+            questionsAskedToday: 0,
+            questionsLimit: null,
+            questionsRemainingToday: null,
+          },
+        },
+      });
+
+    await act(async () => {
+      await result.current.handleRefreshAccessRequests();
+    });
+
+    expect(mockReloadAccountState).toHaveBeenCalledTimes(1);
+    expect(result.current.currentSubscription?.tier).toBe("dolly_pro");
   });
 });

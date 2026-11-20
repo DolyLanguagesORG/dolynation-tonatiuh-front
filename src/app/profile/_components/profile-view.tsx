@@ -6,7 +6,7 @@ import { StreakCalendarCard } from "@/app/profile/_components/streak-calendar-ca
 import { SubscriptionPlanCard } from "@/app/profile/_components/subscription-plan-card";
 import { useProfileData } from "@/app/profile/_hooks/use-profile-data";
 import { RequireAuth } from "@/components/auth";
-import { Alert, Container, Eyebrow, SkeletonCard } from "@/components/ui";
+import { Container, Eyebrow, SkeletonCard } from "@/components/ui";
 
 function ProfileContent() {
   const data = useProfileData();
@@ -20,26 +20,6 @@ function ProfileContent() {
         </h1>
         <Eyebrow tone="heading">{t.profile.eyebrow}</Eyebrow>
       </div>
-
-      {data.notice && (
-        <Alert
-          variant="success"
-          title={t.profile.syncSuccessTitle}
-          onDismiss={() => data.setNotice(null)}
-        >
-          {data.notice}
-        </Alert>
-      )}
-
-      {data.errorMessage && (
-        <Alert
-          variant="error"
-          title={t.profile.saveErrorTitle}
-          onDismiss={() => data.setErrorMessage(null)}
-        >
-          {data.errorMessage}
-        </Alert>
-      )}
 
       {data.isLoading ? (
         <SkeletonCard lines={5} label={t.profile.loadingProfile} />
