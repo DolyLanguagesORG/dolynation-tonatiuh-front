@@ -61,7 +61,6 @@ export interface SubscriptionPlanCardProps {
   onOpenUpdateCard?: () => Promise<void> | void;
   onOpenBillingPortal?: () => Promise<void> | void;
   onCancelAccessRequest?: (requestId: number) => Promise<boolean>;
-  onRefreshAccessRequests?: () => Promise<void>;
   onLogoutAll: () => Promise<void>;
   captchaContainerRef?: RefObject<HTMLDivElement | null>;
 }
@@ -156,13 +155,11 @@ export function SubscriptionPlanCard({
   onOpenUpdateCard,
   onOpenBillingPortal,
   onCancelAccessRequest,
-  onRefreshAccessRequests,
   onLogoutAll,
   captchaContainerRef,
 }: SubscriptionPlanCardProps) {
   const [confirmingLogoutAll, setConfirmingLogoutAll] = useState(false);
   const [confirmingCancelRequest, setConfirmingCancelRequest] = useState(false);
-  const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
   const [requestingTier, setRequestingTier] = useState<SubscriptionTier | null>(
     null,
   );
@@ -515,87 +512,71 @@ export function SubscriptionPlanCard({
         </div>
 
         {accessRequestsEnabled && pendingSubscriptionRequest && (
-          <Alert
-            variant="info"
-            title={t.profile.subscription.pendingSwitchTitle}
+          <div
+            role="status"
+            aria-live="polite"
+            className="flex flex-col justify-between gap-2.5 rounded-base border border-default bg-neutral-primary-soft px-3.5 py-2.5 sm:flex-row sm:items-center"
           >
-            <div className="flex flex-col gap-2">
-              <span>
+            <div className="flex items-center gap-2">
+              <Icon
+                name="clock"
+                size="sm"
+                className="shrink-0 text-heading"
+              />
+              <Text variant="small" className="text-heading">
                 {formatMessage(t.profile.subscription.pendingSwitchDesc, {
                   plan: formatTierLabel(
                     pendingSubscriptionRequest.requestedTier,
                   ),
                 })}
-              </span>
-              {pendingSubscriptionRequest.userMessage && (
-                <span className="italic">
-                  “{pendingSubscriptionRequest.userMessage}”
-                </span>
-              )}
-              <div className="flex flex-wrap items-center gap-2 pt-1">
-                {onRefreshAccessRequests && (
+              </Text>
+            </div>
+
+            {onCancelAccessRequest && (
+              <div className="flex shrink-0 flex-wrap items-center gap-2">
+                {!confirmingCancelRequest ? (
                   <Button
                     type="button"
-                    variant="secondary"
+                    variant="outline"
                     size="xs"
-                    isLoading={isRefreshingStatus}
-                    leftIcon={<Icon name="refresh" size="xs" />}
-                    onClick={() => {
-                      if (isRefreshingStatus) return;
-                      setIsRefreshingStatus(true);
-                      void onRefreshAccessRequests().finally(() => {
-                        setIsRefreshingStatus(false);
-                      });
-                    }}
+                    disabled={isCancellingRequest}
+                    onClick={() => setConfirmingCancelRequest(true)}
                   >
-                    {t.auth.stepper.step3Plan.refreshStatusButton}
+                    {t.auth.stepper.step3Plan.cancelRequestButton}
                   </Button>
-                )}
-                {onCancelAccessRequest && (
-                  !confirmingCancelRequest ? (
+                ) : (
+                  <>
                     <Button
                       type="button"
-                      variant="outline"
+                      variant="danger"
+                      size="xs"
+                      isLoading={isCancellingRequest}
+                      onClick={() => {
+                        void onCancelAccessRequest(
+                          pendingSubscriptionRequest.id,
+                        ).then((ok) => {
+                          if (ok) {
+                            setConfirmingCancelRequest(false);
+                          }
+                        });
+                      }}
+                    >
+                      {t.auth.stepper.step3Plan.cancelConfirmButton}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
                       size="xs"
                       disabled={isCancellingRequest}
-                      onClick={() => setConfirmingCancelRequest(true)}
+                      onClick={() => setConfirmingCancelRequest(false)}
                     >
-                      {t.auth.stepper.step3Plan.cancelRequestButton}
+                      {t.profile.cancelButton}
                     </Button>
-                  ) : (
-                    <>
-                      <Button
-                        type="button"
-                        variant="danger"
-                        size="xs"
-                        isLoading={isCancellingRequest}
-                        onClick={() => {
-                          void onCancelAccessRequest(
-                            pendingSubscriptionRequest.id,
-                          ).then((ok) => {
-                            if (ok) {
-                              setConfirmingCancelRequest(false);
-                            }
-                          });
-                        }}
-                      >
-                        {t.auth.stepper.step3Plan.cancelConfirmButton}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="xs"
-                        disabled={isCancellingRequest}
-                        onClick={() => setConfirmingCancelRequest(false)}
-                      >
-                        {t.profile.cancelButton}
-                      </Button>
-                    </>
-                  )
+                  </>
                 )}
               </div>
-            </div>
-          </Alert>
+            )}
+          </div>
         )}
 
         {accessRequestsEnabled &&

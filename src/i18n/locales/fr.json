@@ -679,7 +679,7 @@
       "pendingPlanButton": "Demande en cours d'examen",
       "switchToPlanButton": "Passer à {name}",
       "pendingSwitchTitle": "Changement d'offre en liste d'attente",
-      "pendingSwitchDesc": "Votre demande pour passer à {plan} est en attente de validation. Votre offre actuelle reste active entre-temps.",
+      "pendingSwitchDesc": "Une demande de changement vers {plan} est en attente.",
       "requestSwitchToPlanButton": "Demander le passage à {name}",
       "switchMessageLabel": "Message optionnel pour révision",
       "switchMessagePlaceholder": "Ajoutez un message optionnel expliquant pourquoi vous souhaitez cette offre...",

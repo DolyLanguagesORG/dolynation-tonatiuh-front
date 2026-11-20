@@ -679,7 +679,7 @@
       "pendingPlanButton": "Richiesta in revisione",
       "switchToPlanButton": "Passa a {name}",
       "pendingSwitchTitle": "Cambio piano in lista d'attesa",
-      "pendingSwitchDesc": "La tua richiesta per passare a {plan} è in attesa di revisione. Il tuo piano attuale rimane attivo nel frattempo.",
+      "pendingSwitchDesc": "C'è una richiesta in sospeso per passare a {plan}.",
       "requestSwitchToPlanButton": "Richiedi passaggio a {name}",
       "switchMessageLabel": "Messaggio opzionale per la revisione",
       "switchMessagePlaceholder": "Aggiungi una nota opzionale sul motivo del cambio piano...",

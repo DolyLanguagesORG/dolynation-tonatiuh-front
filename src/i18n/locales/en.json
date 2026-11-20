@@ -679,7 +679,7 @@
       "pendingPlanButton": "Request pending (under review)",
       "switchToPlanButton": "Switch to {name}",
       "pendingSwitchTitle": "Plan change on waitlist",
-      "pendingSwitchDesc": "Your request to switch to {plan} is awaiting admin review. Your current plan stays active in the meantime.",
+      "pendingSwitchDesc": "There is a pending request to switch to {plan}.",
       "requestSwitchToPlanButton": "Request switch to {name}",
       "switchMessageLabel": "Optional message for review",
       "switchMessagePlaceholder": "Share an optional note on why you want to switch to this plan...",
