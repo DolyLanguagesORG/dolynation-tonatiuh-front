@@ -2,6 +2,7 @@ export {
   type AuthContextValue,
   AuthProvider,
   type AuthStatus,
+  type InitialAuthState,
   type OnboardingState,
   type RegisterResult,
   type RegisterWithPreferencesInput,

@@ -474,4 +474,259 @@ describe("AuthProvider onboarding & session phase transitions", () => {
     expect(studentHook.result.current.accessRequestsEnabled).toBe(true);
     expect(getMyRequestsSpy).toHaveBeenCalled();
   });
+
+  it("hydrates authenticated state synchronously from SSR initialAuth without redundant /auth/me fetch", async () => {
+    window.sessionStorage.clear();
+    window.localStorage.clear();
+    document.cookie = "doly_session=; Path=/; Max-Age=0";
+
+    const meSpy = jest.spyOn(authService, "me");
+    const hydratedUser = makeUser({
+      id: 42,
+      email: "ssr-student@example.com",
+      fullName: "SSR Student",
+      subscriptionTier: "dolly_plus",
+      currentStreak: 5,
+      emailVerifiedAt: "2026-11-10T00:00:00.000Z",
+    });
+
+    const initialAuth = {
+      status: "authenticated" as const,
+      user: hydratedUser,
+      subscription: {
+        hasSubscription: true,
+        tier: "dolly_plus" as const,
+        plan: {
+          id: "dolly_plus" as const,
+          name: "Dolly Plus",
+          description: "Plus",
+          maxCategories: 25,
+          maxLanguages: 2,
+          allowedLanguages: ["es", "en", "fr", "it"] as TargetLanguageCode[],
+          dailyReadingsLimit: 20,
+          dailyQuestionsLimit: 80,
+        },
+        usage: {
+          categoriesCount: 3,
+          categoriesLimit: 25,
+          languagesCount: 1,
+          languagesLimit: 2,
+          readingsCreatedToday: 0,
+          readingsLimit: 20,
+          readingsRemainingToday: 20,
+          questionsAskedToday: 0,
+          questionsLimit: 80,
+          questionsRemainingToday: 80,
+        },
+      },
+      languagesSettings: {
+        catalog: [],
+        selected: ["en"] as TargetLanguageCode[],
+        active: ["en"] as TargetLanguageCode[],
+        maxLanguages: 2,
+        canChangeFree: false,
+        nextFreeChangeAt: null,
+        lastLanguageChangeAt: null,
+        languageChangeCredits: 0,
+      },
+      categoriesSettings: {
+        catalog: [],
+        selected: ["science", "history", "technology"],
+      },
+      accessRequests: null,
+      subscriptionRequired: false,
+    };
+
+    const { result } = renderHook(() => useAuth(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <AuthProvider initialAuth={initialAuth}>{children}</AuthProvider>
+      ),
+    });
+
+    expect(result.current.isLoading).toBe(false);
+    expect(result.current.isAuthenticated).toBe(true);
+    expect(result.current.accessPhase).toBe("ready");
+    expect(result.current.user?.fullName).toBe("SSR Student");
+    expect(result.current.user?.currentStreak).toBe(5);
+    expect(result.current.onboarding.canGenerateReadings).toBe(true);
+
+    await waitFor(() => {
+      expect(meSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  it("revalidates on mount when SSR initialAuth marks status as loading for refresh", async () => {
+    window.sessionStorage.clear();
+    window.localStorage.clear();
+    document.cookie = "doly_session=; Path=/; Max-Age=0";
+
+    state.user = makeUser({
+      id: 77,
+      email: "refreshed@example.com",
+      subscriptionTier: "dolly",
+      currentStreak: 2,
+      emailVerifiedAt: "2026-11-10T00:00:00.000Z",
+    });
+    state.selectedLanguages = ["en"];
+    state.selectedCategories = ["science", "history", "technology"];
+    bindStatefulMocks(true);
+
+    const { result } = renderHook(() => useAuth(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <AuthProvider
+          initialAuth={{
+            status: "loading",
+            user: null,
+            subscription: null,
+            languagesSettings: null,
+            categoriesSettings: null,
+            accessRequests: null,
+            subscriptionRequired: false,
+          }}
+        >
+          {children}
+        </AuthProvider>
+      ),
+    });
+
+    expect(result.current.isLoading).toBe(true);
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(result.current.isAuthenticated).toBe(true);
+    expect(result.current.accessPhase).toBe("ready");
+    expect(result.current.user?.currentStreak).toBe(2);
+  });
+
+  it("polls /access-requests/me only while a request is pending and reloads account state upon approval", async () => {
+    jest.useFakeTimers();
+    try {
+      window.sessionStorage.clear();
+      window.localStorage.clear();
+      document.cookie = "doly_session=1; Path=/";
+
+      state.user = makeUser({
+        id: 88,
+        email: "waiting@example.com",
+        subscriptionTier: "dolly_pro",
+        currentStreak: 1,
+        emailVerifiedAt: "2026-11-10T00:00:00.000Z",
+      });
+      state.selectedLanguages = ["en", "es", "fr", "it"];
+      state.selectedCategories = ["science", "history", "technology"];
+      bindStatefulMocks(true);
+
+      jest
+        .spyOn(subscriptionsService, "getCurrentSubscription")
+        .mockImplementation(async () => ({
+          message: "OK",
+          data: {
+            hasSubscription: true,
+            tier: state.user.subscriptionTier ?? "dolly_pro",
+            plan: null,
+            usage: {
+              categoriesCount: 3,
+              categoriesLimit: null,
+              languagesCount: 4,
+              languagesLimit: state.user.subscriptionTier === "dolly_plus" ? 2 : 4,
+              readingsCreatedToday: 0,
+              readingsLimit: 20,
+              readingsRemainingToday: 20,
+              questionsAskedToday: 0,
+              questionsLimit: 80,
+              questionsRemainingToday: 80,
+            },
+          },
+        }));
+
+      const pendingRequest = {
+        id: 501,
+        userId: 88,
+        requestType: "subscription" as const,
+        requestedTier: "dolly_plus" as const,
+        currentTier: "dolly_pro" as const,
+        userMessage: "porfa",
+        status: "pending" as const,
+        rejectionReason: null,
+        reviewedByUserId: null,
+        reviewedAt: null,
+        createdAt: "2026-11-19T01:00:00.000Z",
+        updatedAt: "2026-11-19T01:00:00.000Z",
+      };
+
+      let approved = false;
+      const getMyRequestsSpy = jest
+        .spyOn(accessRequestsService, "getMyRequests")
+        .mockImplementation(async () => {
+          if (!approved) {
+            return {
+              message: "OK",
+              data: {
+                enabled: true,
+                requests: [pendingRequest],
+                pendingSubscriptionRequest: pendingRequest,
+                pendingLanguageUnlockRequest: null,
+              },
+            };
+          }
+          const approvedRequest = {
+            ...pendingRequest,
+            status: "approved" as const,
+            reviewedByUserId: 99,
+            reviewedAt: "2026-11-19T01:00:20.000Z",
+            updatedAt: "2026-11-19T01:00:20.000Z",
+          };
+          return {
+            message: "OK",
+            data: {
+              enabled: true,
+              requests: [approvedRequest],
+              pendingSubscriptionRequest: null,
+              pendingLanguageUnlockRequest: null,
+            },
+          };
+        });
+
+      const { result } = renderHook(() => useAuth(), { wrapper });
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      expect(result.current.user?.subscriptionTier).toBe("dolly_pro");
+      expect(
+        result.current.accessRequests?.pendingSubscriptionRequest?.id,
+      ).toBe(501);
+      expect(getMyRequestsSpy).toHaveBeenCalledTimes(1);
+
+      // First poll tick while still pending
+      await act(async () => {
+        jest.advanceTimersByTime(15_000);
+        await Promise.resolve();
+      });
+      expect(getMyRequestsSpy).toHaveBeenCalledTimes(2);
+      expect(result.current.user?.subscriptionTier).toBe("dolly_pro");
+
+      // Admin approves the plan switch before next poll tick
+      approved = true;
+      state.user = { ...state.user, subscriptionTier: "dolly_plus" };
+
+      await act(async () => {
+        jest.advanceTimersByTime(15_000);
+        await Promise.resolve();
+      });
+
+      await waitFor(() =>
+        expect(result.current.user?.subscriptionTier).toBe("dolly_plus"),
+      );
+      expect(result.current.subscription?.tier).toBe("dolly_plus");
+      expect(
+        result.current.accessRequests?.pendingSubscriptionRequest,
+      ).toBeNull();
+
+      // Polling stops once no pending request remains
+      const callsAfterApproval = getMyRequestsSpy.mock.calls.length;
+      await act(async () => {
+        jest.advanceTimersByTime(45_000);
+        await Promise.resolve();
+      });
+      expect(getMyRequestsSpy).toHaveBeenCalledTimes(callsAfterApproval);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
 });

@@ -117,6 +117,22 @@ export interface RefreshSessionResponse {
   expiresIn?: number;
 }
 
+export type AuthSessionStatus = "loading" | "authenticated" | "unauthenticated";
+
+/**
+ * Snapshot inicial serializable de sesión resuelto en SSR (`RootLayout`) para
+ * hidratar `AuthProvider` sin parpadeos visuales de autenticación en el cliente.
+ */
+export interface InitialAuthState {
+  status: AuthSessionStatus;
+  user: AuthUser | null;
+  subscription: UserSubscriptionResponse | null;
+  languagesSettings: LanguagesSettings | null;
+  categoriesSettings: CategoriesSettings | null;
+  accessRequests: MyAccessRequestsResponse | null;
+  subscriptionRequired: boolean;
+}
+
 export interface RegisterInput {
   email: string;
   password: string;
