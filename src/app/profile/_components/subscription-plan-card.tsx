@@ -131,6 +131,7 @@ export function SubscriptionPlanCard({
 }: SubscriptionPlanCardProps) {
   const [confirmingLogoutAll, setConfirmingLogoutAll] = useState(false);
   const [confirmingCancelRequest, setConfirmingCancelRequest] = useState(false);
+  const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
   const [requestingTier, setRequestingTier] = useState<SubscriptionTier | null>(
     null,
   );
@@ -257,9 +258,14 @@ export function SubscriptionPlanCard({
                     type="button"
                     variant="secondary"
                     size="xs"
+                    isLoading={isRefreshingStatus}
                     leftIcon={<Icon name="refresh" size="xs" />}
                     onClick={() => {
-                      void onRefreshAccessRequests();
+                      if (isRefreshingStatus) return;
+                      setIsRefreshingStatus(true);
+                      void onRefreshAccessRequests().finally(() => {
+                        setIsRefreshingStatus(false);
+                      });
                     }}
                   >
                     {t.auth.stepper.step3Plan.refreshStatusButton}

@@ -9,18 +9,18 @@ export interface CategorySelectorSectionProps {
   locale: Locale;
   categories: readonly CatalogCategory[];
   selectedCategory: string;
-  customCategoryBadge: string;
   addCategoryPrompt: string;
   addCategoryPlaceholder: string;
   addCategoryButton: string;
   emptyNotice: string;
   isAddingCustom: boolean;
+  isSubmittingCustom?: boolean;
   customCategoryName: string;
   customCategoryError: string | null;
   onStartAddCustom: () => void;
   onCancelAddCustom: () => void;
   onCustomNameChange: (value: string) => void;
-  onConfirmAddCustom: () => void;
+  onConfirmAddCustom: () => void | Promise<void>;
   onSelectCategory: (categoryId: string) => void;
 }
 
@@ -32,12 +32,12 @@ export function CategorySelectorSection({
   locale,
   categories,
   selectedCategory,
-  customCategoryBadge,
   addCategoryPrompt,
   addCategoryPlaceholder,
   addCategoryButton,
   emptyNotice,
   isAddingCustom,
+  isSubmittingCustom = false,
   customCategoryName,
   customCategoryError,
   onStartAddCustom,
@@ -78,12 +78,13 @@ export function CategorySelectorSection({
                 label={addCategoryPrompt}
                 placeholder={addCategoryPlaceholder}
                 value={customCategoryName}
+                disabled={isSubmittingCustom}
                 error={customCategoryError ?? undefined}
                 onChange={(event) => onCustomNameChange(event.target.value)}
                 onKeyDown={(event) => {
                   if (event.key === "Enter") {
                     event.preventDefault();
-                    onConfirmAddCustom();
+                    void onConfirmAddCustom();
                   }
                 }}
               />
@@ -93,7 +94,10 @@ export function CategorySelectorSection({
                 type="button"
                 variant="primary"
                 size="sm"
-                onClick={onConfirmAddCustom}
+                isLoading={isSubmittingCustom}
+                onClick={() => {
+                  void onConfirmAddCustom();
+                }}
               >
                 {addCategoryButton}
               </Button>
@@ -101,6 +105,7 @@ export function CategorySelectorSection({
                 type="button"
                 variant="outline"
                 size="sm"
+                disabled={isSubmittingCustom}
                 onClick={onCancelAddCustom}
               >
                 {t.study.cancelButton}
@@ -134,20 +139,7 @@ export function CategorySelectorSection({
                 selected={isSelected}
                 onClick={() => onSelectCategory(cat.id)}
               >
-                <span className="inline-flex items-center gap-2">
-                  <span>{displayName}</span>
-                  {cat.isCustom && (
-                    <span
-                      className={`rounded-xxs px-1 font-mono text-[9px] ${
-                        isSelected
-                          ? "bg-white/20 text-white"
-                          : "bg-neutral-secondary-medium text-muted"
-                      }`}
-                    >
-                      {customCategoryBadge}
-                    </span>
-                  )}
-                </span>
+                {displayName}
               </ChoiceChip>
             );
           })}

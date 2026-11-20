@@ -16,7 +16,6 @@ import {
 import { RequireAdmin } from "@/components/auth";
 import {
   ActionLink,
-  Alert,
   Badge,
   Button,
   Card,
@@ -48,10 +47,6 @@ function AdminUsersContent() {
     stats,
     isLoading,
     isRefreshing,
-    errorMessage,
-    setErrorMessage,
-    notice,
-    setNotice,
     roleFilter,
     setRoleFilter,
     pendingFilter,
@@ -117,22 +112,6 @@ function AdminUsersContent() {
           </div>
         }
       />
-
-      {notice && (
-        <Alert variant="success" onDismiss={() => setNotice(null)}>
-          {notice}
-        </Alert>
-      )}
-
-      {errorMessage && (
-        <Alert
-          variant="error"
-          title={t.admin.syncErrorTitle}
-          onDismiss={() => setErrorMessage(null)}
-        >
-          {errorMessage}
-        </Alert>
-      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <StatCard

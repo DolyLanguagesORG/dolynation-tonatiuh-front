@@ -170,13 +170,19 @@ describe("Immersive reading flow localization", () => {
 
     expect(document.documentElement.lang).toBe("fr");
     expect(container.querySelector('[lang="fr"]')).toBeInTheDocument();
+    expect(
+      screen.queryByText(/VOCABULAIRE DÉTECTÉ DANS CETTE LECTURE/i),
+    ).not.toBeInTheDocument();
 
-    const vocabChip = screen.getByRole("button", { name: /philosophie/i });
-    await user.click(vocabChip);
+    await user.click(screen.getByText("philosophie", { exact: true }));
+    await user.click(
+      screen.getByRole("button", { name: "Demander de l'aide / Expliquer" }),
+    );
 
     const aside = await screen.findByRole("complementary", {
       name: /AIDE & EXPLICATION • IA/i,
     });
+    expect(aside.parentElement).toHaveClass("fixed", "inset-0", "justify-end");
     expect(within(aside).getByText("[FR] FRANÇAIS · FACILE")).toBeInTheDocument();
     expect(within(aside).getByText("Sens littéral")).toBeInTheDocument();
     expect(

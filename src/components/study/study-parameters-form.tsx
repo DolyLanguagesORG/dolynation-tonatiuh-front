@@ -18,7 +18,7 @@ import {
   Text,
 } from "@/components/ui";
 import { formatMessage } from "@/i18n";
-import { ErrorCode, type StudyParameters } from "@/lib";
+import { type StudyParameters } from "@/lib";
 
 export interface StudyParametersFormProps {
   /**
@@ -205,70 +205,6 @@ export function StudyParametersForm({
           </Alert>
         )}
 
-        {study.validationError && (
-          <Alert
-            variant="error"
-            title={
-              study.validationErrorCode
-                ? t.study.errorTitle
-                : t.study.missingParameterTitle
-            }
-            onDismiss={() => study.setValidationError(null)}
-          >
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <span>{study.validationError}</span>
-              {study.validationErrorCode ===
-                ErrorCode.READING_PENDING_LIMIT_REACHED && (
-                <ActionLink
-                  href="/readings"
-                  variant="secondary"
-                  size="sm"
-                  rightIcon={<Icon name="arrow-right" size="xs" />}
-                  className="shrink-0 normal-case tracking-normal"
-                >
-                  {t.study.viewPendingReadings}
-                </ActionLink>
-              )}
-              {(study.validationErrorCode ===
-                ErrorCode.READING_DAILY_LIMIT_REACHED ||
-                study.validationErrorCode ===
-                  ErrorCode.SUBSCRIPTION_CATEGORY_LIMIT_EXCEEDED ||
-                study.validationErrorCode ===
-                  ErrorCode.SUBSCRIPTION_LANGUAGE_LIMIT_EXCEEDED) && (
-                <ActionLink
-                  href="/profile#subscription"
-                  variant="secondary"
-                  size="sm"
-                  rightIcon={<Icon name="arrow-right" size="xs" />}
-                  className="shrink-0 normal-case tracking-normal"
-                >
-                  {t.study.viewPlanAndUsage}
-                </ActionLink>
-              )}
-            </div>
-          </Alert>
-        )}
-
-        {study.saveNotice && (
-          <Alert
-            variant="success"
-            title={t.study.preferencesSavedTitle}
-            onDismiss={() => study.setSaveNotice(null)}
-          >
-            {study.saveNotice}
-          </Alert>
-        )}
-
-        {study.generationNotice && (
-          <Alert
-            variant="info"
-            title={t.study.sessionReadyTitle}
-            onDismiss={() => study.setGenerationNotice(null)}
-          >
-            {study.generationNotice}
-          </Alert>
-        )}
-
         <LanguageSelectorSection
           title={t.study.step1Language}
           locale={locale}
@@ -276,7 +212,6 @@ export function StudyParametersForm({
           activePlanLanguages={study.activePlanLanguages}
           onSelect={(lang) => {
             study.setSelectedLanguage(lang);
-            study.setValidationError(null);
           }}
         />
 
@@ -285,12 +220,12 @@ export function StudyParametersForm({
           locale={locale}
           categories={study.categories}
           selectedCategory={study.selectedCategory}
-          customCategoryBadge={t.study.customCategoryBadge}
           addCategoryPrompt={t.study.addCategoryPrompt}
           addCategoryPlaceholder={t.study.addCategoryPlaceholder}
           addCategoryButton={t.study.addCategoryButton}
           emptyNotice={t.study.emptyCategoriesNotice}
           isAddingCustom={study.isAddingCustom}
+          isSubmittingCustom={study.isSubmittingCustom}
           customCategoryName={study.customCategoryName}
           customCategoryError={study.customCategoryError}
           onStartAddCustom={() => study.setIsAddingCustom(true)}
@@ -302,7 +237,6 @@ export function StudyParametersForm({
           onConfirmAddCustom={study.handleAddCustomCategory}
           onSelectCategory={(categoryId) => {
             study.setSelectedCategory(categoryId);
-            study.setValidationError(null);
           }}
         />
 
@@ -313,7 +247,6 @@ export function StudyParametersForm({
           selectedDifficulty={study.selectedDifficulty}
           onSelect={(difficulty) => {
             study.setSelectedDifficulty(difficulty);
-            study.setValidationError(null);
           }}
         />
 
@@ -324,7 +257,6 @@ export function StudyParametersForm({
           selectedSize={study.selectedSize}
           onSelect={(size) => {
             study.setSelectedSize(size);
-            study.setValidationError(null);
           }}
         />
 

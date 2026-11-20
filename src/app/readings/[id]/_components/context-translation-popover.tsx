@@ -35,6 +35,8 @@ export interface ContextTranslationPopoverProps {
   onRequestDeepExplanation: () => void;
   onToggleSave: () => void;
   onClose: () => void;
+  /** Cuando es `true`, omite el contenedor `Card as="aside"` y el botón de cierre externo para incrustarse en un drawer. */
+  embedded?: boolean;
 }
 
 /**
@@ -58,19 +60,15 @@ export function ContextTranslationPopover({
   onRequestDeepExplanation,
   onToggleSave,
   onClose,
+  embedded = false,
 }: ContextTranslationPopoverProps) {
   const isPhrase =
     explanationData?.entryType === "phrase" || word.trim().includes(" ");
   const isSaved = Boolean(explanationData?.isSaved);
   const canSave = typeof explanationData?.id === "number";
 
-  return (
-    <Card
-      as="aside"
-      aria-label={t.readings.aiContextTitle}
-      padding="md"
-      className="flex flex-col gap-4 border-brand shadow-md lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto"
-    >
+  const content = (
+    <>
       <div className="flex items-start justify-between gap-2">
         <div className="flex flex-col gap-1.5">
           <div className="flex flex-wrap items-center gap-1.5">
@@ -105,13 +103,15 @@ export function ContextTranslationPopover({
           </p>
         </div>
 
-        <IconButton
-          icon="close"
-          size="xs"
-          variant="ghost"
-          aria-label={t.readings.closeHelpLabel}
-          onClick={onClose}
-        />
+        {!embedded && (
+          <IconButton
+            icon="close"
+            size="xs"
+            variant="ghost"
+            aria-label={t.readings.closeHelpLabel}
+            onClick={onClose}
+          />
+        )}
       </div>
 
       {contextSentence && (
@@ -373,6 +373,21 @@ export function ContextTranslationPopover({
           </Button>
         )}
       </div>
+    </>
+  );
+
+  if (embedded) {
+    return <div className="flex flex-col gap-4">{content}</div>;
+  }
+
+  return (
+    <Card
+      as="aside"
+      aria-label={t.readings.aiContextTitle}
+      padding="md"
+      className="flex flex-col gap-4 border-brand shadow-md lg:max-h-[calc(100vh-3rem)] lg:overflow-y-auto"
+    >
+      {content}
     </Card>
   );
 }

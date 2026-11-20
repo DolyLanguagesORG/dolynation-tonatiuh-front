@@ -4,7 +4,6 @@ import { AdminRequestCard } from "@/app/admin/_components/admin-request-card";
 import { useAdminDashboard } from "@/app/admin/_hooks/use-admin-dashboard";
 import { RequireAdmin } from "@/components/auth";
 import {
-  Alert,
   Button,
   Card,
   Container,
@@ -24,10 +23,6 @@ function AdminRequestsContent() {
     filteredRequests,
     isLoading,
     isRefreshing,
-    errorMessage,
-    setErrorMessage,
-    notice,
-    setNotice,
     statusFilter,
     setStatusFilter,
     typeFilter,
@@ -69,22 +64,6 @@ function AdminRequestsContent() {
           </Button>
         }
       />
-
-      {notice && (
-        <Alert variant="success" onDismiss={() => setNotice(null)}>
-          {notice}
-        </Alert>
-      )}
-
-      {errorMessage && (
-        <Alert
-          variant="error"
-          title={t.admin.syncErrorTitle}
-          onDismiss={() => setErrorMessage(null)}
-        >
-          {errorMessage}
-        </Alert>
-      )}
 
       <Card
         padding="sm"

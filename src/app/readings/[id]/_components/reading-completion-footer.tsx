@@ -3,50 +3,28 @@
 import {
   ActionLink,
   Card,
-  ChoiceChip,
   Divider,
-  Eyebrow,
   Icon,
   Text,
 } from "@/components/ui";
 import { type ReadingFlowDictionary } from "@/i18n";
-import { type GlossaryEntryDto, type ReadingDto } from "@/lib";
+import { type ReadingDto } from "@/lib";
 
 export interface ReadingCompletionFooterProps {
   t: ReadingFlowDictionary;
   reading: ReadingDto;
-  vocabularyTerms: readonly string[];
-  consultedEntries: readonly GlossaryEntryDto[];
-  selectedWord: string | null;
-  onSelectTerm: (term: string) => void;
-  onOpenCachedEntry: (entry: GlossaryEntryDto) => void;
 }
 
 /**
- * Pie interactivo de la lectura con llamado a evaluación contextual IA,
- * consultas persistidas y rejilla de vocabulario detectado (`06-detalle-de-lectura.png`).
+ * Pie interactivo de la lectura con estado y accesos a evaluación y navegación
+ * (`06-detalle-de-lectura.png`).
  */
 export function ReadingCompletionFooter({
   t,
   reading,
-  vocabularyTerms,
-  consultedEntries,
-  selectedWord,
-  onSelectTerm,
-  onOpenCachedEntry,
 }: ReadingCompletionFooterProps) {
   const isCompleted =
     reading.status === "completed" && typeof reading.score === "number";
-
-  const consultedByNormalized = new Map(
-    consultedEntries.map((entry) => [entry.normalizedWord, entry]),
-  );
-
-  const extraSuggestedTerms = vocabularyTerms.filter(
-    (term) => !consultedByNormalized.has(term.trim().toLowerCase()),
-  );
-
-  const totalCount = consultedEntries.length + extraSuggestedTerms.length;
 
   return (
     <div className="flex flex-col gap-6 pt-2">
@@ -122,56 +100,6 @@ export function ReadingCompletionFooter({
           )}
         </div>
       </Card>
-
-      {totalCount > 0 && (
-        <section className="flex flex-col gap-3">
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <Eyebrow tone="muted">
-              {consultedEntries.length > 0
-                ? t.readings.consultedTermsTitle
-                : t.readings.detectedVocabularyTitle}
-            </Eyebrow>
-            <Text variant="caption" tone="muted" className="font-mono">
-              {totalCount} {t.readings.termsSuffix}
-            </Text>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {consultedEntries.map((entry) => {
-              const isSelected =
-                selectedWord?.trim().toLowerCase() === entry.normalizedWord;
-              return (
-                <ChoiceChip
-                  key={`entry-${entry.id}`}
-                  size="sm"
-                  selected={isSelected}
-                  indicator={entry.isSaved ? "check" : "none"}
-                  onClick={() => onOpenCachedEntry(entry)}
-                >
-                  {entry.word}
-                </ChoiceChip>
-              );
-            })}
-
-            {extraSuggestedTerms.map((term) => {
-              const isSelected =
-                selectedWord?.trim().toLowerCase() === term.toLowerCase();
-
-              return (
-                <ChoiceChip
-                  key={`term-${term}`}
-                  size="sm"
-                  selected={isSelected}
-                  indicator="none"
-                  onClick={() => onSelectTerm(term)}
-                >
-                  {term}
-                </ChoiceChip>
-              );
-            })}
-          </div>
-        </section>
-      )}
     </div>
   );
 }

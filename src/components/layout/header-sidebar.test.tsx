@@ -394,4 +394,39 @@ describe("Header & Sidebar layout", () => {
     expect(screen.queryByRole("link", { name: /NUEVA LECTURA/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/días/i)).not.toBeInTheDocument();
   });
+
+  it("renders neutral skeletons instead of Sign In / Create Account or 0-day streak while auth is loading", () => {
+    mockAuthOverrides = {
+      user: null,
+      accessPhase: "loading",
+      isAuthenticated: false,
+    };
+
+    const { rerender } = render(
+      <LocaleProvider initialLocale="es">
+        <Header isMobileMenuOpen={false} onToggleMobileMenu={() => {}} />
+      </LocaleProvider>,
+    );
+
+    expect(screen.getByTestId("header-streak-skeleton")).toBeInTheDocument();
+    expect(screen.getByTestId("header-auth-skeleton")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Iniciar sesión/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Crear cuenta/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Racha: 0 días/i)).not.toBeInTheDocument();
+
+    mockPathname = "/login";
+    rerender(
+      <LocaleProvider initialLocale="es">
+        <Header
+          isMobileMenuOpen={false}
+          onToggleMobileMenu={() => {}}
+          isAuthRoute
+        />
+      </LocaleProvider>,
+    );
+
+    expect(screen.getByTestId("header-auth-skeleton")).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Iniciar sesión/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Crear cuenta/i })).not.toBeInTheDocument();
+  });
 });

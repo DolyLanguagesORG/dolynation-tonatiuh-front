@@ -1,5 +1,6 @@
 "use client";
 
+import { resolveRecentWeekDayLabels } from "@/app/profile/_components/streak-calendar-utils";
 import { ActionLink, Card, Eyebrow, Icon, Text } from "@/components/ui";
 import { type Dictionary, type Locale } from "@/i18n";
 
@@ -20,6 +21,8 @@ export function StreakSummaryCard({
   weeklyActiveDays,
   isAuthenticated,
 }: StreakSummaryCardProps) {
+  const recentWeekDays = resolveRecentWeekDayLabels(t.home.weekDays);
+
   return (
     <Card variant="subtle" padding="lg" as="section">
       <div className="flex flex-col justify-between gap-6 md:flex-row md:items-center">
@@ -65,7 +68,7 @@ export function StreakSummaryCard({
           </div>
 
           <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
-            {t.home.weekDays.map((day, idx) => {
+            {recentWeekDays.map((day, idx) => {
               const completed = weeklyActiveDays[idx] ?? false;
               return (
                 <div

@@ -12,7 +12,6 @@ import {
   ApiClientError,
   cleanLookupSelection,
   type ExplanationResultDto,
-  extractSalientVocabulary,
   type GlossaryEntryDto,
   getSpeechLocale,
   iaService,
@@ -20,6 +19,8 @@ import {
   readingsService,
   type TargetLanguageCode,
 } from "@/lib";
+
+export type ReadingDrawerTab = "explanation" | "glossary";
 
 const TARGET_LANGUAGE_NAMES: Record<TargetLanguageCode, string> = {
   es: "Spanish",
@@ -95,6 +96,8 @@ export function useReadingDetail(rawId: string) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [fontScale, setFontScale] = useState<0 | 1 | 2>(1);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [drawerTab, setDrawerTab] = useState<ReadingDrawerTab>("glossary");
   const [selectedWord, setSelectedWord] = useState<string | null>(null);
   const [selectedContext, setSelectedContext] = useState<string | null>(null);
   const [activeExplanation, setActiveExplanation] =
@@ -158,11 +161,6 @@ export function useReadingDetail(rawId: string) {
     };
   }, [fetchKey, locale, readingId]);
 
-  const vocabularyTerms = useMemo(
-    () => (reading ? extractSalientVocabulary(reading.content, 6) : []),
-    [reading],
-  );
-
   const paragraphs = useMemo(() => {
     if (!reading?.content) return [];
     return reading.content
@@ -191,6 +189,8 @@ export function useReadingDetail(rawId: string) {
       const normalized = cleaned.replace(/\s+/g, " ").toLowerCase();
       const trimmedContext = sentenceContext?.trim() || null;
 
+      setIsDrawerOpen(true);
+      setDrawerTab("explanation");
       setSelectedWord(cleaned);
       setSelectedContext(trimmedContext);
       setDeepExplanation(null);
@@ -256,6 +256,8 @@ export function useReadingDetail(rawId: string) {
   const openCachedEntry = useCallback(
     (entry: GlossaryEntryDto) => {
       if (!reading) return;
+      setIsDrawerOpen(true);
+      setDrawerTab("explanation");
       setSelectedWord(entry.word);
       setSelectedContext(entry.context);
       setDeepExplanation(null);
@@ -314,47 +316,69 @@ export function useReadingDetail(rawId: string) {
     setExplainError(null);
   }, []);
 
+  const openGlossaryDrawer = useCallback(
+    (preferredTab?: ReadingDrawerTab) => {
+      setIsDrawerOpen(true);
+      setDrawerTab(preferredTab ?? (selectedWord ? "explanation" : "glossary"));
+    },
+    [selectedWord],
+  );
+
+  const closeDrawer = useCallback(() => {
+    setIsDrawerOpen(false);
+    clearSelection();
+  }, [clearSelection]);
+
+  const toggleGlossaryEntrySave = useCallback(
+    async (entryId: number, targetState: boolean) => {
+      if (isSavingGlossary) return;
+
+      setIsSavingGlossary(true);
+      setExplainError(null);
+
+      try {
+        const res = await readingsService.toggleGlossarySave(entryId, {
+          isSaved: targetState,
+        });
+        const updated = res.data;
+        setActiveExplanation((prev) =>
+          prev && prev.id === updated.id
+            ? {
+                ...prev,
+                isSaved: updated.isSaved,
+              }
+            : prev,
+        );
+        setConsultedEntries((prev) => {
+          const exists = prev.some((item) => item.id === updated.id);
+          if (!exists) return [updated, ...prev];
+          return prev.map((item) => (item.id === updated.id ? updated : item));
+        });
+      } catch (err: unknown) {
+        setExplainError(
+          err instanceof ApiClientError
+            ? err.getUserMessage(readingLanguage)
+            : flowT.readings.errors.glossaryUpdateFailed,
+        );
+      } finally {
+        setIsSavingGlossary(false);
+      }
+    },
+    [flowT.readings.errors.glossaryUpdateFailed, isSavingGlossary, readingLanguage],
+  );
+
   const toggleSaveCurrent = useCallback(async () => {
     const explanationId = activeExplanation?.id;
-    if (!explanationId || isSavingGlossary) return;
+    if (!explanationId) return;
+    await toggleGlossaryEntrySave(explanationId, !activeExplanation.isSaved);
+  }, [activeExplanation, toggleGlossaryEntrySave]);
 
-    const targetState = !activeExplanation.isSaved;
-    setIsSavingGlossary(true);
-    setExplainError(null);
-
-    try {
-      const res = await readingsService.toggleGlossarySave(explanationId, {
-        isSaved: targetState,
-      });
-      const updated = res.data;
-      setActiveExplanation((prev) =>
-        prev
-          ? {
-              ...prev,
-              isSaved: updated.isSaved,
-            }
-          : prev,
-      );
-      setConsultedEntries((prev) => {
-        const exists = prev.some((item) => item.id === updated.id);
-        if (!exists) return [updated, ...prev];
-        return prev.map((item) => (item.id === updated.id ? updated : item));
-      });
-    } catch (err: unknown) {
-      setExplainError(
-        err instanceof ApiClientError
-          ? err.getUserMessage(readingLanguage)
-          : flowT.readings.errors.glossaryUpdateFailed,
-      );
-    } finally {
-      setIsSavingGlossary(false);
-    }
-  }, [
-    activeExplanation,
-    flowT.readings.errors.glossaryUpdateFailed,
-    isSavingGlossary,
-    readingLanguage,
-  ]);
+  const toggleSaveEntry = useCallback(
+    async (entry: GlossaryEntryDto) => {
+      await toggleGlossaryEntrySave(entry.id, !entry.isSaved);
+    },
+    [toggleGlossaryEntrySave],
+  );
 
   const pronounceText = useCallback(
     (textToSpeak: string) => {
@@ -388,12 +412,16 @@ export function useReadingDetail(rawId: string) {
     readingLanguage,
     flowT,
     paragraphs,
-    vocabularyTerms,
     consultedEntries,
     errorMessage,
     fontScale,
     decreaseFontScale,
     increaseFontScale,
+    isDrawerOpen,
+    drawerTab,
+    setDrawerTab,
+    openGlossaryDrawer,
+    closeDrawer,
     selectedWord,
     selectedContext,
     activeExplanation,
@@ -409,6 +437,7 @@ export function useReadingDetail(rawId: string) {
     requestDetailedExplanation,
     clearSelection,
     toggleSaveCurrent,
+    toggleSaveEntry,
     pronounceText,
   };
 }

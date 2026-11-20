@@ -15,7 +15,8 @@ export type ToastVariant = "success" | "error" | "warning" | "info";
 
 export interface ToastAction {
   label: string;
-  onClick: () => void;
+  href?: string;
+  onClick?: () => void;
 }
 
 export interface ToastOptions {

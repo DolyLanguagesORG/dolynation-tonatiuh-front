@@ -11,16 +11,20 @@ import {
   type ReactNode,
 } from "react";
 
+import { useToast } from "@/context/toast-context";
+import { getDictionary, resolveUiLocale } from "@/i18n";
 import {
   type AccessRequestItem,
   accessRequestsService,
   type AccountAccessPhase,
   ApiClientError,
+  type AuthSessionStatus,
   authService,
   type AuthUser,
   type CategoriesSettings,
   type CreateAccessRequestInput,
   ErrorCode,
+  type InitialAuthState,
   type LanguagesSettings,
   type LoginInput,
   MIN_USER_CATEGORIES,
@@ -35,7 +39,8 @@ import {
   type VerifyEmailResponse,
 } from "@/lib";
 
-export type AuthStatus = "loading" | "authenticated" | "unauthenticated";
+export type AuthStatus = AuthSessionStatus;
+export type { InitialAuthState };
 
 /**
  * Niveles oficiales de suscripción del backend (`dolynation-atl-back`).
@@ -105,6 +110,7 @@ export interface AuthContextValue {
 const SESSION_FLAG_COOKIE_NAME = "doly_session";
 const USER_SNAPSHOT_STORAGE_KEY = "doly_user_snapshot";
 const PENDING_VERIFICATION_STORAGE_KEY = "doly.pending_verification_email";
+const ACCESS_REQUEST_POLL_INTERVAL_MS = 15_000;
 
 const EMPTY_ONBOARDING: OnboardingState = {
   emailVerified: false,
@@ -258,28 +264,99 @@ function buildOnboardingState(params: {
   };
 }
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AuthUser | null>(null);
+function buildInitialOnboardingState(
+  initialAuth?: InitialAuthState,
+): OnboardingState {
+  if (!initialAuth || initialAuth.status !== "authenticated") {
+    return EMPTY_ONBOARDING;
+  }
+
+  if (initialAuth.user?.role === "admin") {
+    return EMPTY_ONBOARDING;
+  }
+
+  if (initialAuth.subscriptionRequired || !initialAuth.user?.subscriptionTier) {
+    return buildOnboardingState({
+      emailVerified: true,
+      tier: null,
+      selectedLanguages: [],
+      selectedCategories: [],
+    });
+  }
+
+  return buildOnboardingState({
+    emailVerified: Boolean(initialAuth.user.emailVerifiedAt),
+    tier:
+      initialAuth.subscription?.tier ??
+      initialAuth.user.subscriptionTier ??
+      null,
+    selectedLanguages: initialAuth.languagesSettings?.selected ?? [],
+    selectedCategories: initialAuth.categoriesSettings?.selected ?? [],
+  });
+}
+
+export function AuthProvider({
+  children,
+  initialAuth,
+}: {
+  children: ReactNode;
+  initialAuth?: InitialAuthState;
+}) {
+  const [user, setUser] = useState<AuthUser | null>(initialAuth?.user ?? null);
   const [subscription, setSubscription] =
-    useState<UserSubscriptionResponse | null>(null);
+    useState<UserSubscriptionResponse | null>(
+      initialAuth?.subscription ?? null,
+    );
   const [languagesSettings, setLanguagesSettings] =
-    useState<LanguagesSettings | null>(null);
+    useState<LanguagesSettings | null>(
+      initialAuth?.languagesSettings ?? null,
+    );
   const [categoriesSettings, setCategoriesSettings] =
-    useState<CategoriesSettings | null>(null);
+    useState<CategoriesSettings | null>(
+      initialAuth?.categoriesSettings ?? null,
+    );
   const [accessRequestsState, setAccessRequestsState] =
-    useState<MyAccessRequestsResponse | null>(null);
-  const [status, setStatus] = useState<AuthStatus>("loading");
-  const [subscriptionRequired, setSubscriptionRequired] = useState(false);
+    useState<MyAccessRequestsResponse | null>(
+      initialAuth?.accessRequests ?? null,
+    );
+  const [status, setStatus] = useState<AuthStatus>(
+    initialAuth?.status ?? "loading",
+  );
+  const [subscriptionRequired, setSubscriptionRequired] = useState<boolean>(
+    initialAuth?.subscriptionRequired ?? false,
+  );
   const [pendingVerificationEmail, setPendingVerificationEmailState] = useState<
     string | null
   >(null);
-  const [onboarding, setOnboarding] =
-    useState<OnboardingState>(EMPTY_ONBOARDING);
+  const [onboarding, setOnboarding] = useState<OnboardingState>(() =>
+    buildInitialOnboardingState(initialAuth),
+  );
 
+  const toast = useToast();
   const isBootstrappedRef = useRef(false);
   const isUnloadingRef = useRef(false);
   const authTransitionEpochRef = useRef(0);
   const lastVisibilitySyncRef = useRef(0);
+  const isRefreshingRequestsRef = useRef(false);
+  const pendingRequestIdsRef = useRef<{
+    subscriptionId: number | null;
+    languageUnlockId: number | null;
+  }>({
+    subscriptionId:
+      initialAuth?.accessRequests?.pendingSubscriptionRequest?.id ?? null,
+    languageUnlockId:
+      initialAuth?.accessRequests?.pendingLanguageUnlockRequest?.id ?? null,
+  });
+  const toastRef = useRef(toast);
+  const userLocaleRef = useRef<string | undefined>(initialAuth?.user?.locale);
+
+  useEffect(() => {
+    toastRef.current = toast;
+  }, [toast]);
+
+  useEffect(() => {
+    userLocaleRef.current = user?.locale;
+  }, [user?.locale]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -313,6 +390,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     (options?: { preservePendingEmail?: boolean }): void => {
       authTransitionEpochRef.current += 1;
       clearBrowserSessionHints(options);
+      pendingRequestIdsRef.current = {
+        subscriptionId: null,
+        languageUnlockId: null,
+      };
       setUser(null);
       setSubscription(null);
       setLanguagesSettings(null);
@@ -326,6 +407,72 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setStatus("unauthenticated");
     },
     [],
+  );
+
+  const resolveRequestToastDict = useCallback(() => {
+    const rawLocale =
+      userLocaleRef.current ??
+      (typeof document !== "undefined" ? document.documentElement.lang : "es");
+    return getDictionary(resolveUiLocale(rawLocale));
+  }, []);
+
+  /**
+   * Actualiza `accessRequestsState` y detecta si una solicitud pendiente previa fue
+   * aprobada o rechazada para avisar al usuario y sincronizar la cuenta completa.
+   */
+  const commitAccessRequestsSnapshot = useCallback(
+    (nextRequests: MyAccessRequestsResponse | null): { needsAccountReload: boolean } => {
+      const prevSubId = pendingRequestIdsRef.current.subscriptionId;
+      const prevLangId = pendingRequestIdsRef.current.languageUnlockId;
+
+      const nextSubId = nextRequests?.pendingSubscriptionRequest?.id ?? null;
+      const nextLangId = nextRequests?.pendingLanguageUnlockRequest?.id ?? null;
+
+      pendingRequestIdsRef.current = {
+        subscriptionId: nextSubId,
+        languageUnlockId: nextLangId,
+      };
+
+      setAccessRequestsState(nextRequests);
+
+      if (!nextRequests) {
+        return { needsAccountReload: false };
+      }
+
+      let needsAccountReload = false;
+      const dict = resolveRequestToastDict();
+
+      if (prevSubId !== null && nextSubId !== prevSubId) {
+        const resolvedSub = nextRequests.requests.find(
+          (item) => item.id === prevSubId,
+        );
+        if (resolvedSub?.status === "approved") {
+          needsAccountReload = true;
+          toastRef.current.success(dict.profile.hooks.planRequestApprovedToast);
+        } else if (resolvedSub?.status === "rejected") {
+          toastRef.current.warning(dict.profile.hooks.planRequestRejectedToast);
+        }
+      }
+
+      if (prevLangId !== null && nextLangId !== prevLangId) {
+        const resolvedLang = nextRequests.requests.find(
+          (item) => item.id === prevLangId,
+        );
+        if (resolvedLang?.status === "approved") {
+          needsAccountReload = true;
+          toastRef.current.success(
+            dict.profile.hooks.unlockRequestApprovedToast,
+          );
+        } else if (resolvedLang?.status === "rejected") {
+          toastRef.current.warning(
+            dict.profile.hooks.unlockRequestRejectedToast,
+          );
+        }
+      }
+
+      return { needsAccountReload };
+    },
+    [resolveRequestToastDict],
   );
 
   /**
@@ -421,7 +568,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSubscription(null);
         setLanguagesSettings(null);
         setCategoriesSettings(null);
-        setAccessRequestsState(null);
+        commitAccessRequestsSnapshot(null);
         setOnboarding(EMPTY_ONBOARDING);
         setUser(authenticatedUser);
         setSubscriptionRequired(false);
@@ -442,7 +589,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         updatePendingVerificationEmail(null);
         saveUserSnapshot(authenticatedUser);
         applySubscribedAccountSettings(settingsSnapshot);
-        setAccessRequestsState(requestsSnapshot);
+        commitAccessRequestsSnapshot(requestsSnapshot);
         setUser(authenticatedUser);
         setSubscriptionRequired(false);
         setStatus("authenticated");
@@ -458,7 +605,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSubscription(null);
       setLanguagesSettings(null);
       setCategoriesSettings(null);
-      setAccessRequestsState(requestsSnapshot);
+      commitAccessRequestsSnapshot(requestsSnapshot);
       setOnboarding(
         buildOnboardingState({
           emailVerified: true,
@@ -473,6 +620,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [
       applySubscribedAccountSettings,
+      commitAccessRequestsSnapshot,
       fetchStudentAccessRequests,
       fetchSubscribedAccountSettings,
       updatePendingVerificationEmail,
@@ -514,7 +662,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSubscription(null);
         setLanguagesSettings(null);
         setCategoriesSettings(null);
-        setAccessRequestsState(requestsSnapshot);
+        commitAccessRequestsSnapshot(requestsSnapshot);
         setSubscriptionRequired(true);
         setStatus("authenticated");
         setOnboarding(
@@ -572,21 +720,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [
     applyAuthenticatedUser,
     clearSessionState,
+    commitAccessRequestsSnapshot,
     fetchStudentAccessRequests,
     updatePendingVerificationEmail,
     user,
   ]);
 
+  const reloadAccountStateRef = useRef(reloadAccountState);
+  useEffect(() => {
+    reloadAccountStateRef.current = reloadAccountState;
+  }, [reloadAccountState]);
+
   const refreshAccessRequests = useCallback(async (): Promise<void> => {
     if (user?.role === "admin") {
-      setAccessRequestsState(null);
+      commitAccessRequestsSnapshot(null);
       return;
     }
-    const requestsSnapshot = await fetchStudentAccessRequests();
-    if (requestsSnapshot !== null) {
-      setAccessRequestsState(requestsSnapshot);
+    if (isRefreshingRequestsRef.current) {
+      return;
     }
-  }, [fetchStudentAccessRequests, user?.role]);
+    isRefreshingRequestsRef.current = true;
+    try {
+      const requestsSnapshot = await fetchStudentAccessRequests();
+      if (requestsSnapshot !== null) {
+        const { needsAccountReload } =
+          commitAccessRequestsSnapshot(requestsSnapshot);
+        if (needsAccountReload) {
+          await reloadAccountStateRef.current();
+        }
+      }
+    } finally {
+      isRefreshingRequestsRef.current = false;
+    }
+  }, [commitAccessRequestsSnapshot, fetchStudentAccessRequests, user?.role]);
 
   const submitAccessRequest = useCallback(
     async (input: CreateAccessRequestInput): Promise<AccessRequestItem> => {
@@ -600,6 +766,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const cancelAccessRequest = useCallback(
     async (id: number): Promise<AccessRequestItem> => {
       const response = await accessRequestsService.cancelRequest(id);
+      if (pendingRequestIdsRef.current.subscriptionId === id) {
+        pendingRequestIdsRef.current.subscriptionId = null;
+      }
+      if (pendingRequestIdsRef.current.languageUnlockId === id) {
+        pendingRequestIdsRef.current.languageUnlockId = null;
+      }
       await refreshAccessRequests();
       return response.data;
     },
@@ -662,7 +834,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return () => window.removeEventListener("storage", handleStorage);
   }, [reloadAccountState]);
 
-  // Al volver a enfocar la pestaña, resincroniza solicitudes y posible aprobación del plan.
+  // Al volver a enfocar la pestaña, resincroniza solicitudes y posible aprobación del plan/idioma.
   useEffect(() => {
     if (status !== "authenticated" || user?.role === "admin") {
       return;
@@ -681,7 +853,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (
         subscriptionRequired ||
         !user?.subscriptionTier ||
-        Boolean(accessRequestsState?.pendingSubscriptionRequest)
+        Boolean(accessRequestsState?.pendingSubscriptionRequest) ||
+        Boolean(accessRequestsState?.pendingLanguageUnlockRequest)
       ) {
         void reloadAccountState();
       } else {
@@ -696,6 +869,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
     };
   }, [
+    accessRequestsState?.pendingLanguageUnlockRequest,
     accessRequestsState?.pendingSubscriptionRequest,
     refreshAccessRequests,
     reloadAccountState,
@@ -705,18 +879,80 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     user?.subscriptionTier,
   ]);
 
+  // Polling condicional ligero: solo consulta `/access-requests/me` cada 15s mientras el
+  // cliente tenga una solicitud pendiente y la pestaña esté visible.
+  const hasPendingAccessRequest = Boolean(
+    accessRequestsState?.enabled &&
+      (accessRequestsState?.pendingSubscriptionRequest ||
+        accessRequestsState?.pendingLanguageUnlockRequest),
+  );
+
+  useEffect(() => {
+    if (
+      status !== "authenticated" ||
+      user?.role === "admin" ||
+      !hasPendingAccessRequest
+    ) {
+      return;
+    }
+
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === "hidden") {
+        return;
+      }
+      void refreshAccessRequests();
+    }, ACCESS_REQUEST_POLL_INTERVAL_MS);
+
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [hasPendingAccessRequest, refreshAccessRequests, status, user?.role]);
+
   // Hidratación inicial desde cookies `HttpOnly` + estado de verificación pendiente.
   useEffect(() => {
     if (isBootstrappedRef.current) return;
     isBootstrappedRef.current = true;
 
     const bootstrapSession = async (): Promise<void> => {
+      if (initialAuth?.status === "authenticated") {
+        updatePendingVerificationEmail(null);
+        if (initialAuth.user) {
+          saveUserSnapshot(initialAuth.user);
+          if (
+            initialAuth.user.role !== "admin" &&
+            initialAuth.user.subscriptionTier &&
+            (!initialAuth.subscription ||
+              !initialAuth.languagesSettings ||
+              !initialAuth.categoriesSettings)
+          ) {
+            await syncSubscribedAccountSettings(initialAuth.user);
+          }
+        } else if (initialAuth.subscriptionRequired) {
+          const snapshot = loadUserSnapshot();
+          if (snapshot) {
+            setUser({ ...snapshot, subscriptionTier: null });
+          }
+        }
+        return;
+      }
+
       const pendingEmail = loadPendingVerificationEmail();
       if (pendingEmail) {
         setPendingVerificationEmailState(pendingEmail);
       }
 
-      if (!hasSessionCookieFlag()) {
+      if (initialAuth?.status === "unauthenticated") {
+        if (hasSessionCookieFlag()) {
+          try {
+            await reloadAccountState();
+          } catch {
+            clearSessionState({ preservePendingEmail: Boolean(pendingEmail) });
+          }
+        }
+        return;
+      }
+
+      if (!initialAuth && !hasSessionCookieFlag()) {
         clearSessionState({ preservePendingEmail: Boolean(pendingEmail) });
         return;
       }

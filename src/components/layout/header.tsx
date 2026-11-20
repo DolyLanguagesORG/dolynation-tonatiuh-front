@@ -51,6 +51,7 @@ export function Header({
     }
   };
 
+  const isLoadingAuth = accessPhase === "loading";
   const isAdminSession =
     accessPhase === "admin" || user?.role === "admin";
   const streakCount = user?.currentStreak ?? 0;
@@ -99,6 +100,12 @@ export function Header({
           </div>
         ) : isUnverifiedLock ? (
           <div className="flex items-center gap-2" />
+        ) : isLoadingAuth ? (
+          <div
+            data-testid="header-auth-skeleton"
+            aria-hidden="true"
+            className="h-7 w-28 animate-pulse rounded-base border border-default bg-neutral-secondary-soft"
+          />
         ) : isAuthenticated ? (
           <div className="flex items-center gap-2">
             <Button
@@ -200,7 +207,13 @@ export function Header({
         <LocaleSelector />
 
         <div className="flex min-w-0 items-center gap-1.5 sm:gap-3">
-          {isAdminSession ? (
+          {isLoadingAuth ? (
+            <div
+              data-testid="header-streak-skeleton"
+              aria-hidden="true"
+              className="h-7 w-24 animate-pulse rounded-base border border-border bg-neutral-secondary-soft sm:w-28"
+            />
+          ) : isAdminSession ? (
             <div className="inline-flex min-w-0 items-center gap-1 rounded-base border border-border-strong bg-surface px-2 py-1 text-[11px] font-semibold text-ink sm:gap-1.5 sm:px-2.5 sm:text-xs">
               <Icon name="shield" size="sm" className="shrink-0" />
               <span className="whitespace-nowrap">{t.nav.adminRole}</span>
@@ -244,7 +257,13 @@ export function Header({
             className="hidden h-4 w-px bg-border sm:inline-block"
           />
 
-          {isAuthenticated ? (
+          {isLoadingAuth ? (
+            <div
+              data-testid="header-auth-skeleton"
+              aria-hidden="true"
+              className="h-8 w-24 animate-pulse rounded-base border border-default bg-neutral-secondary-soft sm:h-10 sm:w-44"
+            />
+          ) : isAuthenticated ? (
             <UserMenuDropdown pathname={pathname} />
           ) : (
             <div className="flex items-center gap-2">

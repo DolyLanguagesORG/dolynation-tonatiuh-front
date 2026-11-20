@@ -112,10 +112,13 @@ test.describe("Auth Session Revocation (T6), Password Reset & Q1 Core Loop", () 
     await expect(page.getByText("CONTINUER L'ÉVALUATION")).toBeVisible();
     await expect(page.getByText("Revenir à la configuration")).toBeVisible();
 
-    // Click detected vocabulary chip to open contextual AI explanation popover in French
-    const vocabChip = page.getByRole("button", { name: /comprehension/i }).first();
-    await expect(vocabChip).toBeVisible();
-    await vocabChip.click();
+    // Select word in article and open the right-side contextual AI glossary drawer in French
+    const targetWord = page.getByText("Comprehension", { exact: true }).first();
+    await expect(targetWord).toBeVisible();
+    await targetWord.click();
+    await page
+      .getByRole("button", { name: "Demander de l'aide / Expliquer" })
+      .click();
 
     const asidePanel = page.locator("aside");
     await expect(asidePanel).toBeVisible();

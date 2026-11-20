@@ -9,6 +9,7 @@ import { AuthProvider, ToastProvider } from "@/context";
 import { getDictionary, LocaleProvider } from "@/i18n";
 import { getServerLocale } from "@/i18n/server-locale";
 import { isDesignSystemEnabled } from "@/lib/feature-flags";
+import { getServerInitialAuthState } from "@/lib/server";
 
 import "./globals.css";
 
@@ -42,7 +43,10 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/">) {
-  const initialLocale = await getServerLocale();
+  const [initialLocale, initialAuth] = await Promise.all([
+    getServerLocale(),
+    getServerInitialAuthState(),
+  ]);
   const designSystemEnabled = isDesignSystemEnabled();
 
   return (
@@ -54,7 +58,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
         <ThemeProvider theme={dolyFlowbiteTheme}>
           <LocaleProvider initialLocale={initialLocale}>
             <ToastProvider>
-              <AuthProvider>
+              <AuthProvider initialAuth={initialAuth}>
                 <AppShell designSystemEnabled={designSystemEnabled}>
                   {children}
                 </AppShell>

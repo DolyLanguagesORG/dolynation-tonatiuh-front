@@ -1,5 +1,7 @@
 "use client";
 
+import Link from "next/link";
+
 import { Icon, type IconName } from "@/components/ui/icon";
 import { type ToastVariant, useToast } from "@/context/toast-context";
 import { useLocale } from "@/i18n";
@@ -89,18 +91,30 @@ export function ToastViewport() {
                 {toast.message}
               </p>
 
-              {toast.action && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    toast.action?.onClick();
-                    dismiss(toast.id);
-                  }}
-                  className="mt-2 inline-flex items-center font-mono text-[11px] font-semibold tracking-wider text-heading uppercase underline underline-offset-4 transition-opacity hover:opacity-75"
-                >
-                  {toast.action.label}
-                </button>
-              )}
+              {toast.action &&
+                (toast.action.href ? (
+                  <Link
+                    href={toast.action.href}
+                    onClick={() => {
+                      toast.action?.onClick?.();
+                      dismiss(toast.id);
+                    }}
+                    className="mt-2 inline-flex items-center font-mono text-[11px] font-semibold tracking-wider text-heading uppercase underline underline-offset-4 transition-opacity hover:opacity-75"
+                  >
+                    {toast.action.label}
+                  </Link>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      toast.action?.onClick?.();
+                      dismiss(toast.id);
+                    }}
+                    className="mt-2 inline-flex items-center font-mono text-[11px] font-semibold tracking-wider text-heading uppercase underline underline-offset-4 transition-opacity hover:opacity-75"
+                  >
+                    {toast.action.label}
+                  </button>
+                ))}
             </div>
 
             <button

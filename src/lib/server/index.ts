@@ -2,7 +2,7 @@ import "server-only";
 
 import { cookies } from "next/headers";
 
-import { type AuthUser } from "@/lib/api-contracts";
+import { type AuthUser, type InitialAuthState } from "@/lib/api-contracts";
 import { ApiClientError, ErrorCode } from "@/lib/api-errors";
 import {
   ACCESS_COOKIE_NAME,
@@ -66,6 +66,48 @@ export interface ServerSessionSnapshot {
   user: AuthUser | null;
 }
 
+interface ServerCookieFlags {
+  hasAccessToken: boolean;
+  hasRefreshToken: boolean;
+  hasSessionFlag: boolean;
+}
+
+async function readServerCookieFlags(): Promise<ServerCookieFlags | null> {
+  try {
+    const cookieStore = await cookies();
+    return {
+      hasAccessToken: Boolean(cookieStore.get(ACCESS_COOKIE_NAME)?.value),
+      hasRefreshToken: Boolean(cookieStore.get(REFRESH_COOKIE_NAME)?.value),
+      hasSessionFlag: cookieStore.get(SESSION_FLAG_COOKIE_NAME)?.value === "1",
+    };
+  } catch {
+    return null;
+  }
+}
+
+function buildEmptyInitialAuth(
+  status: InitialAuthState["status"],
+): InitialAuthState {
+  return {
+    status,
+    user: null,
+    subscription: null,
+    languagesSettings: null,
+    categoriesSettings: null,
+    accessRequests: null,
+    subscriptionRequired: false,
+  };
+}
+
+async function fetchServerAccessRequestsSafely() {
+  try {
+    const response = await serverAccessRequestsService.getMyRequests();
+    return response.data;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Obtiene el estado de sesión en Server Components usando `doly_access_token`
  * de forma segura y de solo lectura.
@@ -75,16 +117,8 @@ export interface ServerSessionSnapshot {
  * marca `needsRefresh: true` para que la hidratación del navegador renueve vía proxy BFF.
  */
 export async function getServerSessionSnapshot(): Promise<ServerSessionSnapshot> {
-  let hasAccessToken = false;
-  let hasRefreshToken = false;
-  let hasSessionFlag = false;
-
-  try {
-    const cookieStore = await cookies();
-    hasAccessToken = Boolean(cookieStore.get(ACCESS_COOKIE_NAME)?.value);
-    hasRefreshToken = Boolean(cookieStore.get(REFRESH_COOKIE_NAME)?.value);
-    hasSessionFlag = cookieStore.get(SESSION_FLAG_COOKIE_NAME)?.value === "1";
-  } catch {
+  const cookieFlags = await readServerCookieFlags();
+  if (!cookieFlags) {
     return {
       authenticated: false,
       needsRefresh: false,
@@ -92,6 +126,8 @@ export async function getServerSessionSnapshot(): Promise<ServerSessionSnapshot>
       user: null,
     };
   }
+
+  const { hasAccessToken, hasRefreshToken, hasSessionFlag } = cookieFlags;
 
   if (!hasAccessToken) {
     return {
@@ -137,6 +173,99 @@ export async function getServerSessionSnapshot(): Promise<ServerSessionSnapshot>
       subscriptionRequired: false,
       user: null,
     };
+  }
+}
+
+/**
+ * Resuelve el bootstrap completo de autenticación y onboarding en `RootLayout`
+ * para hidratar `AuthProvider` desde el primer HTML sin mostrar estado anónimo
+ * transitorio cuando ya existe una sesión válida.
+ */
+export async function getServerInitialAuthState(): Promise<InitialAuthState> {
+  const cookieFlags = await readServerCookieFlags();
+  if (!cookieFlags) {
+    return buildEmptyInitialAuth("unauthenticated");
+  }
+
+  const { hasAccessToken, hasRefreshToken, hasSessionFlag } = cookieFlags;
+  const fallbackStatus: InitialAuthState["status"] =
+    hasRefreshToken || hasSessionFlag ? "loading" : "unauthenticated";
+
+  if (!hasAccessToken) {
+    return buildEmptyInitialAuth(fallbackStatus);
+  }
+
+  try {
+    const meResponse = await serverAuthService.me();
+    const authenticatedUser = meResponse.data ?? null;
+    if (!authenticatedUser) {
+      return buildEmptyInitialAuth(fallbackStatus);
+    }
+
+    if (authenticatedUser.role === "admin") {
+      return {
+        status: "authenticated",
+        user: authenticatedUser,
+        subscription: null,
+        languagesSettings: null,
+        categoriesSettings: null,
+        accessRequests: null,
+        subscriptionRequired: false,
+      };
+    }
+
+    if (authenticatedUser.subscriptionTier) {
+      const [subResult, langResult, catResult, reqResult] =
+        await Promise.allSettled([
+          serverSubscriptionsService.getCurrentSubscription(),
+          serverSettingsService.getLanguages(),
+          serverSettingsService.getCategories(),
+          serverAccessRequestsService.getMyRequests(),
+        ]);
+
+      return {
+        status: "authenticated",
+        user: authenticatedUser,
+        subscription:
+          subResult.status === "fulfilled" ? subResult.value.data : null,
+        languagesSettings:
+          langResult.status === "fulfilled" ? langResult.value.data : null,
+        categoriesSettings:
+          catResult.status === "fulfilled" ? catResult.value.data : null,
+        accessRequests:
+          reqResult.status === "fulfilled" ? reqResult.value.data : null,
+        subscriptionRequired: false,
+      };
+    }
+
+    const accessRequests = await fetchServerAccessRequestsSafely();
+    return {
+      status: "authenticated",
+      user: authenticatedUser,
+      subscription: null,
+      languagesSettings: null,
+      categoriesSettings: null,
+      accessRequests,
+      subscriptionRequired: true,
+    };
+  } catch (error) {
+    if (
+      error instanceof ApiClientError &&
+      error.code === ErrorCode.SUBSCRIPTION_REQUIRED
+    ) {
+      const accessRequests = await fetchServerAccessRequestsSafely();
+      return {
+        status: "authenticated",
+        user: null,
+        subscription: null,
+        languagesSettings: null,
+        categoriesSettings: null,
+        accessRequests,
+        subscriptionRequired: true,
+      };
+    }
+
+    return buildEmptyInitialAuth(fallbackStatus);
   }
 }
 
