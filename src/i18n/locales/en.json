@@ -750,7 +750,6 @@
     "estimatedReadUnit": "MIN READ",
     "readingStatusDone": "Reading evaluated and completed",
     "readingStatusPending": "Text ready for comprehension evaluation",
-    "backToConfigButton": "Back to configuration",
     "goToHomeButton": "Go to home",
     "goToReadingsButton": "Go to readings",
     "continueEvaluationButton": "CONTINUE TO EVALUATION",
