@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { SelectPlanView } from "@/app/select-plan/_components/select-plan-view";
 import { getDictionary } from "@/i18n";
 import { getServerLocale } from "@/i18n/server-locale";
+import { NOINDEX_ROBOTS } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getServerLocale();
@@ -10,6 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: t.auth.stepper.step3Plan.title,
     description: t.auth.stepper.step3Plan.subtitle,
+    robots: NOINDEX_ROBOTS,
   };
 }
 
