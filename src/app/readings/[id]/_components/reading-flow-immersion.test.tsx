@@ -150,9 +150,11 @@ describe("Immersive reading flow localization", () => {
     expect(screen.getByText("DÍA DE MUERTOS")).toBeInTheDocument();
     expect(screen.getByText("1 MIN DE LECTURE")).toBeInTheDocument();
     expect(screen.getByText("CONTINUER L'ÉVALUATION")).toBeInTheDocument();
-    expect(screen.getByText("Revenir à la configuration")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Revenir à la configuration"),
+    ).not.toBeInTheDocument();
 
-    // Atajos de navegacion junto al boton de volver a la configuracion.
+    // Atajos de navegacion en el pie de lectura.
     expect(screen.getByText("Aller à l'accueil")).toBeInTheDocument();
     expect(screen.getByText("Aller aux lectures")).toBeInTheDocument();
     expect(

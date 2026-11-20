@@ -36,7 +36,6 @@ describe("readingFlowDictionaries", () => {
       const dict = getReadingFlowDictionary(lang);
       expect(dict.readings.backToReadings).toBeTruthy();
       expect(dict.readings.continueEvaluationButton).toBeTruthy();
-      expect(dict.readings.backToConfigButton).toBeTruthy();
       expect(dict.readings.goToHomeButton).toBeTruthy();
       expect(dict.readings.goToReadingsButton).toBeTruthy();
       expect(dict.readings.literalMeaningLabel).toBeTruthy();
@@ -79,7 +78,6 @@ describe("readingFlowDictionaries", () => {
     expect(fr.readings.wordBreakdownTitle).toBe("Analyse mot à mot");
     expect(fr.readings.otherWaysTitle).toBe("Autres façons de le dire");
     expect(fr.readings.continueEvaluationButton).toBe("CONTINUER L'ÉVALUATION");
-    expect(fr.readings.backToConfigButton).toBe("Revenir à la configuration");
     expect(fr.readings.goToHomeButton).toBe("Aller à l'accueil");
     expect(fr.readings.goToReadingsButton).toBe("Aller aux lectures");
     expect(fr.readings.eval.submitButton).toMatch(/Envoyer le résumé/i);
@@ -96,7 +94,6 @@ describe("readingFlowDictionaries", () => {
     expect(itDict.readings.continueEvaluationButton).toBe(
       "CONTINUA CON LA VALUTAZIONE",
     );
-    expect(itDict.readings.backToConfigButton).toBe("Torna alla configurazione");
     expect(itDict.readings.goToHomeButton).toBe("Vai alla home");
     expect(itDict.readings.goToReadingsButton).toBe("Vai alle letture");
     expect(itDict.readings.eval.submitButton).toMatch(/Invia riassunto/i);
