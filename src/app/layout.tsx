@@ -52,6 +52,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html
       lang={initialLocale}
+      data-scroll-behavior="smooth"
       className={`${geistSans.variable} ${geistMono.variable} ${editorialSerif.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-neutral-secondary-soft text-heading font-sans">
