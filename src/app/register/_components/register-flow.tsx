@@ -65,6 +65,7 @@ export function RegisterFlow() {
         touched={flow.touched}
         fieldErrors={flow.fieldErrors}
         apiError={flow.apiError}
+        redirectTarget={flow.redirectTarget}
         isSubmitting={flow.isSubmitting}
         activeStrengthSegments={flow.strength.activeSegments}
         strengthLabel={flow.strengthLabel}
