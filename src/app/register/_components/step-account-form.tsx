@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { type FormEvent, type RefObject } from "react";
 
+import { OAuthProvidersSection } from "@/components/auth";
 import {
   Alert,
   Button,
@@ -38,6 +39,7 @@ export interface StepAccountFormProps {
     acceptTerms?: string;
   };
   apiError: { message: string } | null;
+  redirectTarget?: string;
   isSubmitting: boolean;
   activeStrengthSegments: number;
   strengthLabel: string;
@@ -71,6 +73,7 @@ export function StepAccountForm({
   touched,
   fieldErrors,
   apiError,
+  redirectTarget = "/",
   isSubmitting,
   activeStrengthSegments,
   strengthLabel,
@@ -97,6 +100,12 @@ export function StepAccountForm({
           {apiError.message}
         </Alert>
       )}
+
+      <OAuthProvidersSection
+        mode="register"
+        redirectTarget={redirectTarget}
+        disabled={isSubmitting}
+      />
 
       <form onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

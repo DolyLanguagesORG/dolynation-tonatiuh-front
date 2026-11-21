@@ -8,6 +8,10 @@ export {
   type RequireAdminProps,
 } from "@/components/auth/require-admin";
 export {
+  OAuthProvidersSection,
+  type OAuthProvidersSectionProps,
+} from "@/components/auth/oauth-providers-section";
+export {
   RequireAuth,
   type RequireAuthProps,
 } from "@/components/auth/require-auth";

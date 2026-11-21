@@ -6,6 +6,7 @@ import {
   type EmailSentResponse,
   type ForgotPasswordInput,
   type LoginInput,
+  type OAuthProvidersResponse,
   type RefreshSessionResponse,
   type RefreshTokenInput,
   type RegisterInput,
@@ -112,6 +113,16 @@ export function createAuthService(transport: ApiTransport) {
       options?: AuthRequestOptions,
     ): Promise<ApiResponse<EmailSentResponse>> {
       return transport.post<EmailSentResponse>("/auth/forgot-password", input, {
+        skipAuth: true,
+        ...options,
+      });
+    },
+
+    /** Consulta los proveedores OAuth externos configurados y habilitados en el backend. */
+    getOAuthProviders(
+      options?: AuthRequestOptions,
+    ): Promise<ApiResponse<OAuthProvidersResponse>> {
+      return transport.get<OAuthProvidersResponse>("/auth/oauth/providers", {
         skipAuth: true,
         ...options,
       });

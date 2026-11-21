@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-import { AuthShell } from "@/components/auth";
+import { AuthShell, OAuthProvidersSection } from "@/components/auth";
 import { FloatingLocaleSelector } from "@/components/layout/floating-locale-selector";
 import {
   Alert,
@@ -33,6 +33,7 @@ export function LoginView() {
     infoNotice,
     setInfoNotice,
     isSubmitting,
+    redirectTarget,
     registerHref,
     handleEmailChange,
     handlePasswordChange,
@@ -83,6 +84,12 @@ export function LoginView() {
           {apiError.message}
         </Alert>
       )}
+
+      <OAuthProvidersSection
+        mode="login"
+        redirectTarget={redirectTarget}
+        disabled={isSubmitting}
+      />
 
       <form onSubmit={handleSubmit} noValidate className="flex flex-col gap-4">
         <Input

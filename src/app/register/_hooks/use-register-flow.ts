@@ -1,11 +1,11 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { type FormEvent, useRef, useState } from "react";
+import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import { sanitizeRedirectPath, useAuth } from "@/context";
 import { useLocale } from "@/i18n";
-import { ApiClientError, ErrorCode } from "@/lib";
+import { ApiClientError, ErrorCode, resolveErrorMessage } from "@/lib";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -84,6 +84,15 @@ export function useRegisterFlow() {
   } | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const oauthErrorParam = searchParams.get("oauthError");
+  useEffect(() => {
+    if (oauthErrorParam) {
+      setApiError({
+        message: resolveErrorMessage(oauthErrorParam, locale),
+      });
+    }
+  }, [locale, oauthErrorParam]);
 
   const buildFullName = (first: string, last: string): string =>
     [first.trim(), last.trim()].filter(Boolean).join(" ");
@@ -277,6 +286,7 @@ export function useRegisterFlow() {
     strengthLabel,
     strengthTone,
     handleStep1Submit,
+    redirectTarget,
     loginHref,
   };
 }
