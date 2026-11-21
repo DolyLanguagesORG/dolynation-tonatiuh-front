@@ -11,6 +11,18 @@ un PR de release contra `develop` que sube la versión y escribe esta sección; 
 mergearlo se crean el tag anotado y la GitHub Release. Ver
 [`conventions/versioning.md`](https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs/blob/develop/conventions/versioning.md).
 
+## [0.9.0](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.8.1...v0.9.0) (2026-11-21)
+
+
+### Features
+
+* **readings:** usa el endpoint dedicado para la explicacion detallada ([#126](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/126)) ([1b44a1b](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/1b44a1b4edf2056f06632487ee701576fd47dc5c))
+
+
+### Bug Fixes
+
+* **ui:** distingue timeout de IA de una falla de red ([#124](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/124)) ([611c5f2](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/611c5f228322782fdf63e4de963ded967598aeee))
+
 ## [0.8.1](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.8.0...v0.8.1) (2026-11-20)
 
 
