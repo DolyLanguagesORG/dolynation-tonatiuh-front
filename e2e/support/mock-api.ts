@@ -120,6 +120,14 @@ export interface MockBackendConfig {
   initialAdminUsers?: MockAdminUser[];
   initialReadingsCreatedToday?: number;
   initialCategoriesEvaluatedToday?: string[];
+  oauthProviders?: Array<{
+    provider: "google" | "microsoft";
+    enabled: boolean;
+    authorizationEndpoint?: string;
+    clientId?: string;
+    redirectUri?: string;
+    scopes?: string[];
+  }>;
 }
 
 export const PLAN_CATALOG = [
@@ -403,6 +411,14 @@ export async function attachMockBackend(
 
     if (apiPath === "/subscriptions/plans" && method === "GET") {
       return okResponse(route, [...PLAN_CATALOG]);
+    }
+
+    if (apiPath === "/auth/oauth/providers" && method === "GET") {
+      return okResponse(route, {
+        providers: config.oauthProviders ?? [
+          { provider: "google", enabled: false },
+        ],
+      });
     }
 
     if (apiPath === "/auth/register" && method === "POST") {
