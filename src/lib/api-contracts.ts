@@ -177,6 +177,21 @@ export interface EmailSentResponse {
   emailSent: boolean;
 }
 
+export type OAuthProviderId = "google";
+
+export interface OAuthProviderConfig {
+  provider: OAuthProviderId;
+  enabled: boolean;
+  authorizationEndpoint?: string;
+  clientId?: string;
+  redirectUri?: string;
+  scopes?: string[];
+}
+
+export interface OAuthProvidersResponse {
+  providers: OAuthProviderConfig[];
+}
+
 // ============================================================================
 // Usuario (`/user`)
 // ============================================================================

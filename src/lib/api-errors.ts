@@ -15,6 +15,14 @@ export const ErrorCode = {
   AUTH_UNAUTHORIZED: "AUTH_UNAUTHORIZED",
   AUTH_EMAIL_NOT_VERIFIED: "AUTH_EMAIL_NOT_VERIFIED",
   AUTH_EMAIL_TOKEN_INVALID: "AUTH_EMAIL_TOKEN_INVALID",
+  AUTH_OAUTH_NOT_CONFIGURED: "AUTH_OAUTH_NOT_CONFIGURED",
+  AUTH_OAUTH_UNSUPPORTED_PROVIDER: "AUTH_OAUTH_UNSUPPORTED_PROVIDER",
+  AUTH_OAUTH_INVALID_CODE: "AUTH_OAUTH_INVALID_CODE",
+  AUTH_OAUTH_EMAIL_UNVERIFIED: "AUTH_OAUTH_EMAIL_UNVERIFIED",
+  AUTH_OAUTH_ADMIN_FORBIDDEN: "AUTH_OAUTH_ADMIN_FORBIDDEN",
+  AUTH_OAUTH_PROVIDER_ERROR: "AUTH_OAUTH_PROVIDER_ERROR",
+  AUTH_OAUTH_STATE_INVALID: "AUTH_OAUTH_STATE_INVALID",
+  AUTH_OAUTH_CANCELLED: "AUTH_OAUTH_CANCELLED",
 
   // Recursos (4xx)
   RESOURCE_NOT_FOUND: "RESOURCE_NOT_FOUND",
@@ -102,6 +110,22 @@ const ERROR_MESSAGES_ES: Record<KnownErrorCode, string> = {
     "Debes confirmar tu correo electrónico antes de poder continuar.",
   AUTH_EMAIL_TOKEN_INVALID:
     "Este enlace no es válido, ya fue utilizado o expiró. Solicita uno nuevo.",
+  AUTH_OAUTH_NOT_CONFIGURED:
+    "El inicio de sesión con Google no está habilitado en este entorno.",
+  AUTH_OAUTH_UNSUPPORTED_PROVIDER:
+    "El proveedor de autenticación externa solicitado no es compatible.",
+  AUTH_OAUTH_INVALID_CODE:
+    "La autorización de Google expiró o no es válida. Intenta iniciar sesión nuevamente.",
+  AUTH_OAUTH_EMAIL_UNVERIFIED:
+    "Tu cuenta de Google no tiene un correo electrónico verificado.",
+  AUTH_OAUTH_ADMIN_FORBIDDEN:
+    "Las cuentas de administrador deben iniciar sesión con correo y contraseña.",
+  AUTH_OAUTH_PROVIDER_ERROR:
+    "No se pudo completar la autenticación con Google. Inténtalo de nuevo en unos momentos.",
+  AUTH_OAUTH_STATE_INVALID:
+    "La sesión temporal de inicio de sesión expiró o es inválida. Inténtalo de nuevo.",
+  AUTH_OAUTH_CANCELLED:
+    "Cancelaste el inicio de sesión con Google antes de completarlo.",
   RESOURCE_NOT_FOUND:
     "No encontramos el contenido solicitado o ya no está disponible.",
   RESOURCE_FORBIDDEN:
@@ -175,6 +199,22 @@ const ERROR_MESSAGES_EN: Record<KnownErrorCode, string> = {
     "Please confirm your email address before continuing.",
   AUTH_EMAIL_TOKEN_INVALID:
     "This link is invalid, has already been used, or has expired. Please request a new one.",
+  AUTH_OAUTH_NOT_CONFIGURED:
+    "Google sign-in is not configured in this environment.",
+  AUTH_OAUTH_UNSUPPORTED_PROVIDER:
+    "The requested external authentication provider is not supported.",
+  AUTH_OAUTH_INVALID_CODE:
+    "The Google authorization code is invalid or expired. Please try signing in again.",
+  AUTH_OAUTH_EMAIL_UNVERIFIED:
+    "Your Google account does not have a verified email address.",
+  AUTH_OAUTH_ADMIN_FORBIDDEN:
+    "Administrator accounts must sign in using email and password.",
+  AUTH_OAUTH_PROVIDER_ERROR:
+    "Could not complete authentication with Google. Please try again shortly.",
+  AUTH_OAUTH_STATE_INVALID:
+    "Your OAuth sign-in session expired or is invalid. Please try again.",
+  AUTH_OAUTH_CANCELLED:
+    "You cancelled the Google sign-in flow before completing it.",
   RESOURCE_NOT_FOUND:
     "The requested content could not be found or is no longer available.",
   RESOURCE_FORBIDDEN:
@@ -248,6 +288,22 @@ const ERROR_MESSAGES_FR: Record<KnownErrorCode, string> = {
     "Veuillez confirmer votre adresse e-mail avant de continuer.",
   AUTH_EMAIL_TOKEN_INVALID:
     "Ce lien n'est pas valide, a déjà été utilisé ou a expiré. Demandez-en un nouveau.",
+  AUTH_OAUTH_NOT_CONFIGURED:
+    "La connexion avec Google n'est pas configurée dans cet environnement.",
+  AUTH_OAUTH_UNSUPPORTED_PROVIDER:
+    "Le fournisseur d'authentification externe demandé n'est pas pris en charge.",
+  AUTH_OAUTH_INVALID_CODE:
+    "Le code d'autorisation Google est invalide ou a expiré. Veuillez réessayer.",
+  AUTH_OAUTH_EMAIL_UNVERIFIED:
+    "Votre compte Google ne possède pas d'adresse e-mail vérifiée.",
+  AUTH_OAUTH_ADMIN_FORBIDDEN:
+    "Les comptes administrateur doivent se connecter avec leur e-mail et mot de passe.",
+  AUTH_OAUTH_PROVIDER_ERROR:
+    "Impossible de finaliser l'authentification avec Google. Réessayez dans un instant.",
+  AUTH_OAUTH_STATE_INVALID:
+    "La session temporaire de connexion a expiré ou est invalide. Veuillez réessayer.",
+  AUTH_OAUTH_CANCELLED:
+    "Vous avez annulé la connexion avec Google avant de la terminer.",
   RESOURCE_NOT_FOUND:
     "Le contenu demandé est introuvable ou n'est plus disponible.",
   RESOURCE_FORBIDDEN:
@@ -321,6 +377,22 @@ const ERROR_MESSAGES_IT: Record<KnownErrorCode, string> = {
     "Conferma il tuo indirizzo e-mail prima di continuare.",
   AUTH_EMAIL_TOKEN_INVALID:
     "Questo link non è valido, è già stato utilizzato o è scaduto. Richiedine uno nuovo.",
+  AUTH_OAUTH_NOT_CONFIGURED:
+    "L'accesso con Google non è configurato in questo ambiente.",
+  AUTH_OAUTH_UNSUPPORTED_PROVIDER:
+    "Il provider di autenticazione esterna richiesto non è supportato.",
+  AUTH_OAUTH_INVALID_CODE:
+    "Il codice di autorizzazione Google non è valido o è scaduto. Riprova ad accedere.",
+  AUTH_OAUTH_EMAIL_UNVERIFIED:
+    "Il tuo account Google non dispone di un indirizzo email verificato.",
+  AUTH_OAUTH_ADMIN_FORBIDDEN:
+    "Gli account amministratore devono accedere con email e password.",
+  AUTH_OAUTH_PROVIDER_ERROR:
+    "Impossibile completare l'autenticazione con Google. Riprova tra qualche istante.",
+  AUTH_OAUTH_STATE_INVALID:
+    "La sessione di accesso esterna è scaduta o non è valida. Riprova.",
+  AUTH_OAUTH_CANCELLED:
+    "Hai annullato l'accesso con Google prima del completamento.",
   RESOURCE_NOT_FOUND:
     "Il contenuto richiesto non è stato trovato o non è più disponibile.",
   RESOURCE_FORBIDDEN:

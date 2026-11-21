@@ -67,6 +67,7 @@ const PUBLIC_NO_BEARER_ROUTES = new Set([
   "auth/resend-verification",
   "auth/forgot-password",
   "auth/reset-password",
+  "auth/oauth/providers",
 ]);
 
 function apiError(
