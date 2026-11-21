@@ -2,6 +2,8 @@ import {
   type ApiRequestOptions,
   type ApiTransport,
   type CreateExplanationInput,
+  type DeepExplanationInput,
+  type DeepExplanationResultDto,
   type EvaluateReadingInput,
   type EvaluationResultDto,
   type ExplanationResultDto,
@@ -125,6 +127,25 @@ export function createReadingsService(transport: ApiTransport) {
     ): Promise<ApiResponse<ExplanationResultDto>> {
       return transport.post<ExplanationResultDto>(
         `/readings/${encodeURIComponent(String(id))}/explanations`,
+        input,
+        {
+          timeoutMs: AI_TIMEOUT_MS,
+          ...options,
+        },
+      );
+    },
+
+    /**
+     * Pide la explicación detallada de una palabra o frase. Solo se envían la palabra y el
+     * fragmento: el backend arma el prompt con el idioma y nivel de la lectura.
+     */
+    deepExplain(
+      readingId: number,
+      input: DeepExplanationInput,
+      options?: ReadingsRequestOptions,
+    ): Promise<ApiResponse<DeepExplanationResultDto>> {
+      return transport.post<DeepExplanationResultDto>(
+        `/readings/${encodeURIComponent(String(readingId))}/explanations/deep`,
         input,
         {
           timeoutMs: AI_TIMEOUT_MS,
