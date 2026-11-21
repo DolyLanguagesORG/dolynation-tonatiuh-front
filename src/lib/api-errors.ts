@@ -57,6 +57,7 @@ export const ErrorCode = {
 
   // Códigos de transporte del cliente HTTP
   NETWORK_ERROR: "NETWORK_ERROR",
+  REQUEST_TIMEOUT: "REQUEST_TIMEOUT",
   CONFIG_ERROR: "CONFIG_ERROR",
   UNKNOWN_ERROR: "UNKNOWN_ERROR",
 } as const;
@@ -149,6 +150,8 @@ const ERROR_MESSAGES_ES: Record<KnownErrorCode, string> = {
     "El servicio no está disponible temporalmente. Por favor, intenta más tarde.",
   NETWORK_ERROR:
     "No pudimos conectarnos en este momento. Verifica tu conexión a internet e intenta de nuevo.",
+  REQUEST_TIMEOUT:
+    "La operación tardó más de lo esperado. Es posible que se haya completado: revisa antes de volver a intentarlo.",
   CONFIG_ERROR:
     "El servicio no está disponible en este momento. Por favor, intenta más tarde.",
   UNKNOWN_ERROR:
@@ -220,6 +223,8 @@ const ERROR_MESSAGES_EN: Record<KnownErrorCode, string> = {
     "The service is temporarily unavailable. Please try again later.",
   NETWORK_ERROR:
     "Could not connect right now. Please check your internet connection and try again.",
+  REQUEST_TIMEOUT:
+    "This is taking longer than expected. It may have completed anyway: please check before trying again.",
   CONFIG_ERROR:
     "The service is currently unavailable. Please try again later.",
   UNKNOWN_ERROR:
@@ -291,6 +296,8 @@ const ERROR_MESSAGES_FR: Record<KnownErrorCode, string> = {
     "Le service est temporairement indisponible. Veuillez réessayer plus tard.",
   NETWORK_ERROR:
     "Impossible d'établir la connexion pour le moment. Vérifiez votre connexion internet et réessayez.",
+  REQUEST_TIMEOUT:
+    "L'opération prend plus de temps que prévu. Elle a peut-être abouti : vérifiez avant de réessayer.",
   CONFIG_ERROR:
     "Le service est momentanément indisponible. Veuillez réessayer plus tard.",
   UNKNOWN_ERROR:
@@ -362,6 +369,8 @@ const ERROR_MESSAGES_IT: Record<KnownErrorCode, string> = {
     "Il servizio è temporaneamente non disponibile. Riprova più tardi.",
   NETWORK_ERROR:
     "Impossibile connettersi al momento. Verifica la tua connessione internet e riprova.",
+  REQUEST_TIMEOUT:
+    "L'operazione sta richiedendo più tempo del previsto. Potrebbe essere già stata completata: controlla prima di riprovare.",
   CONFIG_ERROR:
     "Il servizio non è al momento disponibile. Riprova più tardi.",
   UNKNOWN_ERROR:
@@ -533,6 +542,17 @@ export class ApiClientError extends Error {
       this.code === ErrorCode.AUTH_UNAUTHORIZED ||
       this.code === ErrorCode.AUTH_TOKEN_EXPIRED ||
       this.code === ErrorCode.AUTH_TOKEN_INVALID
+    );
+  }
+
+  /**
+   * Indica un fallo de transporte pasajero (sin red o tiempo agotado) que no debe
+   * interpretarse como sesión inválida.
+   */
+  public get isConnectivityError(): boolean {
+    return (
+      this.code === ErrorCode.NETWORK_ERROR ||
+      this.code === ErrorCode.REQUEST_TIMEOUT
     );
   }
 

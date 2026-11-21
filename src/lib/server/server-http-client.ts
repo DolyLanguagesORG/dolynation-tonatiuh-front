@@ -66,7 +66,7 @@ export async function serverApiRequest<T>(
       cache: defaultCache,
     });
   } catch (error) {
-    if (error instanceof ApiClientError && error.code === ErrorCode.NETWORK_ERROR) {
+    if (error instanceof ApiClientError && error.isConnectivityError) {
       // Omitimos cualquier detalle técnico (host/puerto interno) en errores SSR.
       throw new ApiClientError({
         code: ErrorCode.SERVICE_UNAVAILABLE,
