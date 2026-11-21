@@ -14,20 +14,11 @@ import {
   type ExplanationResultDto,
   type GlossaryEntryDto,
   getSpeechLocale,
-  iaService,
   type ReadingDto,
   readingsService,
-  type TargetLanguageCode,
 } from "@/lib";
 
 export type ReadingDrawerTab = "explanation" | "glossary";
-
-const TARGET_LANGUAGE_NAMES: Record<TargetLanguageCode, string> = {
-  es: "Spanish",
-  en: "English",
-  fr: "French",
-  it: "Italian",
-};
 
 function toExplanationResult(
   entry: GlossaryEntryDto,
@@ -279,16 +270,9 @@ export function useReadingDetail(rawId: string) {
     setExplainError(null);
 
     try {
-      const targetLangName =
-        TARGET_LANGUAGE_NAMES[reading.language] ?? "English";
-      const res = await iaService.chat({
-        systemPrompt: `You are a ${targetLangName} language coach for DolyNation learners (target level: ${reading.difficulty}). Write strictly in natural ${targetLangName} (never mix or translate into another language). Provide 2-3 clear sentences deepening the pragmatic nuance, grammar role, and a natural everyday example.`,
-        messages: [
-          {
-            role: "user",
-            content: `Deepen the explanation of "${selectedWord}" in the ${targetLangName} reading "${reading.title}". Excerpt: "${selectedContext ?? selectedWord}".`,
-          },
-        ],
+      const res = await readingsService.deepExplain(reading.id, {
+        word: selectedWord,
+        context: selectedContext ?? undefined,
       });
       setDeepExplanation(res.data.text);
     } catch (err: unknown) {

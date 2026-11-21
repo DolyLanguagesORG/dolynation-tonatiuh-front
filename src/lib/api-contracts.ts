@@ -379,6 +379,17 @@ export interface CreateExplanationInput {
   forceRefresh?: boolean;
 }
 
+/** Cuerpo de `POST /readings/:id/explanations/deep`; el prompt lo arma el backend. */
+export interface DeepExplanationInput {
+  word: string;
+  context?: string;
+}
+
+/** Respuesta de `POST /readings/:id/explanations/deep`. */
+export interface DeepExplanationResultDto {
+  text: string;
+}
+
 export interface GlossaryEntryDto {
   id: number;
   readingId: number;
