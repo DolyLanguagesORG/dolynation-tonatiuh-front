@@ -680,10 +680,7 @@ export function AuthProvider({
         return;
       }
 
-      if (
-        error instanceof ApiClientError &&
-        error.code === ErrorCode.NETWORK_ERROR
-      ) {
+      if (error instanceof ApiClientError && error.isConnectivityError) {
         // Nunca borramos `doly_session` ante un abort de navegación o fallo de red.
         const snapshot = loadUserSnapshot();
         if (snapshot) {
@@ -792,8 +789,7 @@ export function AuthProvider({
     } catch (error) {
       if (
         isUnloadingRef.current ||
-        (error instanceof ApiClientError &&
-          error.code === ErrorCode.NETWORK_ERROR)
+        (error instanceof ApiClientError && error.isConnectivityError)
       ) {
         return false;
       }

@@ -118,7 +118,11 @@ export async function executeEnvelopeFetch<T>(
   }
 
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  let timedOut = false;
+  const timeoutId = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, timeoutMs);
 
   const onExternalAbort = (): void => controller.abort();
   if (externalSignal) {
@@ -220,8 +224,9 @@ export async function executeEnvelopeFetch<T>(
       throw error;
     }
 
+    // El servidor pudo haber completado la operación aunque el cliente dejó de esperar.
     throw new ApiClientError({
-      code: ErrorCode.NETWORK_ERROR,
+      code: timedOut ? ErrorCode.REQUEST_TIMEOUT : ErrorCode.NETWORK_ERROR,
       status: 0,
     });
   } finally {

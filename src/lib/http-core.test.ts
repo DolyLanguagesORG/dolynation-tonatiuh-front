@@ -124,5 +124,58 @@ describe("http-core", () => {
 
     expect(caught).toBeInstanceOf(ApiClientError);
     expect((caught as ApiClientError).code).toBe(ErrorCode.NETWORK_ERROR);
+    expect((caught as ApiClientError).isConnectivityError).toBe(true);
+  });
+
+  it("surfaces client-side timeouts as REQUEST_TIMEOUT instead of NETWORK_ERROR", async () => {
+    global.fetch = jest.fn(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("The operation was aborted.", "AbortError"));
+          });
+        }),
+    ) as unknown as typeof fetch;
+
+    let caught: unknown;
+    try {
+      await executeEnvelopeFetch("/api/v1/readings", {
+        method: "POST",
+        body: { category: "technology" },
+        timeoutMs: 10,
+      });
+    } catch (error) {
+      caught = error;
+    }
+
+    expect(caught).toBeInstanceOf(ApiClientError);
+    expect((caught as ApiClientError).code).toBe(ErrorCode.REQUEST_TIMEOUT);
+    expect((caught as ApiClientError).isConnectivityError).toBe(true);
+    expect((caught as ApiClientError).getUserMessage("es")).not.toMatch(
+      /conexión a internet/,
+    );
+  });
+
+  it("keeps caller-initiated aborts as NETWORK_ERROR", async () => {
+    global.fetch = jest.fn(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise<Response>((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => {
+            reject(new DOMException("The operation was aborted.", "AbortError"));
+          });
+        }),
+    ) as unknown as typeof fetch;
+
+    const external = new AbortController();
+    const pending = executeEnvelopeFetch("/api/v1/readings", {
+      method: "GET",
+      signal: external.signal,
+      timeoutMs: 60_000,
+    });
+    external.abort();
+
+    await expect(pending).rejects.toMatchObject({
+      code: ErrorCode.NETWORK_ERROR,
+    });
   });
 });

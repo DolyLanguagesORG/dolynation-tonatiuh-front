@@ -150,7 +150,10 @@ export function useStudyParameters(
   );
 
   const resolveErrorAction = (code?: string): ToastAction | undefined => {
-    if (code === ErrorCode.READING_PENDING_LIMIT_REACHED) {
+    if (
+      code === ErrorCode.READING_PENDING_LIMIT_REACHED ||
+      code === ErrorCode.REQUEST_TIMEOUT
+    ) {
       return {
         label: t.study.viewPendingReadings,
         href: "/readings",
