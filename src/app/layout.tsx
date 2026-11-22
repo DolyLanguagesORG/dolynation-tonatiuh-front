@@ -1,8 +1,9 @@
 import { ThemeProvider } from "flowbite-react";
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Newsreader } from "next/font/google";
 
 import { SerwistProvider } from "@serwist/turbopack/react";
+import { OfflineSync } from "@/components/pwa/use-offline-sync";
 import { AppShell } from "@/components/layout";
 import { ToastViewport } from "@/components/ui";
 import { dolyFlowbiteTheme } from "@/components/ui/flowbite-theme";
@@ -29,6 +30,14 @@ const editorialSerif = Newsreader({
   subsets: ["latin"],
   style: ["normal", "italic"],
 });
+
+/**
+ * El `viewport` va aparte del `metadata` en Next 16: el color de la barra
+ * del navegador en movil es el de la marca (`--background` de globals.css).
+ */
+export const viewport: Viewport = {
+  themeColor: "#fafafa",
+};
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getServerLocale();
@@ -57,9 +66,6 @@ export async function generateMetadata(): Promise<Metadata> {
       ],
       apple: [{ url: "/icons/apple-touch-icon-180.png", sizes: "180x180" }],
     },
-    // El color de la barra del navegador en movil: el de la marca
-    // (`--background` de globals.css).
-    themeColor: "#fafafa",
     other: {
       "mobile-web-app-capable": "yes",
     },
@@ -88,6 +94,9 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <LocaleProvider initialLocale={initialLocale}>
             <ToastProvider>
               <AuthProvider initialAuth={initialAuth}>
+                {/* Sincroniza lo que se hizo sin conexion en cuanto vuelve la
+                    red (responder una lectura, guardar una palabra). */}
+                <OfflineSync />
                 <AppShell designSystemEnabled={designSystemEnabled}>
                   {children}
                 </AppShell>
