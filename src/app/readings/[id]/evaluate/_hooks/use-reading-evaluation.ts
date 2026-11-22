@@ -16,6 +16,7 @@ import {
   type ReadingDto,
   readingsService,
 } from "@/lib";
+import { enqueueOperation } from "@/lib/offline";
 
 const EVAL_DRAFT_PREFIX = "doly-eval-draft-";
 const MIN_SUBMIT_WORDS = 15;
@@ -72,6 +73,8 @@ export function useReadingEvaluation(rawId: string) {
   const [responseText, setResponseText] = useState("");
   const [validationError, setValidationError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  // La respuesta esta ENCOLADA: se enviara al volver la red.
+  const [isPendingSync, setIsPendingSync] = useState(false);
   const [draftNotice, setDraftNotice] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -178,6 +181,25 @@ export function useReadingEvaluation(rawId: string) {
       removeDraft(readingId);
       router.push(`/readings/${readingId}/result`);
     } catch (err: unknown) {
+      // Sin red: la respuesta NO se pierde. Se encola (con su clave de
+      // idempotencia) y se sube sola al volver la red.
+      const esFalloDeRed =
+        err instanceof ApiClientError &&
+        (err.status === 0 || err.code === "NETWORK_ERROR");
+      if (esFalloDeRed) {
+        await enqueueOperation({
+          type: "evaluate",
+          readingId,
+          userId: user?.id ?? "me",
+          payload: { userResponse: trimmed },
+        });
+        removeDraft(readingId);
+        setIsPendingSync(true);
+        setSubmitError(null);
+        setIsSubmitting(false);
+        return;
+      }
+
       setSubmitError(
         err instanceof ApiClientError
           ? err.getUserMessage(readingLanguage)
@@ -189,6 +211,7 @@ export function useReadingEvaluation(rawId: string) {
     flowT.readings.errors.submitEvaluationFailed,
     flowT.readings.eval.minWordsError,
     isSubmitting,
+    user?.id,
     isValidId,
     readingId,
     readingLanguage,
@@ -211,6 +234,8 @@ export function useReadingEvaluation(rawId: string) {
     suggestedTerms,
     validationError,
     submitError,
+    // La respuesta quedo ENCOLADA: se enviara al volver la red.
+    isPendingSync,
     draftNotice,
     isSubmitting,
     updateResponseText,
