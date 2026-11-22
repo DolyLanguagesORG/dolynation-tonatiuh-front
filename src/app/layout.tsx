@@ -2,6 +2,7 @@ import { ThemeProvider } from "flowbite-react";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono, Newsreader } from "next/font/google";
 
+import { SerwistProvider } from "@serwist/turbopack/react";
 import { AppShell } from "@/components/layout";
 import { ToastViewport } from "@/components/ui";
 import { dolyFlowbiteTheme } from "@/components/ui/flowbite-theme";
@@ -79,7 +80,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       className={`${geistSans.variable} ${geistMono.variable} ${editorialSerif.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col bg-neutral-secondary-soft text-heading font-sans">
-        <ThemeProvider theme={dolyFlowbiteTheme}>
+        {/* El provider de Serwist registra el service worker: lo que hace
+            que la app arranque sin servidor (y se pueda leer y responder
+            sin red). */}
+        <SerwistProvider swUrl="/serwist/sw.js">
+          <ThemeProvider theme={dolyFlowbiteTheme}>
           <LocaleProvider initialLocale={initialLocale}>
             <ToastProvider>
               <AuthProvider initialAuth={initialAuth}>
@@ -91,6 +96,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             </ToastProvider>
           </LocaleProvider>
         </ThemeProvider>
+        </SerwistProvider>
       </body>
     </html>
   );

@@ -4,7 +4,8 @@
     "lib": [
       "dom",
       "dom.iterable",
-      "esnext"
+      "esnext",
+      "webworker"
     ],
     "allowJs": true,
     "skipLibCheck": true,
@@ -26,7 +27,8 @@
       "@/*": [
         "./src/*"
       ]
-    }
+    },
+    "types": []
   },
   "include": [
     "next-env.d.ts",
@@ -40,6 +42,7 @@
   ],
   "exclude": [
     "node_modules",
-    ".next-playwright"
+    ".next-playwright",
+    "public/sw.js"
   ]
 }
