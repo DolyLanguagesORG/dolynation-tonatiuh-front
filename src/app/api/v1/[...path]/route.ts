@@ -40,6 +40,10 @@ const FORWARDED_REQUEST_HEADERS = [
   "cf-ipcountry",
   "x-real-ip",
   "x-request-id",
+  // La clave de idempotencia: la lleva la app para que, si un envio se
+  // corta y se reintenta (por ejemplo, sin conexion), el backend no
+  // repita la operacion. Sin reenviarla, la garantia se pierde en el BFF.
+  "idempotency-key",
 ] as const;
 
 const FORWARDED_RESPONSE_HEADERS = [

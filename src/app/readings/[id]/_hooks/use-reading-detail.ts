@@ -17,6 +17,10 @@ import {
   type ReadingDto,
   readingsService,
 } from "@/lib";
+import {
+  getOfflineReading,
+  saveOfflineReading,
+} from "@/lib/offline";
 
 export type ReadingDrawerTab = "explanation" | "glossary";
 
@@ -85,6 +89,8 @@ export function useReadingDetail(rawId: string) {
   const [reading, setReading] = useState<ReadingDto | null>(null);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  // La lectura se ha servido desde la COPIA LOCAL: no hay red.
+  const [isOffline, setIsOffline] = useState(false);
 
   const [fontScale, setFontScale] = useState<0 | 1 | 2>(1);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -125,14 +131,48 @@ export function useReadingDetail(rawId: string) {
     ])
       .then(([readingRes, explanationsRes]) => {
         if (cancelled) return;
+        const explanations = Array.isArray(explanationsRes?.data)
+          ? explanationsRes.data
+          : [];
         setReading(readingRes.data ?? null);
-        setConsultedEntries(
-          Array.isArray(explanationsRes?.data) ? explanationsRes.data : [],
-        );
+        setConsultedEntries(explanations);
         setErrorMessage(null);
+        setIsOffline(false);
+
+        // Se guarda la COPIA LOCAL: sin ella, esta lectura no se podria
+        // leer sin red. La copia es de esta persona (el filtro por usuario
+        // esta en el almacen).
+        if (readingRes.data) {
+          void saveOfflineReading({
+            reading: readingRes.data,
+            explanations,
+            userId: user?.id ?? "me",
+          });
+        }
       })
-      .catch((err: unknown) => {
+      .catch(async (err: unknown) => {
         if (cancelled) return;
+
+        // Sin red: si esta lectura esta guardada en el dispositivo, se
+        // sirve la copia local. Es el caso de uso de la PWA: "la genere con
+        // red y luego me quedo sin internet".
+        const esFalloDeRed =
+          err instanceof ApiClientError &&
+          (err.status === 0 || err.code === "NETWORK_ERROR");
+        if (esFalloDeRed) {
+          const local = await getOfflineReading(
+            readingId,
+            user?.id ?? "me",
+          );
+          if (!cancelled && local) {
+            setReading(local.reading);
+            setConsultedEntries(local.explanations);
+            setErrorMessage(null);
+            setIsOffline(true);
+            return;
+          }
+        }
+
         setReading(null);
         setConsultedEntries([]);
         setErrorMessage(
@@ -150,7 +190,7 @@ export function useReadingDetail(rawId: string) {
     return () => {
       cancelled = true;
     };
-  }, [fetchKey, locale, readingId]);
+  }, [fetchKey, locale, readingId, user?.id]);
 
   const paragraphs = useMemo(() => {
     if (!reading?.content) return [];
@@ -394,6 +434,8 @@ export function useReadingDetail(rawId: string) {
     isLoading,
     reading,
     readingLanguage,
+    // La lectura se esta mostrando desde la copia local del dispositivo.
+    isOffline,
     flowT,
     paragraphs,
     consultedEntries,
