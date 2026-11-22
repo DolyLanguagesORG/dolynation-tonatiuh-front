@@ -38,6 +38,7 @@ import {
   type UserSubscriptionResponse,
   type VerifyEmailResponse,
 } from "@/lib";
+import { clearOfflineData } from "@/lib/offline";
 
 export type AuthStatus = AuthSessionStatus;
 export type { InitialAuthState };
@@ -1158,6 +1159,34 @@ export function AuthProvider({
     [],
   );
 
+  /**
+   * Borra los datos de esta persona del dispositivo:
+   *
+   *   - la **capa de datos local** (IndexedDB): las lecturas descargadas y la
+   *     cola de respuestas pendientes;
+   *   - las **caches del service worker**: el HTML cacheado lleva el estado
+   *     de sesion.
+   *
+   * Sin esto, en un dispositivo compartido, el siguiente usuario encontraria
+   * los datos del anterior.
+   */
+  const clearLocalUserData = useCallback(async (): Promise<void> => {
+    const userId = user?.id ?? "me";
+    try {
+      await clearOfflineData(userId);
+    } catch {
+      // Si el almacenamiento local no esta disponible, no hay nada que borrar.
+    }
+    try {
+      if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+        const registro = await navigator.serviceWorker.getRegistration();
+        registro?.active?.postMessage({ type: "DOLY_CLEAR_CACHES" });
+      }
+    } catch {
+      // Sin service worker activo: no hay caches que borrar.
+    }
+  }, [user?.id]);
+
   const logout = useCallback(async (): Promise<void> => {
     try {
       await authService.logout();
@@ -1165,8 +1194,12 @@ export function AuthProvider({
       // Aunque falle la red, limpiamos el estado local inmediatamente.
     } finally {
       clearSessionState({ preservePendingEmail: false });
+      // Los datos LOCALES de esta persona tambien se van: en un portatil
+      // compartido, el siguiente usuario no debe encontrar las historias
+      // (ni la cola de respuestas) del anterior.
+      void clearLocalUserData();
     }
-  }, [clearSessionState]);
+  }, [clearSessionState, clearLocalUserData]);
 
   const logoutAll = useCallback(async (): Promise<void> => {
     try {
@@ -1175,8 +1208,10 @@ export function AuthProvider({
       // Mismo criterio de limpieza segura ante fallos de red.
     } finally {
       clearSessionState({ preservePendingEmail: false });
+      // Igual que en `logout`: los datos locales de esta persona se van.
+      void clearLocalUserData();
     }
-  }, [clearSessionState]);
+  }, [clearSessionState, clearLocalUserData]);
 
   const isAuthenticated = status === "authenticated";
 
