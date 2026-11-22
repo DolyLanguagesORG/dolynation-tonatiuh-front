@@ -61,3 +61,5 @@ DOLYNGLISH_API.md
 dolynglish-api.json
 /.next-playwright
 
+# Serwist (el service worker se compila en el build)
+public/sw*

@@ -1,5 +1,6 @@
-import type { NextConfig } from 'next';
-import withFlowbiteReact from 'flowbite-react/plugin/nextjs';
+import type { NextConfig } from "next";
+import { withSerwist } from "@serwist/turbopack";
+import withFlowbiteReact from "flowbite-react/plugin/nextjs";
 
 /**
  * Origins desde los que se permite el dev server.
@@ -33,36 +34,13 @@ const nextConfig: NextConfig = {
   ...(process.env.NEXT_DIST_DIR?.trim()
     ? { distDir: process.env.NEXT_DIST_DIR.trim() }
     : {}),
-  // `standalone` genera en `.next/standalone` un server minimo con solo lo
-  // que la app necesita en runtime (sin node_modules completo). Es lo que
-  // hace posible una imagen de produccion petite.
+  // `standalone` genera en `.next/standalone` un server minimo con solo
+  // lo que la app necesita en runtime (sin node_modules completo). Es lo
+  // que hace posible una imagen de produccion petite.
   output: 'standalone',
-  // Los documentos legales (privacidad, terminos, soporte) se leen del disco
-  // en el servidor: sin esto, el build `standalone` no los incluye en la
-  // imagen y las rutas /terms, /privacy y /support darian 404 en produccion.
-  outputFileTracingIncludes: {
-    '/terms': ['./src/i18n/content/**/*.md'],
-    '/privacy': ['./src/i18n/content/**/*.md'],
-    '/support': ['./src/i18n/content/**/*.md'],
-  },
-  // De develop: el host publico de desarrollo entra por variable
-  // (`NEXT_ALLOWED_DEV_ORIGINS`), no hardcodeado. La rama traia las IPs de su
-  // maquina (192.168.1.7, 192.168.98.86): con la variable, cambiar de dominio
-  // no obliga a tocar codigo.
   allowedDevOrigins,
-  experimental: {
-    // Desactiva el auto-upgrade experimental en segundo plano que falla en Windows
-    // al invocar npx next upgrade --agent=security
-    agentUpgrade: false,
-  },
-  turbopack: {
-    rules: {
-      '*.css': {
-        loaders: ['@tailwindcss/turbopack'],
-        as: '*.css',
-      },
-    },
-  },
 };
 
-export default withFlowbiteReact(nextConfig);
+// El service worker lo compila Serwist (con Turbopack, el bundler de Next 16:
+// la integracion con webpack no se ejecuta).
+export default withFlowbiteReact(withSerwist(nextConfig));
