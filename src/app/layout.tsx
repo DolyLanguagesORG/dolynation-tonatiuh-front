@@ -39,6 +39,29 @@ export async function generateMetadata(): Promise<Metadata> {
       template: "%s | DolyNation Editorial",
     },
     description: dict.meta.siteDescription,
+    // El manifest de la PWA (`src/app/manifest.ts`). Next lo sirve solo si
+    // se declara en el metadata.
+    manifest: "/manifest.webmanifest",
+    // iOS no lee el manifest: necesita su propio icono y su modo
+    // "standalone" declarados aqui.
+    appleWebApp: {
+      capable: true,
+      title: dict.meta.appShortName,
+      statusBarStyle: "default",
+    },
+    icons: {
+      icon: [
+        { url: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
+        { url: "/icons/icon-512.png", sizes: "512x512", type: "image/png" },
+      ],
+      apple: [{ url: "/icons/apple-touch-icon-180.png", sizes: "180x180" }],
+    },
+    // El color de la barra del navegador en movil: el de la marca
+    // (`--background` de globals.css).
+    themeColor: "#fafafa",
+    other: {
+      "mobile-web-app-capable": "yes",
+    },
   };
 }
 

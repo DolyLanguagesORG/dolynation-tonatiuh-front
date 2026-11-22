@@ -1,4 +1,11 @@
 {
+  "offline": {
+    "eyebrow": "Hors connexion",
+    "title": "Pas de connexion",
+    "description": "Le serveur n'a pas répondu. Les histoires déjà téléchargées restent disponibles sur cet appareil.",
+    "retry": "Réessayer",
+    "pending": "Ce que vous avez fait hors ligne sera envoyé automatiquement au retour du réseau."
+  },
   "languages": {
     "es": "Espagnol",
     "en": "Anglais",
@@ -9,6 +16,7 @@
     "editionBadge": "FR",
     "languageSwitcherLabel": "Langue de l'interface",
     "siteTitle": "DolyNation — Lecture Académique et Rétention par IA",
+    "appShortName": "DolyNation",
     "siteDescription": "Plateforme éditoriale minimaliste pour l'apprentissage des langues par la lecture compréhensive et l'évaluation contextuelle assistée par IA.",
     "skipToContent": "Aller au contenu principal",
     "openMenu": "Ouvrir le menu de navigation",
