@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 
+import { useTurnstile } from "@/components/security";
 import { sanitizeRedirectPath, useAuth } from "@/context";
 import { useLocale } from "@/i18n";
 import { ApiClientError, ErrorCode, resolveErrorMessage } from "@/lib";
@@ -48,6 +49,7 @@ export function useRegisterFlow() {
   const searchParams = useSearchParams();
   const { locale, t } = useLocale();
   const { register, isAuthenticated, onboarding } = useAuth();
+  const captcha = useTurnstile("register");
 
   const redirectTarget = sanitizeRedirectPath(
     searchParams.get("redirect"),
@@ -195,12 +197,16 @@ export function useRegisterFlow() {
 
     setIsSubmitting(true);
     try {
-      const result = await register({
+      const captchaToken = await captcha.execute("register");
+      const payload = {
         email,
         password,
         fullName: buildFullName(firstName, lastName),
         locale,
-      });
+      };
+      const result = captchaToken
+        ? await register(payload, { captchaToken })
+        : await register(payload);
 
       if (result.needsEmailVerification) {
         router.replace("/verify-email");
@@ -243,6 +249,7 @@ export function useRegisterFlow() {
         });
       }
     } finally {
+      captcha.reset();
       setIsSubmitting(false);
     }
   };
@@ -255,6 +262,7 @@ export function useRegisterFlow() {
   return {
     t,
     locale,
+    captchaContainerRef: captcha.containerRef,
     isAuthenticated,
     onboarding,
     firstNameRef,

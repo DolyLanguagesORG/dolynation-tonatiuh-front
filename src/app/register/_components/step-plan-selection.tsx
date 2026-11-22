@@ -1,5 +1,8 @@
 "use client";
 
+import { type RefObject } from "react";
+
+import { TurnstileField } from "@/components/security";
 import {
   Alert,
   Button,
@@ -29,6 +32,7 @@ export interface StepPlanSelectionProps {
   onSelectPlan: (plan: SubscriptionPlanId) => void;
   onBack?: () => void;
   onSubmit: () => void;
+  captchaContainerRef?: RefObject<HTMLDivElement | null>;
 }
 
 /**
@@ -50,6 +54,7 @@ export function StepPlanSelection({
   onSelectPlan,
   onBack,
   onSubmit,
+  captchaContainerRef,
 }: StepPlanSelectionProps) {
   const { locale } = useLocale();
   const s3 = t.auth.stepper.step3Plan;
@@ -159,6 +164,10 @@ export function StepPlanSelection({
           value={messageValue}
           onChange={(event) => onMessageChange?.(event.target.value)}
         />
+      )}
+
+      {captchaContainerRef && (
+        <TurnstileField containerRef={captchaContainerRef} />
       )}
 
       <div

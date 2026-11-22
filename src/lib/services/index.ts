@@ -22,6 +22,10 @@ import {
   readingsService,
 } from "@/lib/services/readings-service";
 import {
+  createSecurityService,
+  securityService,
+} from "@/lib/services/security-service";
+import {
   createSettingsService,
   settingsService,
 } from "@/lib/services/settings-service";
@@ -44,6 +48,7 @@ export * from "@/lib/services/history-service";
 export * from "@/lib/services/ia-service";
 export * from "@/lib/services/readings-service";
 export * from "@/lib/services/route-access-service";
+export * from "@/lib/services/security-service";
 export * from "@/lib/services/settings-service";
 export * from "@/lib/services/subscriptions-service";
 export * from "@/lib/services/system-service";
@@ -64,6 +69,7 @@ export const apiServices = {
   ia: iaService,
   admin: adminService,
   accessRequests: accessRequestsService,
+  security: securityService,
   system: systemService,
 } as const;
 
@@ -79,5 +85,6 @@ export const serviceFactories = {
   createIaService,
   createAdminService,
   createAccessRequestsService,
+  createSecurityService,
   createSystemService,
 } as const;

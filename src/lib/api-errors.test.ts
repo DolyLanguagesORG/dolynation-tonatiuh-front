@@ -33,6 +33,10 @@ const BACKEND_FLOW_ERROR_CODES = [
   ErrorCode.AUTH_OAUTH_PROVIDER_ERROR,
   ErrorCode.AUTH_OAUTH_STATE_INVALID,
   ErrorCode.AUTH_OAUTH_CANCELLED,
+  ErrorCode.CAPTCHA_REQUIRED,
+  ErrorCode.CAPTCHA_VERIFICATION_FAILED,
+  ErrorCode.CAPTCHA_PROVIDER_UNAVAILABLE,
+  ErrorCode.RATE_LIMIT_EXCEEDED,
 ] as const;
 
 describe("api-errors catalog", () => {

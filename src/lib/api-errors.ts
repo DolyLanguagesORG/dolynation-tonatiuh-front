@@ -56,6 +56,12 @@ export const ErrorCode = {
   // Validación (4xx)
   VALIDATION_ERROR: "VALIDATION_ERROR",
 
+  // Seguridad anti-bot y límite de tasa por IP (4xx / 5xx)
+  CAPTCHA_REQUIRED: "CAPTCHA_REQUIRED",
+  CAPTCHA_VERIFICATION_FAILED: "CAPTCHA_VERIFICATION_FAILED",
+  CAPTCHA_PROVIDER_UNAVAILABLE: "CAPTCHA_PROVIDER_UNAVAILABLE",
+  RATE_LIMIT_EXCEEDED: "RATE_LIMIT_EXCEEDED",
+
   // Alta demanda (429)
   AI_RATE_LIMITED: "AI_RATE_LIMITED",
 
@@ -166,6 +172,14 @@ const ERROR_MESSAGES_ES: Record<KnownErrorCode, string> = {
     "Esta solicitud de acceso ya fue revisada anteriormente.",
   VALIDATION_ERROR:
     "Algunos campos del formulario contienen errores. Revisa los datos marcados.",
+  CAPTCHA_REQUIRED:
+    "Completa la verificación de seguridad para continuar.",
+  CAPTCHA_VERIFICATION_FAILED:
+    "No pudimos confirmar la verificación de seguridad. Intenta nuevamente.",
+  CAPTCHA_PROVIDER_UNAVAILABLE:
+    "El servicio de verificación de seguridad no está disponible en este momento. Intenta de nuevo en unos instantes.",
+  RATE_LIMIT_EXCEEDED:
+    "Has realizado demasiados intentos en poco tiempo. Espera un momento e intenta de nuevo.",
   AI_RATE_LIMITED:
     "Estamos atendiendo muchas solicitudes en este momento. Intenta nuevamente en unos minutos.",
   INTERNAL_ERROR:
@@ -255,6 +269,14 @@ const ERROR_MESSAGES_EN: Record<KnownErrorCode, string> = {
     "This access request has already been reviewed.",
   VALIDATION_ERROR:
     "Some form fields contain validation errors. Please check the highlighted inputs.",
+  CAPTCHA_REQUIRED:
+    "Please complete the security verification to continue.",
+  CAPTCHA_VERIFICATION_FAILED:
+    "We could not confirm the security verification. Please try again.",
+  CAPTCHA_PROVIDER_UNAVAILABLE:
+    "The security verification service is temporarily unavailable. Please try again shortly.",
+  RATE_LIMIT_EXCEEDED:
+    "Too many attempts in a short time. Please wait a moment and try again.",
   AI_RATE_LIMITED:
     "We are handling a high volume of requests right now. Please try again in a few minutes.",
   INTERNAL_ERROR:
@@ -344,6 +366,14 @@ const ERROR_MESSAGES_FR: Record<KnownErrorCode, string> = {
     "Cette demande d'accès a déjà été examinée.",
   VALIDATION_ERROR:
     "Certains champs du formulaire contiennent des erreurs. Vérifiez les données saisies.",
+  CAPTCHA_REQUIRED:
+    "Veuillez effectuer la vérification de sécurité pour continuer.",
+  CAPTCHA_VERIFICATION_FAILED:
+    "Nous n'avons pas pu confirmer la vérification de sécurité. Veuillez réessayer.",
+  CAPTCHA_PROVIDER_UNAVAILABLE:
+    "Le service de vérification de sécurité est temporairement indisponible. Veuillez réessayer dans quelques instants.",
+  RATE_LIMIT_EXCEEDED:
+    "Vous avez effectué trop de tentatives en peu de temps. Patientez un instant puis réessayez.",
   AI_RATE_LIMITED:
     "Nous recevons beaucoup de demandes en ce moment. Veuillez réessayer dans quelques minutes.",
   INTERNAL_ERROR:
@@ -433,6 +463,14 @@ const ERROR_MESSAGES_IT: Record<KnownErrorCode, string> = {
     "Questa richiesta di accesso è già stata esaminata.",
   VALIDATION_ERROR:
     "Alcuni campi del modulo contengono errori. Controlla i dati evidenziati.",
+  CAPTCHA_REQUIRED:
+    "Completa la verifica di sicurezza per continuare.",
+  CAPTCHA_VERIFICATION_FAILED:
+    "Non è stato possibile confermare la verifica di sicurezza. Riprova.",
+  CAPTCHA_PROVIDER_UNAVAILABLE:
+    "Il servizio di verifica di sicurezza è temporaneamente non disponibile. Riprova tra qualche istante.",
+  RATE_LIMIT_EXCEEDED:
+    "Hai effettuato troppi tentativi in poco tempo. Attendi un momento e riprova.",
   AI_RATE_LIMITED:
     "Stiamo gestendo molte richieste in questo momento. Riprova tra qualche minuto.",
   INTERNAL_ERROR:
@@ -641,6 +679,7 @@ export class ApiClientError extends Error {
   public get isRateLimited(): boolean {
     return (
       this.status === 429 ||
+      this.code === ErrorCode.RATE_LIMIT_EXCEEDED ||
       this.code === ErrorCode.READING_DAILY_LIMIT_REACHED ||
       this.code === ErrorCode.EXPLANATION_DAILY_LIMIT_REACHED ||
       this.code === ErrorCode.CATEGORY_DAILY_LIMIT_REACHED

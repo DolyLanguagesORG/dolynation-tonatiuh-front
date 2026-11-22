@@ -178,4 +178,25 @@ describe("http-core", () => {
       code: ErrorCode.NETWORK_ERROR,
     });
   });
+
+  it("injects x-captcha-token header when captchaToken option is provided", async () => {
+    const fetchMock = jest.fn<typeof fetch>().mockResolvedValueOnce(
+      createJsonResponse(200, {
+        message: "OK",
+        data: { ok: true },
+        error: null,
+      }),
+    );
+    global.fetch = fetchMock;
+
+    await executeEnvelopeFetch("/api/v1/auth/login", {
+      method: "POST",
+      body: { email: "a@b.com", password: "pass" },
+      captchaToken: "turnstile-token-abc",
+    });
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const headers = new Headers(init.headers);
+    expect(headers.get("x-captcha-token")).toBe("turnstile-token-abc");
+  });
 });

@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { useTurnstile } from "@/components/security";
 import { useAuth } from "@/context";
 import { useToast } from "@/context/toast-context";
 import { formatMessage, useLocale } from "@/i18n";
@@ -52,6 +53,9 @@ export function useProfileData() {
     isLoading: isLoadingPlans,
     error: plansError,
   } = useSubscriptionPlans(locale);
+  const captcha = useTurnstile(
+    accessRequestsEnabled ? "access_request" : "subscription_select",
+  );
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [historySummary, setHistorySummary] = useState<HistorySummary | null>(
@@ -454,11 +458,17 @@ export function useProfileData() {
     setIsUnlockingLanguage(true);
     try {
       if (accessRequestsEnabled) {
+        const captchaToken = await captcha.execute("access_request");
         const trimmed = message?.trim();
-        await submitAccessRequest({
-          type: "language_unlock",
+        const requestPayload = {
+          type: "language_unlock" as const,
           ...(trimmed ? { message: trimmed } : {}),
-        });
+        };
+        if (captchaToken) {
+          await submitAccessRequest(requestPayload, { captchaToken });
+        } else {
+          await submitAccessRequest(requestPayload);
+        }
         reportSuccess(t.profile.hooks.unlockRequestSuccess);
         return true;
       }
@@ -472,6 +482,7 @@ export function useProfileData() {
       reportError(err, t.profile.hooks.unlockError);
       return false;
     } finally {
+      captcha.reset();
       setIsUnlockingLanguage(false);
     }
   };
@@ -485,12 +496,18 @@ export function useProfileData() {
     setIsSavingPlan(true);
     try {
       if (accessRequestsEnabled) {
+        const captchaToken = await captcha.execute("access_request");
         const trimmed = message?.trim();
-        await submitAccessRequest({
-          type: "subscription",
+        const requestPayload = {
+          type: "subscription" as const,
           tier,
           ...(trimmed ? { message: trimmed } : {}),
-        });
+        };
+        if (captchaToken) {
+          await submitAccessRequest(requestPayload, { captchaToken });
+        } else {
+          await submitAccessRequest(requestPayload);
+        }
         const planDisplayName =
           t.plans.tiers[tier]?.name ??
           plans.find((item) => item.id === tier)?.name ??
@@ -503,7 +520,10 @@ export function useProfileData() {
         return true;
       }
 
-      const updatedSub = await selectPlan(tier);
+      const captchaToken = await captcha.execute("subscription_select");
+      const updatedSub = captchaToken
+        ? await selectPlan(tier, { captchaToken })
+        : await selectPlan(tier);
       setCurrentSubscription(updatedSub);
 
       const [profileRes, langsRes, catsRes, freshSubRes] =
@@ -538,6 +558,7 @@ export function useProfileData() {
       reportError(err, t.profile.hooks.switchPlanError);
       return false;
     } finally {
+      captcha.reset();
       setIsSavingPlan(false);
     }
   };
@@ -660,6 +681,7 @@ export function useProfileData() {
   return {
     locale,
     t,
+    captchaContainerRef: captcha.containerRef,
     resolvedUser,
     resolvedStreakCount,
     historySummary,

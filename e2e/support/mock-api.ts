@@ -128,6 +128,12 @@ export interface MockBackendConfig {
     redirectUri?: string;
     scopes?: string[];
   }>;
+  captchaConfig?: {
+    enabled: boolean;
+    provider?: "disabled" | "turnstile";
+    siteKey?: string | null;
+    appearance?: "interaction-only" | "always" | "execute";
+  };
 }
 
 export const PLAN_CATALOG = [
@@ -228,7 +234,12 @@ export interface MockBackendHandle {
     explanations: MockGlossaryEntry[];
     accessRequests: MockAccessRequest[];
     adminUsers: MockAdminUser[];
-    requests: { method: string; path: string; body: unknown }[];
+    requests: {
+      method: string;
+      path: string;
+      body: unknown;
+      captchaToken?: string | null;
+    }[];
   };
   setSessionCookie: (active: boolean) => Promise<void>;
 }
@@ -407,7 +418,27 @@ export async function attachMockBackend(
     } catch {
       parsedBody = req.postData();
     }
-    state.requests.push({ method, path: apiPath, body: parsedBody });
+    state.requests.push({
+      method,
+      path: apiPath,
+      body: parsedBody,
+      captchaToken: req.headers()["x-captcha-token"] ?? null,
+    });
+
+    if (apiPath === "/security/captcha/config" && method === "GET") {
+      const captchaCfg = config.captchaConfig ?? {
+        enabled: false,
+        provider: "disabled",
+        siteKey: null,
+        appearance: "interaction-only",
+      };
+      return okResponse(route, {
+        enabled: captchaCfg.enabled,
+        provider: captchaCfg.provider ?? (captchaCfg.enabled ? "turnstile" : "disabled"),
+        siteKey: captchaCfg.siteKey ?? null,
+        appearance: captchaCfg.appearance ?? "interaction-only",
+      });
+    }
 
     if (apiPath === "/subscriptions/plans" && method === "GET") {
       return okResponse(route, [...PLAN_CATALOG]);

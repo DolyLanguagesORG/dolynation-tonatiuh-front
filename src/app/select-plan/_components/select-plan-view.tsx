@@ -7,6 +7,7 @@ import { RegisterStepper } from "@/app/register/_components/register-stepper";
 import { StepPlanSelection } from "@/app/register/_components/step-plan-selection";
 import { AuthShell } from "@/components/auth";
 import { FloatingLocaleSelector } from "@/components/layout/floating-locale-selector";
+import { useTurnstile } from "@/components/security";
 import {
   Alert,
   Badge,
@@ -41,6 +42,9 @@ export function SelectPlanView() {
     cancelAccessRequest,
     reloadAccountState,
   } = useAuth();
+  const captcha = useTurnstile(
+    accessRequestsEnabled ? "access_request" : "subscription_select",
+  );
 
   const [pickedPlan, setPickedPlan] = useState<SubscriptionPlanId | null>(null);
   const [requestMessage, setRequestMessage] = useState("");
@@ -110,16 +114,27 @@ export function SelectPlanView() {
     setIsSubmittingPlan(true);
     try {
       if (accessRequestsEnabled) {
+        const captchaToken = await captcha.execute("access_request");
         const trimmed = requestMessage.trim();
-        await submitAccessRequest({
-          type: "subscription",
+        const requestPayload = {
+          type: "subscription" as const,
           tier: effectivePlan,
           ...(trimmed ? { message: trimmed } : {}),
-        });
+        };
+        if (captchaToken) {
+          await submitAccessRequest(requestPayload, { captchaToken });
+        } else {
+          await submitAccessRequest(requestPayload);
+        }
         setRequestMessage("");
         setRequestNotice(s3.requestSuccessNotice);
       } else {
-        await selectPlan(effectivePlan);
+        const captchaToken = await captcha.execute("subscription_select");
+        if (captchaToken) {
+          await selectPlan(effectivePlan, { captchaToken });
+        } else {
+          await selectPlan(effectivePlan);
+        }
         router.replace("/setup-preferences");
       }
     } catch (error) {
@@ -129,6 +144,7 @@ export function SelectPlanView() {
         setPlanError(s3.saveErrorFallback);
       }
     } finally {
+      captcha.reset();
       setIsSubmittingPlan(false);
     }
   };
@@ -314,6 +330,7 @@ export function SelectPlanView() {
             setPlanError(null);
           }}
           onSubmit={handleSubmitPlan}
+          captchaContainerRef={captcha.containerRef}
         />
       </div>
     </AuthShell>
