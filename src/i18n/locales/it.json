@@ -1,4 +1,11 @@
 {
+  "offline": {
+    "eyebrow": "Nessuna connessione",
+    "title": "Nessuna connessione",
+    "description": "Il server non ha risposto. Le storie già scaricate sono ancora disponibili su questo dispositivo.",
+    "retry": "Riprova",
+    "pending": "Quello che hai fatto offline verrà inviato automaticamente al ritorno della rete."
+  },
   "languages": {
     "es": "Spagnolo",
     "en": "Inglese",
@@ -9,6 +16,7 @@
     "editionBadge": "IT",
     "languageSwitcherLabel": "Lingua dell'interfaccia",
     "siteTitle": "DolyNation — Lettura Accademica e Comprensione con IA",
+    "appShortName": "DolyNation",
     "siteDescription": "Piattaforma editoriale minimalista per l'apprendimento delle lingue tramite lettura comprensiva e valutazione contestuale assistita dall'intelligenza artificiale.",
     "skipToContent": "Vai al contenuto principale",
     "openMenu": "Apri menu di navigazione",

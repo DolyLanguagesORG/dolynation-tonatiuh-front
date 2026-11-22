@@ -1,4 +1,11 @@
 {
+  "offline": {
+    "eyebrow": "No connection",
+    "title": "No connection",
+    "description": "The server could not be reached. The stories you already downloaded are still available on this device.",
+    "retry": "Try again",
+    "pending": "What you did offline will be sent automatically once you are back online."
+  },
   "languages": {
     "es": "Spanish",
     "en": "English",
@@ -15,6 +22,7 @@
     "streakLabel": "Streak: 0 days",
     "languageSwitcherLabel": "Interface language",
     "siteTitle": "DolyNation — Academic Reading & AI Comprehension",
+    "appShortName": "DolyNation",
     "siteDescription": "Minimalist editorial platform for language acquisition through deep contextual reading and AI-assisted evaluation.",
     "streakTemplate": "Streak: {count} {unit}",
     "daySingular": "day",

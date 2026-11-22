@@ -1,4 +1,11 @@
 {
+  "offline": {
+    "eyebrow": "Sin conexión",
+    "title": "No hay conexión",
+    "description": "No se pudo contactar con el servidor. Las historias que ya descargaste siguen disponibles en este dispositivo.",
+    "retry": "Reintentar",
+    "pending": "Lo que hiciste sin conexión se enviará solo al volver la red."
+  },
   "languages": {
     "es": "Español",
     "en": "Inglés",
@@ -15,6 +22,7 @@
     "streakLabel": "Racha: 0 días",
     "languageSwitcherLabel": "Idioma de interfaz",
     "siteTitle": "DolyNation — Lectura Académica y Retención por IA",
+    "appShortName": "DolyNation",
     "siteDescription": "Plataforma editorial minimalista para el aprendizaje de idiomas mediante lectura comprensiva y evaluación contextual asistida por inteligencia artificial.",
     "streakTemplate": "Racha: {count} {unit}",
     "daySingular": "día",
