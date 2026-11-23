@@ -132,3 +132,34 @@ const serwist = new Serwist({
 });
 
 serwist.addEventListeners();
+
+/**
+ * La pagina se guarda cuando se pide.
+ *
+ * El service worker se registra **despues** de que la pagina se haya
+ * cargado, asi que la primera visita **no** pasa por el: si la red se cae
+ * justo despues, la recarga se queda en la pagina de "sin conexion" en vez
+ * de mostrar lo que la persona estaba leyendo.
+ *
+ * Por eso la pagina le pide al service worker que guarde la URL actual en
+ * cuanto este activo.
+ */
+self.addEventListener("message", (event) => {
+  const datos = event.data as { type?: string; url?: string } | undefined;
+  if (datos?.type !== "DOLY_CACHE_PAGE" || typeof datos.url !== "string") {
+    return;
+  }
+  event.waitUntil(
+    (async () => {
+      try {
+        const respuesta = await fetch(datos.url as string);
+        if (!respuesta.ok) return;
+        const cache = await caches.open("doly-pages");
+        await cache.put(datos.url as string, respuesta);
+      } catch {
+        // Si no se puede guardar, la pagina se guardara en la proxima
+        // navegacion.
+      }
+    })(),
+  );
+});

@@ -41,6 +41,24 @@ export function useOfflineSync(): void {
   useEffect(() => {
     void sincronizar();
 
+    // En cuanto el service worker esta activo, se le pide que guarde la
+    // pagina actual: la primera visita no pasa por el (el service worker se
+    // registra despues), y sin esto, perder la red justo despues dejaria
+    // al usuario en la pagina de "sin conexion" en vez de en su lectura.
+    if (typeof window === "undefined" || !("serviceWorker" in navigator)) {
+      return;
+    }
+    navigator.serviceWorker.ready
+      .then((registro) => {
+        registro.active?.postMessage({
+          type: "DOLY_CACHE_PAGE",
+          url: window.location.href,
+        });
+      })
+      .catch(() => {
+        // Sin service worker: la app sigue funcionando (sin modo offline).
+      });
+
     const alVolverLaRed = () => {
       void sincronizar();
     };
