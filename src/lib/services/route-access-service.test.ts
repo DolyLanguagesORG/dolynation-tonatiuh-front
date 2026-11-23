@@ -4,6 +4,8 @@ import {
   createRouteAccessPolicy,
   INFORMATIONAL_ROUTES,
   ROUTE_ADMIN,
+  ROUTE_BILLING_RETURN,
+  ROUTE_CHECKOUT,
   ROUTE_SELECT_PLAN,
   ROUTE_VERIFY_EMAIL,
   routeAccessService,
@@ -85,6 +87,50 @@ describe("routeAccessService", () => {
       allowed: true,
       redirectTo: null,
       reason: "allowed",
+    });
+
+    expect(
+      routeAccessService.evaluate({
+        pathname: ROUTE_BILLING_RETURN,
+        phase: "plan_required",
+      }),
+    ).toEqual({
+      allowed: true,
+      redirectTo: null,
+      reason: "allowed",
+    });
+
+    expect(
+      routeAccessService.evaluate({
+        pathname: ROUTE_CHECKOUT,
+        phase: "plan_required",
+      }),
+    ).toEqual({
+      allowed: true,
+      redirectTo: null,
+      reason: "allowed",
+    });
+
+    expect(
+      routeAccessService.evaluate({
+        pathname: ROUTE_BILLING_RETURN,
+        phase: "unauthenticated",
+      }),
+    ).toEqual({
+      allowed: false,
+      redirectTo: "/login",
+      reason: "authentication_required",
+    });
+
+    expect(
+      routeAccessService.evaluate({
+        pathname: ROUTE_BILLING_RETURN,
+        phase: "unverified_email",
+      }),
+    ).toEqual({
+      allowed: false,
+      redirectTo: ROUTE_VERIFY_EMAIL,
+      reason: "email_verification_required",
     });
   });
 

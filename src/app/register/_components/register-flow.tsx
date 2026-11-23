@@ -137,6 +137,7 @@ export function RegisterFlow() {
         }}
         onDismissError={() => flow.setApiError(null)}
         onSubmit={flow.handleStep1Submit}
+        captchaContainerRef={flow.captchaContainerRef}
       />
     </AuthShell>
   );

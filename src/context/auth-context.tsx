@@ -72,6 +72,10 @@ export interface SavePreferencesInput {
   categories: string[];
 }
 
+export interface AuthSecurityOptions {
+  captchaToken?: string | null;
+}
+
 export interface AuthContextValue {
   user: AuthUser | null;
   subscription: UserSubscriptionResponse | null;
@@ -85,10 +89,19 @@ export interface AuthContextValue {
   isLoading: boolean;
   pendingVerificationEmail: string | null;
   onboarding: OnboardingState;
-  login: (input: LoginInput) => Promise<AuthUser>;
-  register: (input: RegisterWithPreferencesInput) => Promise<RegisterResult>;
+  login: (
+    input: LoginInput,
+    options?: AuthSecurityOptions,
+  ) => Promise<AuthUser>;
+  register: (
+    input: RegisterWithPreferencesInput,
+    options?: AuthSecurityOptions,
+  ) => Promise<RegisterResult>;
   verifyEmailWithToken: (token: string) => Promise<VerifyEmailResponse>;
-  resendVerificationEmail: (email?: string) => Promise<void>;
+  resendVerificationEmail: (
+    email?: string,
+    options?: AuthSecurityOptions,
+  ) => Promise<void>;
   clearPendingVerification: () => void;
   logout: () => Promise<void>;
   logoutAll: () => Promise<void>;
@@ -98,9 +111,13 @@ export interface AuthContextValue {
   refreshAccessRequests: () => Promise<void>;
   submitAccessRequest: (
     input: CreateAccessRequestInput,
+    options?: AuthSecurityOptions,
   ) => Promise<AccessRequestItem>;
   cancelAccessRequest: (id: number) => Promise<AccessRequestItem>;
-  selectPlan: (plan: SubscriptionPlanId) => Promise<UserSubscriptionResponse>;
+  selectPlan: (
+    plan: SubscriptionPlanId,
+    options?: AuthSecurityOptions,
+  ) => Promise<UserSubscriptionResponse>;
   selectLanguages: (
     languages: TargetLanguageCode[],
   ) => Promise<LanguagesSettings>;
@@ -781,8 +798,15 @@ export function AuthProvider({
   }, [commitAccessRequestsSnapshot, fetchStudentAccessRequests, user?.role]);
 
   const submitAccessRequest = useCallback(
-    async (input: CreateAccessRequestInput): Promise<AccessRequestItem> => {
-      const response = await accessRequestsService.createRequest(input);
+    async (
+      input: CreateAccessRequestInput,
+      options?: AuthSecurityOptions,
+    ): Promise<AccessRequestItem> => {
+      const response = options?.captchaToken
+        ? await accessRequestsService.createRequest(input, {
+            captchaToken: options.captchaToken,
+          })
+        : await accessRequestsService.createRequest(input);
       await refreshAccessRequests();
       return response.data;
     },
@@ -999,13 +1023,21 @@ export function AuthProvider({
   }, []);
 
   const login = useCallback(
-    async (input: LoginInput): Promise<AuthUser> => {
+    async (
+      input: LoginInput,
+      options?: AuthSecurityOptions,
+    ): Promise<AuthUser> => {
       const normalizedEmail = input.email.trim();
+      const payload = {
+        email: normalizedEmail,
+        password: input.password,
+      };
       try {
-        const response = await authService.login({
-          email: normalizedEmail,
-          password: input.password,
-        });
+        const response = options?.captchaToken
+          ? await authService.login(payload, {
+              captchaToken: options.captchaToken,
+            })
+          : await authService.login(payload);
 
         const loggedUser = response.data.user;
         await applyAuthenticatedUser(loggedUser);
@@ -1024,13 +1056,21 @@ export function AuthProvider({
   );
 
   const register = useCallback(
-    async (input: RegisterWithPreferencesInput): Promise<RegisterResult> => {
-      const response = await authService.register({
+    async (
+      input: RegisterWithPreferencesInput,
+      options?: AuthSecurityOptions,
+    ): Promise<RegisterResult> => {
+      const payload = {
         email: input.email.trim(),
         password: input.password,
         fullName: input.fullName.trim(),
         ...(input.locale ? { locale: input.locale } : {}),
-      });
+      };
+      const response = options?.captchaToken
+        ? await authService.register(payload, {
+            captchaToken: options.captchaToken,
+          })
+        : await authService.register(payload);
 
       const createdUser = response.data.user;
       const needsEmailVerification =
@@ -1066,13 +1106,20 @@ export function AuthProvider({
   );
 
   const resendVerificationEmail = useCallback(
-    async (email?: string): Promise<void> => {
+    async (email?: string, options?: AuthSecurityOptions): Promise<void> => {
       const target =
         email?.trim() || pendingVerificationEmail || user?.email || "";
       if (!target) {
         return;
       }
-      await authService.resendVerification({ email: target });
+      if (options?.captchaToken) {
+        await authService.resendVerification(
+          { email: target },
+          { captchaToken: options.captchaToken },
+        );
+      } else {
+        await authService.resendVerification({ email: target });
+      }
     },
     [pendingVerificationEmail, user?.email],
   );
@@ -1082,11 +1129,19 @@ export function AuthProvider({
   }, [clearSessionState]);
 
   const selectPlan = useCallback(
-    async (plan: SubscriptionPlanId): Promise<UserSubscriptionResponse> => {
+    async (
+      plan: SubscriptionPlanId,
+      options?: AuthSecurityOptions,
+    ): Promise<UserSubscriptionResponse> => {
       const transitionEpoch = ++authTransitionEpochRef.current;
-      const response = await subscriptionsService.selectSubscription({
-        tier: plan,
-      });
+      const response = options?.captchaToken
+        ? await subscriptionsService.selectSubscription(
+            { tier: plan },
+            { captchaToken: options.captchaToken },
+          )
+        : await subscriptionsService.selectSubscription({
+            tier: plan,
+          });
       const updatedSubscription = response.data;
 
       const snapshot = loadUserSnapshot();

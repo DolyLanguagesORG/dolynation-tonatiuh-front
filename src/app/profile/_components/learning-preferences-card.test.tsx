@@ -375,4 +375,150 @@ describe("LearningPreferencesCard", () => {
     );
     expect(onDeleteCategory).toHaveBeenCalledWith("culture");
   });
+
+  it("opens annual lock modal with dynamic price (+1 credit) and upgrade option when replacing a language with 0 credits", async () => {
+    const user = userEvent.setup();
+    const onUpdateLanguages = jest.fn(async () => true);
+    const onUnlockLanguageChange = jest.fn(async () => true);
+
+    render(
+      <LearningPreferencesCard
+        t={dictionaries.es}
+        locale="es"
+        activeTier="dolly"
+        languageUnlockPriceLabel="$49.00 MXN"
+        activeLanguages={[{ code: "en", name: "Inglés", isPrimary: true }]}
+        languagesSettings={createLanguagesSettings({
+          maxLanguages: 1,
+          selected: ["en"],
+          active: ["en"],
+          canChangeFree: false,
+          languageChangeCredits: 0,
+          nextFreeChangeAt: "2027-11-13T00:00:00.000Z",
+        })}
+        categories={CATEGORIES}
+        selectedCategoryIds={["technology", "history", "education"]}
+        isSaving={false}
+        isUnlockingLanguage={false}
+        onPromoteLanguage={jest.fn()}
+        onUpdateLanguages={onUpdateLanguages}
+        onUnlockLanguageChange={onUnlockLanguageChange}
+        onToggleCategory={jest.fn()}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Francés" }));
+    await user.click(screen.getByRole("button", { name: "Guardar idiomas" }));
+
+    expect(onUpdateLanguages).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("dialog", {
+        name: dictionaries.es.billing.languageModals.lockedTitle,
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Comprar \+1 crédito \(\$49\.00 MXN\)/i }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: /Mejorar de plan/i }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: /Comprar \+1 crédito \(\$49\.00 MXN\)/i }),
+    );
+    await waitFor(() => {
+      expect(onUnlockLanguageChange).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it("opens credit consumption confirmation modal when replacing a language with credits > 0", async () => {
+    const user = userEvent.setup();
+    const onUpdateLanguages = jest.fn<
+      (languages: TargetLanguageCode[]) => Promise<boolean>
+    >(async () => true);
+
+    render(
+      <LearningPreferencesCard
+        t={dictionaries.es}
+        locale="es"
+        activeTier="dolly"
+        activeLanguages={[{ code: "en", name: "Inglés", isPrimary: true }]}
+        languagesSettings={createLanguagesSettings({
+          maxLanguages: 1,
+          selected: ["en"],
+          active: ["en"],
+          canChangeFree: false,
+          languageChangeCredits: 2,
+        })}
+        categories={CATEGORIES}
+        selectedCategoryIds={["technology", "history", "education"]}
+        isSaving={false}
+        isUnlockingLanguage={false}
+        onPromoteLanguage={jest.fn()}
+        onUpdateLanguages={onUpdateLanguages}
+        onUnlockLanguageChange={jest.fn(async () => true)}
+        onToggleCategory={jest.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/2 CRÉDITOS DISPONIBLES/i)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Francés" }));
+    await user.click(screen.getByRole("button", { name: "Guardar idiomas" }));
+
+    expect(onUpdateLanguages).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("dialog", {
+        name: dictionaries.es.billing.languageModals.consumeTitle,
+      }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: dictionaries.es.billing.languageModals.confirmConsumeButton,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(onUpdateLanguages).toHaveBeenCalledWith(["fr"]);
+    });
+  });
+
+  it("hides all language lock/credit controls and configuration section for dolly_pro users", () => {
+    render(
+      <LearningPreferencesCard
+        t={dictionaries.es}
+        locale="es"
+        activeTier="dolly_pro"
+        activeLanguages={[
+          { code: "es", name: "Español", isPrimary: true },
+          { code: "en", name: "Inglés", isPrimary: false },
+          { code: "fr", name: "Francés", isPrimary: false },
+          { code: "it", name: "Italiano", isPrimary: false },
+        ]}
+        languagesSettings={createLanguagesSettings({
+          maxLanguages: 4,
+          selected: ["es", "en", "fr", "it"],
+          active: ["es", "en", "fr", "it"],
+          canChangeFree: true,
+          languageChangeCredits: 0,
+        })}
+        categories={CATEGORIES}
+        selectedCategoryIds={["technology", "history", "education"]}
+        isSaving={false}
+        isUnlockingLanguage={false}
+        onPromoteLanguage={jest.fn()}
+        onUpdateLanguages={jest.fn(async () => true)}
+        onUnlockLanguageChange={jest.fn(async () => true)}
+        onToggleCategory={jest.fn()}
+      />,
+    );
+
+    expect(
+      screen.queryByText(dictionaries.es.profile.configureTargetLanguagesTitle),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Desbloquear cambio de idioma/i }),
+    ).not.toBeInTheDocument();
+  });
 });

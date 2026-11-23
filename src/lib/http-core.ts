@@ -1,5 +1,6 @@
 import {
   type ApiRequestOptions,
+  CAPTCHA_TOKEN_HEADER,
   type QueryParams,
 } from "@/lib/api-contracts";
 import {
@@ -84,6 +85,7 @@ export async function executeEnvelopeFetch<T>(
   const {
     body,
     accessToken,
+    captchaToken,
     skipAuth = false,
     _isRetryAfterRefresh = false,
     timeoutMs = DEFAULT_TIMEOUT_MS,
@@ -115,6 +117,14 @@ export async function executeEnvelopeFetch<T>(
 
   if (!skipAuth && accessToken && !headers.has("Authorization")) {
     headers.set("Authorization", `Bearer ${accessToken}`);
+  }
+
+  if (
+    typeof captchaToken === "string" &&
+    captchaToken.trim().length > 0 &&
+    !headers.has(CAPTCHA_TOKEN_HEADER)
+  ) {
+    headers.set(CAPTCHA_TOKEN_HEADER, captchaToken.trim());
   }
 
   const controller = new AbortController();

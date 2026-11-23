@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { TurnstileField } from "@/components/security";
 import { CategorySelectorSection } from "@/components/study/category-selector-section";
 import { DifficultySelectorSection } from "@/components/study/difficulty-selector-section";
 import { LanguageSelectorSection } from "@/components/study/language-selector-section";
@@ -268,6 +269,8 @@ export function StudyParametersForm({
             inProgressBadge={t.study.aiInProgressBadge}
           />
         )}
+
+        <TurnstileField containerRef={study.captchaContainerRef} />
 
         <div className="flex flex-col justify-between gap-4 border-t border-border pt-5 sm:flex-row sm:items-center">
           <div className="flex items-center gap-2 text-xs font-medium text-muted">

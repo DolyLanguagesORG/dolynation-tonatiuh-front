@@ -3,17 +3,27 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+import { useTurnstile } from "@/components/security";
 import { useAuth } from "@/context";
 import { useToast } from "@/context/toast-context";
 import { formatMessage, useLocale } from "@/i18n";
 import {
   ApiClientError,
+  type BillingInvoice,
+  type BillingPaymentMethodSummary,
+  type BillingStatusResponse,
+  billingService,
   type CategoriesSettings,
+  type CheckoutSessionResponse,
+  createBillingIdempotencyKey,
+  formatBillingAmount,
   historyService,
   type HistorySummary,
   type LanguagesSettings,
   MIN_USER_CATEGORIES,
+  type PaidSubscriptionTier,
   settingsService,
+  type SetupIntentResponse,
   subscriptionsService,
   type SubscriptionTier,
   type TargetLanguageCode,
@@ -21,6 +31,7 @@ import {
   type UserSubscriptionResponse,
   usersService,
 } from "@/lib";
+import { useBillingConfig } from "@/lib/hooks/use-billing-config";
 import { useSubscriptionPlans } from "@/lib/hooks/use-subscription-plans";
 
 /**
@@ -52,6 +63,12 @@ export function useProfileData() {
     isLoading: isLoadingPlans,
     error: plansError,
   } = useSubscriptionPlans(locale);
+  const { config: billingConfig, isStripeActive } = useBillingConfig();
+  const effectiveAccessRequestsEnabled =
+    accessRequestsEnabled && !isStripeActive;
+  const captcha = useTurnstile(
+    effectiveAccessRequestsEnabled ? "access_request" : "subscription_select",
+  );
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [historySummary, setHistorySummary] = useState<HistorySummary | null>(
@@ -65,16 +82,30 @@ export function useProfileData() {
     useState<LanguagesSettings | null>(null);
   const [categoriesSettings, setCategoriesSettings] =
     useState<CategoriesSettings | null>(null);
-  const [draftCategoryIds, setDraftCategoryIds] = useState<string[] | null>(null);
+  const [draftCategoryIds, setDraftCategoryIds] = useState<string[] | null>(
+    null,
+  );
   const [customCategoryItems, setCustomCategoryItems] = useState<
     { id: string; name: string }[]
   >([]);
+
+  const [billingStatus, setBillingStatus] =
+    useState<BillingStatusResponse | null>(null);
+  const [invoices, setInvoices] = useState<readonly BillingInvoice[]>([]);
+  const [checkoutSession, setCheckoutSession] =
+    useState<CheckoutSessionResponse | null>(null);
+  const [checkoutKind, setCheckoutKind] = useState<
+    "subscription" | "language_unlock" | null
+  >(null);
+  const [setupIntentSession, setSetupIntentSession] =
+    useState<SetupIntentResponse | null>(null);
 
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isSavingPreferences, setIsSavingPreferences] = useState(false);
   const [isUnlockingLanguage, setIsUnlockingLanguage] = useState(false);
   const [isSavingPlan, setIsSavingPlan] = useState(false);
+  const [isManagingBilling, setIsManagingBilling] = useState(false);
   const [isCancellingRequest, setIsCancellingRequest] = useState(false);
   const [isLoggingOutAll, setIsLoggingOutAll] = useState(false);
 
@@ -166,9 +197,56 @@ export function useProfileData() {
     };
   }, [fetchKey]);
 
-  const effectiveSubscription = authSubscription ?? currentSubscription;
-  const effectiveLanguagesSettings = authLanguagesSettings ?? languagesSettings;
-  const effectiveCategoriesSettings = authCategoriesSettings ?? categoriesSettings;
+  useEffect(() => {
+    if (!fetchKey || !isStripeActive) {
+      return;
+    }
+
+    let cancelled = false;
+
+    Promise.allSettled([
+      billingService.getStatus(),
+      billingService.listInvoices(),
+    ]).then(([statusRes, invoicesRes]) => {
+      if (cancelled) return;
+
+      if (statusRes.status === "fulfilled" && statusRes.value.data) {
+        setBillingStatus(statusRes.value.data);
+      }
+      if (
+        invoicesRes.status === "fulfilled" &&
+        Array.isArray(invoicesRes.value.data)
+      ) {
+        setInvoices(invoicesRes.value.data);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchKey, isStripeActive]);
+
+  const effectiveSubscription = currentSubscription ?? authSubscription;
+  const effectiveLanguagesSettings = languagesSettings ?? authLanguagesSettings;
+  const effectiveCategoriesSettings =
+    categoriesSettings ?? authCategoriesSettings;
+
+  const refreshBillingSnapshot = async (): Promise<void> => {
+    if (!isStripeActive) return;
+    const [statusRes, invoicesRes] = await Promise.allSettled([
+      billingService.getStatus(),
+      billingService.listInvoices(),
+    ]);
+    if (statusRes.status === "fulfilled" && statusRes.value.data) {
+      setBillingStatus(statusRes.value.data);
+    }
+    if (
+      invoicesRes.status === "fulfilled" &&
+      Array.isArray(invoicesRes.value.data)
+    ) {
+      setInvoices(invoicesRes.value.data);
+    }
+  };
 
   const handleUpdateFullName = async (nextName: string): Promise<boolean> => {
     const clean = nextName.trim();
@@ -192,7 +270,9 @@ export function useProfileData() {
     }
   };
 
-  const commitCategories = async (nextCategories: string[]): Promise<boolean> => {
+  const commitCategories = async (
+    nextCategories: string[],
+  ): Promise<boolean> => {
     setIsSavingPreferences(true);
     try {
       const res = await settingsService.updateCategories({
@@ -323,7 +403,9 @@ export function useProfileData() {
     );
 
     if (
-      (isCurrentlySelected && currentSelected.length <= MIN_USER_CATEGORIES && inServerSelected) ||
+      (isCurrentlySelected &&
+        currentSelected.length <= MIN_USER_CATEGORIES &&
+        inServerSelected) ||
       (inServerSelected && savedCategories.length <= MIN_USER_CATEGORIES)
     ) {
       toast.warning(t.profile.hooks.deleteMinCategoriesNotice);
@@ -378,7 +460,7 @@ export function useProfileData() {
       effectiveLanguagesSettings?.selected &&
       effectiveLanguagesSettings.selected.length > 0
         ? effectiveLanguagesSettings.selected
-        : profile?.selectedLanguages ?? [];
+        : (profile?.selectedLanguages ?? []);
     const active =
       effectiveLanguagesSettings?.active &&
       effectiveLanguagesSettings.active.length > 0
@@ -453,12 +535,35 @@ export function useProfileData() {
 
     setIsUnlockingLanguage(true);
     try {
-      if (accessRequestsEnabled) {
+      if (isStripeActive) {
+        const idemKey = createBillingIdempotencyKey("lang_unlock");
+        const sessionRes = await billingService.createLanguageUnlockCheckout(
+          { uiMode: billingConfig.uiMode },
+          idemKey,
+        );
+        if (sessionRes.data.uiMode === "hosted" && sessionRes.data.url) {
+          if (typeof window !== "undefined") {
+            window.location.assign(sessionRes.data.url);
+          }
+          return true;
+        }
+        setCheckoutKind("language_unlock");
+        setCheckoutSession(sessionRes.data);
+        return true;
+      }
+
+      if (effectiveAccessRequestsEnabled) {
+        const captchaToken = await captcha.execute("access_request");
         const trimmed = message?.trim();
-        await submitAccessRequest({
-          type: "language_unlock",
+        const requestPayload = {
+          type: "language_unlock" as const,
           ...(trimmed ? { message: trimmed } : {}),
-        });
+        };
+        if (captchaToken) {
+          await submitAccessRequest(requestPayload, { captchaToken });
+        } else {
+          await submitAccessRequest(requestPayload);
+        }
         reportSuccess(t.profile.hooks.unlockRequestSuccess);
         return true;
       }
@@ -472,6 +577,7 @@ export function useProfileData() {
       reportError(err, t.profile.hooks.unlockError);
       return false;
     } finally {
+      captcha.reset();
       setIsUnlockingLanguage(false);
     }
   };
@@ -484,13 +590,44 @@ export function useProfileData() {
 
     setIsSavingPlan(true);
     try {
-      if (accessRequestsEnabled) {
+      if (isStripeActive && (tier === "dolly_plus" || tier === "dolly_pro")) {
+        const hasActiveStripe = Boolean(
+          billingStatus?.subscription &&
+            billingStatus.subscription.status !== "canceled",
+        );
+        if (hasActiveStripe) {
+          return await handleChangePaidPlan(tier);
+        }
+
+        const idemKey = createBillingIdempotencyKey(`sub_${tier}`);
+        const sessionRes = await billingService.createSubscriptionCheckout(
+          { tier, uiMode: billingConfig.uiMode },
+          idemKey,
+        );
+        if (sessionRes.data.uiMode === "hosted" && sessionRes.data.url) {
+          if (typeof window !== "undefined") {
+            window.location.assign(sessionRes.data.url);
+          }
+          return true;
+        }
+        setCheckoutKind("subscription");
+        setCheckoutSession(sessionRes.data);
+        return true;
+      }
+
+      if (effectiveAccessRequestsEnabled) {
+        const captchaToken = await captcha.execute("access_request");
         const trimmed = message?.trim();
-        await submitAccessRequest({
-          type: "subscription",
+        const requestPayload = {
+          type: "subscription" as const,
           tier,
           ...(trimmed ? { message: trimmed } : {}),
-        });
+        };
+        if (captchaToken) {
+          await submitAccessRequest(requestPayload, { captchaToken });
+        } else {
+          await submitAccessRequest(requestPayload);
+        }
         const planDisplayName =
           t.plans.tiers[tier]?.name ??
           plans.find((item) => item.id === tier)?.name ??
@@ -503,7 +640,10 @@ export function useProfileData() {
         return true;
       }
 
-      const updatedSub = await selectPlan(tier);
+      const captchaToken = await captcha.execute("subscription_select");
+      const updatedSub = captchaToken
+        ? await selectPlan(tier, { captchaToken })
+        : await selectPlan(tier);
       setCurrentSubscription(updatedSub);
 
       const [profileRes, langsRes, catsRes, freshSubRes] =
@@ -538,7 +678,137 @@ export function useProfileData() {
       reportError(err, t.profile.hooks.switchPlanError);
       return false;
     } finally {
+      captcha.reset();
       setIsSavingPlan(false);
+    }
+  };
+
+  const handleChangePaidPlan = async (
+    tier: PaidSubscriptionTier,
+  ): Promise<boolean> => {
+    if (isManagingBilling) return false;
+    setIsManagingBilling(true);
+    try {
+      const idemKey = createBillingIdempotencyKey(`change_${tier}`);
+      const res = await billingService.changePlan({ tier }, idemKey);
+      setBillingStatus(res.data);
+      await handleRefreshAccessRequests();
+      await refreshBillingSnapshot();
+      const planDisplayName = t.plans.tiers[tier]?.name ?? tier;
+      reportSuccess(
+        formatMessage(t.profile.hooks.planUpdatedNotice, {
+          name: planDisplayName,
+        }),
+      );
+      return true;
+    } catch (err) {
+      reportError(err, t.profile.hooks.switchPlanError);
+      return false;
+    } finally {
+      setIsManagingBilling(false);
+    }
+  };
+
+  const handleCancelSubscription = async (): Promise<boolean> => {
+    if (isManagingBilling) return false;
+    setIsManagingBilling(true);
+    try {
+      const res = await billingService.cancelSubscription();
+      setBillingStatus(res.data);
+      await handleRefreshAccessRequests();
+      reportSuccess(t.billing.subscriptionManage.cancelSuccessToast);
+      return true;
+    } catch (err) {
+      reportError(err, t.profile.hooks.switchPlanError);
+      return false;
+    } finally {
+      setIsManagingBilling(false);
+    }
+  };
+
+  const handleResumeSubscription = async (): Promise<boolean> => {
+    if (isManagingBilling) return false;
+    setIsManagingBilling(true);
+    try {
+      const res = await billingService.resumeSubscription();
+      setBillingStatus(res.data);
+      await handleRefreshAccessRequests();
+      reportSuccess(t.billing.subscriptionManage.resumeSuccessToast);
+      return true;
+    } catch (err) {
+      reportError(err, t.profile.hooks.switchPlanError);
+      return false;
+    } finally {
+      setIsManagingBilling(false);
+    }
+  };
+
+  const handleOpenUpdateCard = async (): Promise<void> => {
+    if (isManagingBilling) return;
+    setIsManagingBilling(true);
+    try {
+      const idemKey = createBillingIdempotencyKey("setup_intent");
+      const res = await billingService.createSetupIntent(idemKey);
+      setSetupIntentSession(res.data);
+    } catch (err) {
+      reportError(err, t.billing.checkout.errorTitle);
+    } finally {
+      setIsManagingBilling(false);
+    }
+  };
+
+  const handlePaymentMethodSaved = async (
+    summary: BillingPaymentMethodSummary,
+  ): Promise<void> => {
+    setSetupIntentSession(null);
+    setBillingStatus((prev) =>
+      prev && prev.subscription
+        ? {
+            ...prev,
+            subscription: {
+              ...prev.subscription,
+              paymentMethod: summary,
+            },
+          }
+        : prev,
+    );
+    await refreshBillingSnapshot();
+    reportSuccess(t.billing.subscriptionManage.cardUpdatedToast);
+  };
+
+  const handleOpenBillingPortal = async (): Promise<void> => {
+    if (isManagingBilling) return;
+    setIsManagingBilling(true);
+    try {
+      const res = await billingService.createPortal();
+      if (res.data.url && typeof window !== "undefined") {
+        window.location.assign(res.data.url);
+      }
+    } catch (err) {
+      reportError(err, t.billing.checkout.errorTitle);
+    } finally {
+      setIsManagingBilling(false);
+    }
+  };
+
+  const handleCheckoutCompleted = async (sessionId: string): Promise<void> => {
+    setCheckoutSession(null);
+    const completedKind = checkoutKind;
+    setCheckoutKind(null);
+    try {
+      const syncRes = await billingService.syncCheckoutSession(sessionId);
+      setBillingStatus(syncRes.data);
+      await handleRefreshAccessRequests();
+      await refreshBillingSnapshot();
+      if (completedKind === "language_unlock") {
+        reportSuccess(t.profile.hooks.unlockSuccess);
+      } else {
+        reportSuccess(t.billing.checkout.paymentSuccessToast);
+      }
+    } catch {
+      router.replace(
+        `/billing/return?session_id=${encodeURIComponent(sessionId)}`,
+      );
     }
   };
 
@@ -632,7 +902,7 @@ export function useProfileData() {
       : effectiveLanguagesSettings?.selected &&
           effectiveLanguagesSettings.selected.length > 0
         ? effectiveLanguagesSettings.selected
-        : profile?.selectedLanguages ?? [];
+        : (profile?.selectedLanguages ?? []);
 
   const activeLanguageItems = activeLanguageCodes.map((code, index) => ({
     code,
@@ -657,14 +927,30 @@ export function useProfileData() {
       ) ?? null)
     : null;
 
+  const languageUnlockPriceLabel = isStripeActive
+    ? formatBillingAmount(
+        billingConfig.languageUnlock.amountCents,
+        billingConfig.languageUnlock.currency || billingConfig.currency,
+      )
+    : null;
+
   return {
     locale,
     t,
+    captchaContainerRef: captcha.containerRef,
     resolvedUser,
     resolvedStreakCount,
     historySummary,
     streakDays,
     currentSubscription: effectiveSubscription,
+    billingConfig,
+    isStripeActive,
+    billingStatus,
+    invoices,
+    checkoutSession,
+    checkoutKind,
+    setupIntentSession,
+    languageUnlockPriceLabel,
     plans,
     isLoadingPlans,
     plansError,
@@ -672,7 +958,7 @@ export function useProfileData() {
     resolvedCategories,
     selectedCategoryIds,
     activeLanguageItems,
-    accessRequestsEnabled,
+    accessRequestsEnabled: effectiveAccessRequestsEnabled,
     pendingSubscriptionRequest,
     pendingLanguageUnlockRequest,
     latestRejectedSubscriptionRequest,
@@ -682,8 +968,11 @@ export function useProfileData() {
     isSavingPreferences,
     isUnlockingLanguage,
     isSavingPlan,
+    isManagingBilling,
     isCancellingRequest,
     isLoggingOutAll,
+    setCheckoutSession,
+    setSetupIntentSession,
     handleUpdateFullName,
     handleToggleCategory,
     handleAddCustomCategory,
@@ -692,6 +981,13 @@ export function useProfileData() {
     handleUpdateLanguages,
     handleUnlockLanguageChange,
     handleSelectPlan,
+    handleChangePaidPlan,
+    handleCancelSubscription,
+    handleResumeSubscription,
+    handleOpenUpdateCard,
+    handlePaymentMethodSaved,
+    handleOpenBillingPortal,
+    handleCheckoutCompleted,
     handleCancelAccessRequest,
     handleRefreshAccessRequests,
     handleLogoutAll,

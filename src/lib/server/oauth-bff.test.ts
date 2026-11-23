@@ -52,7 +52,7 @@ describe("oauth-bff server utilities", () => {
     const encoded = serializeOAuthTransaction({
       state: "state-1",
       codeVerifier: "v".repeat(43),
-      redirectUri: "https://stagingweb.yacaterkos.tech/api/auth/oauth/google/callback",
+      redirectUri: "https://stagingweb.dolynation.app/api/auth/oauth/google/callback",
       origin: "register",
       redirectTarget: "/select-plan",
       locale: "en",
@@ -61,7 +61,7 @@ describe("oauth-bff server utilities", () => {
     expect(parseOAuthTransaction(encoded)).toEqual({
       state: "state-1",
       codeVerifier: "v".repeat(43),
-      redirectUri: "https://stagingweb.yacaterkos.tech/api/auth/oauth/google/callback",
+      redirectUri: "https://stagingweb.dolynation.app/api/auth/oauth/google/callback",
       origin: "register",
       redirectTarget: "/select-plan",
       locale: "en",
@@ -75,16 +75,16 @@ describe("oauth-bff server utilities", () => {
     const req = new NextRequest("http://0.0.0.0:3000/api/auth/oauth/google", {
       headers: {
         "x-forwarded-proto": "https",
-        "x-forwarded-host": "stagingweb.yacaterkos.tech",
+        "x-forwarded-host": "stagingweb.dolynation.app",
       },
     });
 
-    expect(resolvePublicOrigin(req)).toBe("https://stagingweb.yacaterkos.tech");
+    expect(resolvePublicOrigin(req)).toBe("https://stagingweb.dolynation.app");
     expect(
       resolvePublicOrigin(
         req,
-        "https://yacaterkos.tech/api/auth/oauth/google/callback",
+        "https://play.dolynation.app/api/auth/oauth/google/callback",
       ),
-    ).toBe("https://yacaterkos.tech");
+    ).toBe("https://play.dolynation.app");
   });
 });

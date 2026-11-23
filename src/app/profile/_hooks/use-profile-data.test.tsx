@@ -57,12 +57,14 @@ import { useProfileData } from "@/app/profile/_hooks/use-profile-data";
 import { LocaleProvider } from "@/i18n";
 import {
   ApiClientError,
+  billingService,
   ErrorCode,
   historyService,
   settingsService,
   subscriptionsService,
   usersService,
 } from "@/lib";
+import { resetBillingConfigCacheForTests } from "@/lib/hooks/use-billing-config";
 
 function Wrapper({ children }: { children: ReactNode }) {
   return <LocaleProvider initialLocale="es">{children}</LocaleProvider>;
@@ -71,6 +73,22 @@ function Wrapper({ children }: { children: ReactNode }) {
 describe("useProfileData toast notifications", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    resetBillingConfigCacheForTests();
+    jest.spyOn(billingService, "getConfig").mockResolvedValue({
+      message: "OK",
+      data: {
+        provider: "manual",
+        publishableKey: null,
+        currency: "mxn",
+        uiMode: "custom",
+        plans: [],
+        languageUnlock: {
+          checkoutRequired: false,
+          amountCents: null,
+          currency: "mxn",
+        },
+      },
+    });
     jest.spyOn(usersService, "getProfile").mockResolvedValue({
       message: "OK",
       data: {
@@ -292,5 +310,69 @@ describe("useProfileData toast notifications", () => {
 
     expect(mockReloadAccountState).toHaveBeenCalledTimes(1);
     expect(result.current.currentSubscription?.tier).toBe("dolly_pro");
+  });
+
+  it("creates Stripe language-unlock checkout session when provider is stripe", async () => {
+    resetBillingConfigCacheForTests();
+    jest.spyOn(billingService, "getConfig").mockResolvedValue({
+      message: "OK",
+      data: {
+        provider: "stripe",
+        publishableKey: "pk_test_123",
+        currency: "mxn",
+        uiMode: "custom",
+        plans: [],
+        languageUnlock: {
+          checkoutRequired: true,
+          amountCents: 4900,
+          currency: "mxn",
+        },
+      },
+    });
+    jest.spyOn(billingService, "getStatus").mockResolvedValue({
+      message: "OK",
+      data: {
+        provider: "stripe",
+        tier: "dolly_plus",
+        subscription: null,
+        recentPayments: [],
+      },
+    });
+    jest.spyOn(billingService, "listInvoices").mockResolvedValue({
+      message: "OK",
+      data: [],
+    });
+    const createUnlockSpy = jest
+      .spyOn(billingService, "createLanguageUnlockCheckout")
+      .mockResolvedValueOnce({
+        message: "OK",
+        data: {
+          sessionId: "cs_test_unlock_1",
+          clientSecret: "cs_test_secret_1",
+          url: null,
+          publishableKey: "pk_test_123",
+          uiMode: "custom",
+          tier: null,
+        },
+      });
+
+    const { result } = renderHook(() => useProfileData(), { wrapper: Wrapper });
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(result.current.isStripeActive).toBe(true);
+    expect(result.current.languageUnlockPriceLabel).toBe("$49.00 MXN");
+
+    await act(async () => {
+      const ok = await result.current.handleUnlockLanguageChange();
+      expect(ok).toBe(true);
+    });
+
+    expect(createUnlockSpy).toHaveBeenCalledTimes(1);
+    expect(result.current.checkoutKind).toBe("language_unlock");
+    expect(result.current.checkoutSession?.sessionId).toBe("cs_test_unlock_1");
   });
 });

@@ -53,8 +53,23 @@ export const ErrorCode = {
   ACCESS_REQUEST_ALREADY_PENDING: "ACCESS_REQUEST_ALREADY_PENDING",
   ACCESS_REQUEST_ALREADY_REVIEWED: "ACCESS_REQUEST_ALREADY_REVIEWED",
 
+  // Facturación y pagos (4xx / 429 / 5xx)
+  BILLING_PAYMENT_REQUIRED: "BILLING_PAYMENT_REQUIRED",
+  BILLING_CHECKOUT_INVALID: "BILLING_CHECKOUT_INVALID",
+  BILLING_WEBHOOK_SIGNATURE_INVALID: "BILLING_WEBHOOK_SIGNATURE_INVALID",
+  BILLING_SUBSCRIPTION_CONFLICT: "BILLING_SUBSCRIPTION_CONFLICT",
+  BILLING_PROVIDER_ERROR: "BILLING_PROVIDER_ERROR",
+  BILLING_NOT_CONFIGURED: "BILLING_NOT_CONFIGURED",
+  BILLING_RATE_LIMITED: "BILLING_RATE_LIMITED",
+
   // Validación (4xx)
   VALIDATION_ERROR: "VALIDATION_ERROR",
+
+  // Seguridad anti-bot y límite de tasa por IP (4xx / 5xx)
+  CAPTCHA_REQUIRED: "CAPTCHA_REQUIRED",
+  CAPTCHA_VERIFICATION_FAILED: "CAPTCHA_VERIFICATION_FAILED",
+  CAPTCHA_PROVIDER_UNAVAILABLE: "CAPTCHA_PROVIDER_UNAVAILABLE",
+  RATE_LIMIT_EXCEEDED: "RATE_LIMIT_EXCEEDED",
 
   // Alta demanda (429)
   AI_RATE_LIMITED: "AI_RATE_LIMITED",
@@ -164,8 +179,30 @@ const ERROR_MESSAGES_ES: Record<KnownErrorCode, string> = {
     "Ya tienes una solicitud pendiente en revisión para este tipo de acceso.",
   ACCESS_REQUEST_ALREADY_REVIEWED:
     "Esta solicitud de acceso ya fue revisada anteriormente.",
+  BILLING_PAYMENT_REQUIRED:
+    "Esta acción requiere completar el pago o regularizar tu método de pago activo.",
+  BILLING_CHECKOUT_INVALID:
+    "La sesión de pago no es válida o ya expiró. Inicia nuevamente el proceso de pago.",
+  BILLING_WEBHOOK_SIGNATURE_INVALID:
+    "No se pudo verificar la confirmación de la pasarela de pago.",
+  BILLING_SUBSCRIPTION_CONFLICT:
+    "Ya cuentas con una suscripción activa. Administra o cambia tu plan desde tu perfil.",
+  BILLING_PROVIDER_ERROR:
+    "No pudimos comunicarnos con la pasarela de pagos en este momento. Intenta nuevamente sin riesgo de cargo duplicado.",
+  BILLING_NOT_CONFIGURED:
+    "La pasarela de pagos en línea no está disponible en este entorno.",
+  BILLING_RATE_LIMITED:
+    "Realizaste demasiados intentos de pago seguidos. Espera un momento antes de volver a intentarlo.",
   VALIDATION_ERROR:
     "Algunos campos del formulario contienen errores. Revisa los datos marcados.",
+  CAPTCHA_REQUIRED:
+    "Completa la verificación de seguridad para continuar.",
+  CAPTCHA_VERIFICATION_FAILED:
+    "No pudimos confirmar la verificación de seguridad. Intenta nuevamente.",
+  CAPTCHA_PROVIDER_UNAVAILABLE:
+    "El servicio de verificación de seguridad no está disponible en este momento. Intenta de nuevo en unos instantes.",
+  RATE_LIMIT_EXCEEDED:
+    "Has realizado demasiados intentos en poco tiempo. Espera un momento e intenta de nuevo.",
   AI_RATE_LIMITED:
     "Estamos atendiendo muchas solicitudes en este momento. Intenta nuevamente en unos minutos.",
   INTERNAL_ERROR:
@@ -253,8 +290,30 @@ const ERROR_MESSAGES_EN: Record<KnownErrorCode, string> = {
     "You already have a pending access request of this type awaiting review.",
   ACCESS_REQUEST_ALREADY_REVIEWED:
     "This access request has already been reviewed.",
+  BILLING_PAYMENT_REQUIRED:
+    "This action requires completing payment or updating your active payment method.",
+  BILLING_CHECKOUT_INVALID:
+    "The checkout session is invalid or has expired. Please start the payment process again.",
+  BILLING_WEBHOOK_SIGNATURE_INVALID:
+    "Could not verify the payment confirmation signature.",
+  BILLING_SUBSCRIPTION_CONFLICT:
+    "You already have an active subscription. Manage or change your plan from your profile.",
+  BILLING_PROVIDER_ERROR:
+    "We could not reach the payment provider right now. Please try again without risk of a duplicate charge.",
+  BILLING_NOT_CONFIGURED:
+    "Online payments are not available in this environment.",
+  BILLING_RATE_LIMITED:
+    "Too many payment attempts in a short period. Please wait a moment before trying again.",
   VALIDATION_ERROR:
     "Some form fields contain validation errors. Please check the highlighted inputs.",
+  CAPTCHA_REQUIRED:
+    "Please complete the security verification to continue.",
+  CAPTCHA_VERIFICATION_FAILED:
+    "We could not confirm the security verification. Please try again.",
+  CAPTCHA_PROVIDER_UNAVAILABLE:
+    "The security verification service is temporarily unavailable. Please try again shortly.",
+  RATE_LIMIT_EXCEEDED:
+    "Too many attempts in a short time. Please wait a moment and try again.",
   AI_RATE_LIMITED:
     "We are handling a high volume of requests right now. Please try again in a few minutes.",
   INTERNAL_ERROR:
@@ -342,8 +401,30 @@ const ERROR_MESSAGES_FR: Record<KnownErrorCode, string> = {
     "Vous avez déjà une demande d'accès de ce type en attente de validation.",
   ACCESS_REQUEST_ALREADY_REVIEWED:
     "Cette demande d'accès a déjà été examinée.",
+  BILLING_PAYMENT_REQUIRED:
+    "Cette action nécessite de finaliser le paiement ou de mettre à jour votre moyen de paiement actif.",
+  BILLING_CHECKOUT_INVALID:
+    "La session de paiement est invalide ou a expiré. Veuillez relancer le paiement.",
+  BILLING_WEBHOOK_SIGNATURE_INVALID:
+    "Impossible de vérifier la confirmation de la passerelle de paiement.",
+  BILLING_SUBSCRIPTION_CONFLICT:
+    "Vous disposez déjà d'un abonnement actif. Gérez ou modifiez votre forfait depuis votre profil.",
+  BILLING_PROVIDER_ERROR:
+    "Impossible de joindre le service de paiement pour le moment. Veuillez réessayer sans risque de double facturation.",
+  BILLING_NOT_CONFIGURED:
+    "Les paiements en ligne ne sont pas disponibles dans cet environnement.",
+  BILLING_RATE_LIMITED:
+    "Trop de tentatives de paiement rapprochées. Veuillez patienter un instant avant de réessayer.",
   VALIDATION_ERROR:
     "Certains champs du formulaire contiennent des erreurs. Vérifiez les données saisies.",
+  CAPTCHA_REQUIRED:
+    "Veuillez effectuer la vérification de sécurité pour continuer.",
+  CAPTCHA_VERIFICATION_FAILED:
+    "Nous n'avons pas pu confirmer la vérification de sécurité. Veuillez réessayer.",
+  CAPTCHA_PROVIDER_UNAVAILABLE:
+    "Le service de vérification de sécurité est temporairement indisponible. Veuillez réessayer dans quelques instants.",
+  RATE_LIMIT_EXCEEDED:
+    "Vous avez effectué trop de tentatives en peu de temps. Patientez un instant puis réessayez.",
   AI_RATE_LIMITED:
     "Nous recevons beaucoup de demandes en ce moment. Veuillez réessayer dans quelques minutes.",
   INTERNAL_ERROR:
@@ -431,8 +512,30 @@ const ERROR_MESSAGES_IT: Record<KnownErrorCode, string> = {
     "Hai già una richiesta di accesso di questo tipo in attesa di revisione.",
   ACCESS_REQUEST_ALREADY_REVIEWED:
     "Questa richiesta di accesso è già stata esaminata.",
+  BILLING_PAYMENT_REQUIRED:
+    "Questa operazione richiede di completare il pagamento o aggiornare il metodo di pagamento attivo.",
+  BILLING_CHECKOUT_INVALID:
+    "La sessione di pagamento non è valida o è scaduta. Avvia nuovamente la procedura di pagamento.",
+  BILLING_WEBHOOK_SIGNATURE_INVALID:
+    "Impossibile verificare la conferma della piattaforma di pagamento.",
+  BILLING_SUBSCRIPTION_CONFLICT:
+    "Hai già un abbonamento attivo. Gestisci o modifica il tuo piano dal profilo.",
+  BILLING_PROVIDER_ERROR:
+    "Impossibile contattare il servizio di pagamento al momento. Riprova senza rischio di addebito duplicato.",
+  BILLING_NOT_CONFIGURED:
+    "I pagamenti online non sono disponibili in questo ambiente.",
+  BILLING_RATE_LIMITED:
+    "Troppi tentativi di pagamento ravvicinati. Attendi qualche istante prima di riprovare.",
   VALIDATION_ERROR:
     "Alcuni campi del modulo contengono errori. Controlla i dati evidenziati.",
+  CAPTCHA_REQUIRED:
+    "Completa la verifica di sicurezza per continuare.",
+  CAPTCHA_VERIFICATION_FAILED:
+    "Non è stato possibile confermare la verifica di sicurezza. Riprova.",
+  CAPTCHA_PROVIDER_UNAVAILABLE:
+    "Il servizio di verifica di sicurezza è temporaneamente non disponibile. Riprova tra qualche istante.",
+  RATE_LIMIT_EXCEEDED:
+    "Hai effettuato troppi tentativi in poco tempo. Attendi un momento e riprova.",
   AI_RATE_LIMITED:
     "Stiamo gestendo molte richieste in questo momento. Riprova tra qualche minuto.",
   INTERNAL_ERROR:
@@ -641,9 +744,11 @@ export class ApiClientError extends Error {
   public get isRateLimited(): boolean {
     return (
       this.status === 429 ||
+      this.code === ErrorCode.RATE_LIMIT_EXCEEDED ||
       this.code === ErrorCode.READING_DAILY_LIMIT_REACHED ||
       this.code === ErrorCode.EXPLANATION_DAILY_LIMIT_REACHED ||
-      this.code === ErrorCode.CATEGORY_DAILY_LIMIT_REACHED
+      this.code === ErrorCode.CATEGORY_DAILY_LIMIT_REACHED ||
+      this.code === ErrorCode.BILLING_RATE_LIMITED
     );
   }
 

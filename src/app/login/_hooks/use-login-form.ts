@@ -3,6 +3,7 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useRef, useState } from "react";
 
+import { useTurnstile } from "@/components/security";
 import { sanitizeRedirectPath, useAuth } from "@/context";
 import { useLocale } from "@/i18n";
 import { ApiClientError, ErrorCode, resolveErrorMessage } from "@/lib";
@@ -17,6 +18,7 @@ export function useLoginForm() {
   const searchParams = useSearchParams();
   const { locale, t } = useLocale();
   const { login, isAuthenticated, user } = useAuth();
+  const captcha = useTurnstile("login");
 
   const redirectTarget = sanitizeRedirectPath(
     searchParams.get("redirect"),
@@ -156,7 +158,10 @@ export function useLoginForm() {
 
     setIsSubmitting(true);
     try {
-      const loggedUser = await login({ email, password });
+      const captchaToken = await captcha.execute("login");
+      const loggedUser = captchaToken
+        ? await login({ email, password }, { captchaToken })
+        : await login({ email, password });
       if (loggedUser.role === "admin") {
         router.replace("/admin");
       } else if (loggedUser.subscriptionTier === null) {
@@ -194,6 +199,7 @@ export function useLoginForm() {
         });
       }
     } finally {
+      captcha.reset();
       setIsSubmitting(false);
     }
   };
@@ -205,6 +211,7 @@ export function useLoginForm() {
 
   return {
     t,
+    captchaContainerRef: captcha.containerRef,
     emailRef,
     passwordRef,
     email,

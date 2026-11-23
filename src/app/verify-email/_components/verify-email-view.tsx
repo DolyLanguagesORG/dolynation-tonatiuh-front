@@ -10,6 +10,7 @@ import {
 } from "@/app/register/_components/step-verify-email";
 import { AuthShell } from "@/components/auth";
 import { FloatingLocaleSelector } from "@/components/layout/floating-locale-selector";
+import { useTurnstile } from "@/components/security";
 import { Badge, Container, SkeletonCard } from "@/components/ui";
 import { useAuth } from "@/context";
 import { useLocale } from "@/i18n";
@@ -45,6 +46,7 @@ export function VerifyEmailView() {
 
   const tokenParam = searchParams.get("token")?.trim() ?? "";
   const s2 = t.auth.stepper.step2VerifyEmail;
+  const captcha = useTurnstile("resend_verification");
 
   const verificationAttemptsRef = useRef<
     Map<string, Promise<VerifyEmailResponse>>
@@ -176,7 +178,12 @@ export function VerifyEmailView() {
     setIsResending(true);
     setResendNotice(null);
     try {
-      await resendVerificationEmail(targetEmail);
+      const captchaToken = await captcha.execute("resend_verification");
+      if (captchaToken) {
+        await resendVerificationEmail(targetEmail, { captchaToken });
+      } else {
+        await resendVerificationEmail(targetEmail);
+      }
       setCooldownSeconds(30);
       setResendNotice({
         variant: "success",
@@ -191,6 +198,7 @@ export function VerifyEmailView() {
             : s2.tokenInvalidMessage,
       });
     } finally {
+      captcha.reset();
       setIsResending(false);
     }
   };
@@ -259,6 +267,7 @@ export function VerifyEmailView() {
           router.replace(matchedOutcome?.nextRoute ?? "/select-plan")
         }
         onUseAnotherAccount={handleUseAnotherAccount}
+        captchaContainerRef={captcha.containerRef}
       />
     </AuthShell>
   );

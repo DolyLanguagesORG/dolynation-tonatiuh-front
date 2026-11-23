@@ -1,6 +1,6 @@
 "use client";
 
-import { ChoiceChip, Eyebrow } from "@/components/ui";
+import { ActionLink, ChoiceChip, Eyebrow } from "@/components/ui";
 import { getDictionary, type Locale } from "@/i18n";
 import { DEFAULT_LANGUAGES, type TargetLanguageCode } from "@/lib";
 
@@ -64,12 +64,24 @@ export function LanguageSelectorSection({
       </div>
 
       {activePlanLanguages && (
-        <p className="text-[11px] text-muted">
-          {t.study.enabledLanguagesPrefix}{" "}
-          <span className="font-mono font-semibold text-ink uppercase">
-            {activePlanLanguages.join(", ")}
-          </span>
-        </p>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="text-[11px] text-muted">
+            {t.study.enabledLanguagesPrefix}{" "}
+            <span className="font-mono font-semibold text-ink uppercase">
+              {activePlanLanguages.join(", ")}
+            </span>
+          </p>
+          {activePlanLanguages.length < DEFAULT_LANGUAGES.length && (
+            <ActionLink
+              href="/profile#subscription"
+              variant="ghost"
+              size="xs"
+              className="text-[11px] underline"
+            >
+              {t.billing.languageModals.manageInProfileLink}
+            </ActionLink>
+          )}
+        </div>
       )}
     </fieldset>
   );
