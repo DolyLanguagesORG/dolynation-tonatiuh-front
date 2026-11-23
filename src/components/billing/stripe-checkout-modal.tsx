@@ -36,13 +36,6 @@ export interface StripeCheckoutModalProps {
   onSuccess: (sessionId: string) => void | Promise<void>;
 }
 
-function buildReturnUrl(sessionId: string): string {
-  if (typeof window === "undefined") {
-    return `/billing/return?session_id=${encodeURIComponent(sessionId)}`;
-  }
-  return `${window.location.origin}/billing/return?session_id=${encodeURIComponent(sessionId)}`;
-}
-
 interface InnerCheckoutFormProps {
   session: CheckoutSessionResponse;
   amountLabel: string | null;
@@ -93,7 +86,6 @@ function InnerCheckoutForm({
     setIsConfirming(true);
     try {
       const result = await checkout.confirm({
-        returnUrl: buildReturnUrl(session.sessionId),
         redirect: "if_required",
       });
 
@@ -188,6 +180,21 @@ export function StripeCheckoutModal({
     [session?.publishableKey],
   );
 
+  const clientSecret = session?.clientSecret ?? null;
+
+  const checkoutOptions = useMemo(
+    () =>
+      clientSecret
+        ? {
+            clientSecret,
+            elementsOptions: {
+              appearance: dolyStripeAppearance,
+            },
+          }
+        : null,
+    [clientSecret],
+  );
+
   useEffect(() => {
     if (!session) return;
     if (session.uiMode === "hosted" && session.url) {
@@ -275,15 +282,10 @@ export function StripeCheckoutModal({
 
           {session.uiMode === "hosted" && session.url ? (
             <Alert variant="info">{tc.hostedRedirectNotice}</Alert>
-          ) : session.clientSecret && stripePromise ? (
+          ) : checkoutOptions && stripePromise ? (
             <CheckoutElementsProvider
               stripe={stripePromise}
-              options={{
-                clientSecret: session.clientSecret,
-                elementsOptions: {
-                  appearance: dolyStripeAppearance,
-                },
-              }}
+              options={checkoutOptions}
             >
               <InnerCheckoutForm
                 session={session}
