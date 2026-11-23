@@ -5,15 +5,13 @@ on:
   # todos los PRs, y si un workflow no se dispara su check nunca reporta
   # y el PR queda bloqueado indefinidamente. El repo es público, así que
   # los minutos de Actions son gratuitos.
-  #
-  # `feat/issue-131-pwa` es el carril de la PWA (la v2 del producto). Vive
-  # en su propia rama, con su propia ruleset, y **solo acepta PRs**. Tiene
-  # que estar aquí: si el CI no corre en esa rama, sus checks nunca reportan
-  # y la ruleset bloquearía cada PR del carril indefinidamente.
   pull_request:
-    branches: [develop, main, 'feat/issue-131-pwa']
+    # `feat/issue-131-pwa` tambien: su ruleset exige estos mismos checks, y
+    # un workflow que no se dispara nunca reporta: el PR se queda bloqueado
+    # para siempre (y solo lo puede mergear quien tenga permisos de admin).
+    branches: [develop, main, feat/issue-131-pwa]
   push:
-    branches: [develop, main, 'feat/issue-131-pwa']
+    branches: [develop, main, feat/issue-131-pwa]
 
 permissions:
   contents: read
