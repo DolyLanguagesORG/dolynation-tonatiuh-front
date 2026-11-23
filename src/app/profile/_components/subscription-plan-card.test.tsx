@@ -105,7 +105,10 @@ describe("SubscriptionPlanCard with Stripe billing", () => {
   it("renders dynamic prices ($0, $99.00 MXN, $199.00 MXN), payment method, invoices, and handles upgrade/cancel flows", async () => {
     const user = userEvent.setup();
     const onSelectPlan = jest.fn(async () => true);
-    const onChangePaidPlan = jest.fn(async () => true);
+    const onChangePaidPlan = jest.fn(async (_tier: string) => {
+      void _tier;
+      return true;
+    });
     const onCancelSubscription = jest.fn(async () => true);
     const onOpenUpdateCard = jest.fn();
 
