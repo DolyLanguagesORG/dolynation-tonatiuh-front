@@ -1,7 +1,13 @@
 import { describe, expect, it } from "@jest/globals";
 
-import { formatPlanFromBackend } from "@/lib/plan-presentation";
-import { type SubscriptionPlanItem } from "@/lib/api-contracts";
+import {
+  formatPlanFromBackend,
+  formatPlanPriceFromBillingConfig,
+} from "@/lib/plan-presentation";
+import {
+  type BillingConfigResponse,
+  type SubscriptionPlanItem,
+} from "@/lib/api-contracts";
 
 const PLANS: SubscriptionPlanItem[] = [
   {
@@ -54,5 +60,62 @@ describe("formatPlanFromBackend", () => {
     expect(proEs.quotaHeadline).toBe("Cuotas ilimitadas");
     expect(proEs.features).toContain("Todos los idiomas (4 simultáneos)");
     expect(proEs.features).toContain("Lecturas diarias ilimitadas");
+  });
+
+  it("formats dynamic prices from GET /billing/config without hardcoding", () => {
+    const stripeConfig: BillingConfigResponse = {
+      provider: "stripe",
+      publishableKey: "pk_test_123",
+      currency: "mxn",
+      uiMode: "custom",
+      plans: [
+        {
+          tier: "dolly",
+          isFree: true,
+          checkoutRequired: false,
+          amountCents: 0,
+          currency: "mxn",
+          interval: null,
+        },
+        {
+          tier: "dolly_plus",
+          isFree: false,
+          checkoutRequired: true,
+          amountCents: 9900,
+          currency: "mxn",
+          interval: "month",
+        },
+        {
+          tier: "dolly_pro",
+          isFree: false,
+          checkoutRequired: true,
+          amountCents: 19900,
+          currency: "mxn",
+          interval: "month",
+        },
+      ],
+      languageUnlock: {
+        checkoutRequired: true,
+        amountCents: 4900,
+        currency: "mxn",
+      },
+    };
+
+    expect(formatPlanPriceFromBillingConfig("dolly", stripeConfig, "es")).toBe(
+      "Gratis ($0.00 MXN)",
+    );
+    expect(
+      formatPlanPriceFromBillingConfig("dolly_plus", stripeConfig, "es"),
+    ).toBe("$99.00 MXN / mes");
+    expect(
+      formatPlanPriceFromBillingConfig("dolly_pro", stripeConfig, "en"),
+    ).toBe("$199.00 MXN / month");
+
+    const summaryWithPrice = formatPlanFromBackend(
+      PLANS[1],
+      "es",
+      stripeConfig,
+    );
+    expect(summaryWithPrice.priceLabel).toBe("$99.00 MXN / mes");
   });
 });
