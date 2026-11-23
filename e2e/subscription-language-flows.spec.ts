@@ -93,26 +93,31 @@ test.describe("Backend Critical Flows Ported (T2–T5, T7–T9)", () => {
     await page.goto("/profile");
     await expect(page.getByText("BLOQUEADO ANUAL")).toBeVisible();
 
-    // Attempting save to a different language without unlock credit surfaces LANGUAGE_CHANGE_LOCKED (403)
+    // Attempting save to a different language without unlock credit opens annual lock modal
     await page.getByRole("button", { name: /Francés/i }).click();
     await page.getByRole("button", { name: "Guardar idiomas" }).click();
-    await expect(
-      page
-        .getByText(/selección de idiomas está bloqueada|una vez al año/i)
-        .first(),
-    ).toBeVisible();
+    const lockedDialog = page.getByRole("dialog", {
+      name: /bloqueo anual activo/i,
+    });
+    await expect(lockedDialog).toBeVisible();
     await expect(page.getByText("LANGUAGE_CHANGE_LOCKED")).toHaveCount(0);
     expect(mock.state.selectedLanguages).toEqual(["en"]);
 
-    await page
-      .getByRole("button", { name: /Desbloquear cambio de idioma/i })
+    await lockedDialog
+      .getByRole("button", { name: /Desbloquear \+1 crédito ahora/i })
       .click();
-    await page.getByRole("button", { name: /Confirmar \(\+1 crédito\)/i }).click();
 
     await expect(page.getByText("1 CRÉDITO DISPONIBLE", { exact: true })).toBeVisible();
 
     await page.getByRole("button", { name: /Francés/i }).click();
     await page.getByRole("button", { name: "Guardar idiomas" }).click();
+    const consumeDialog = page.getByRole("dialog", {
+      name: /Confirmar uso de 1 crédito/i,
+    });
+    await expect(consumeDialog).toBeVisible();
+    await consumeDialog
+      .getByRole("button", { name: /Usar 1 crédito y guardar cambio/i })
+      .click();
 
     await expect(page.getByText("BLOQUEADO ANUAL")).toBeVisible();
     expect(mock.state.selectedLanguages).toEqual(["fr"]);

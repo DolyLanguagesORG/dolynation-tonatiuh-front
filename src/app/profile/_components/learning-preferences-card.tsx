@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useId, useState } from "react";
 
 import {
   ActionLink,
@@ -12,6 +12,7 @@ import {
   Eyebrow,
   Heading,
   Icon,
+  IconButton,
   Input,
   Text,
   Textarea,
@@ -23,6 +24,7 @@ import {
   getDateLocale,
   type LanguagesSettings,
   MIN_USER_CATEGORIES,
+  type SubscriptionTier,
   type TargetLanguageCode,
 } from "@/lib";
 
@@ -35,6 +37,8 @@ export interface ActiveLanguageItem {
 export interface LearningPreferencesCardProps {
   t: Dictionary;
   locale: Locale;
+  activeTier?: SubscriptionTier | null;
+  languageUnlockPriceLabel?: string | null;
   activeLanguages: readonly ActiveLanguageItem[];
   languagesSettings: LanguagesSettings | null;
   categories: readonly { id: string; name: string }[];
@@ -56,11 +60,55 @@ export interface LearningPreferencesCardProps {
 }
 
 /**
+ * Determina si una nueva selección de idiomas reemplazaría o quitaría un idioma
+ * activo previo, o promovería un idioma inactivo tras un downgrade, lo cual requiere
+ * cambio gratuito disponible (`canChangeFree`) o consumir 1 crédito (`languageChangeCredits`).
+ */
+export function doesLanguageChangeRequireCreditOrLock(params: {
+  tier: SubscriptionTier | null | undefined;
+  canChangeFree: boolean;
+  savedSelection: readonly TargetLanguageCode[];
+  activeCodes: readonly TargetLanguageCode[];
+  nextSelection: readonly TargetLanguageCode[];
+  maxLanguages: number;
+}): boolean {
+  if (params.tier === "dolly_pro" || params.canChangeFree) {
+    return false;
+  }
+
+  if (params.savedSelection.length === 0) {
+    return false;
+  }
+
+  const nextActive = params.nextSelection.slice(0, params.maxLanguages);
+
+  // Si cualquier idioma activo actual deja de estar en el bloque activo, o si algún
+  // idioma guardado previo fue eliminado, el cambio reemplaza/promueve y requiere crédito.
+  const droppedActive = params.activeCodes.some(
+    (code) => !nextActive.includes(code),
+  );
+  if (droppedActive) {
+    return true;
+  }
+
+  const droppedSaved = params.savedSelection.some(
+    (code) => !params.nextSelection.includes(code),
+  );
+  if (droppedSaved) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
  * Panel de preferencias activas, gestión/desbloqueo de idiomas e intereses temáticos en `/profile`.
  */
 export function LearningPreferencesCard({
   t,
   locale,
+  activeTier = null,
+  languageUnlockPriceLabel = null,
   activeLanguages,
   languagesSettings,
   categories,
@@ -88,25 +136,57 @@ export function LearningPreferencesCard({
   const [confirmingUnlock, setConfirmingUnlock] = useState(false);
   const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
   const [unlockMessage, setUnlockMessage] = useState("");
+  const [showLockedModal, setShowLockedModal] = useState(false);
+  const [showConsumeModal, setShowConsumeModal] = useState(false);
+
+  const lockedTitleId = useId();
+  const consumeTitleId = useId();
 
   const isMissingMinCategories =
     selectedCategoryIds.length < MIN_USER_CATEGORIES;
+
+  const isProTier =
+    activeTier === "dolly_pro" || (languagesSettings?.maxLanguages ?? 0) >= 4;
 
   const savedSelection: TargetLanguageCode[] =
     languagesSettings?.selected && languagesSettings.selected.length > 0
       ? languagesSettings.selected
       : activeLanguages.map((item) => item.code);
 
+  const activeCodes: TargetLanguageCode[] =
+    languagesSettings?.active && languagesSettings.active.length > 0
+      ? languagesSettings.active
+      : activeLanguages.map((item) => item.code);
+
   const effectiveSelection = draftLanguages ?? savedSelection;
   const maxLanguages = languagesSettings?.maxLanguages ?? 1;
   const remainingOpenSlots = Math.max(0, maxLanguages - savedSelection.length);
   const hasOpenLanguageSlot = maxLanguages > 1 && remainingOpenSlots > 0;
-  const canChangeFree = languagesSettings?.canChangeFree ?? true;
-  const credits = languagesSettings?.languageChangeCredits ?? 0;
-  const nextFreeChangeLabel = languagesSettings?.nextFreeChangeAt
-    ? new Date(languagesSettings.nextFreeChangeAt).toLocaleDateString(
-        getDateLocale(locale),
-        { day: "numeric", month: "short", year: "numeric" },
+  const canChangeFree = isProTier || (languagesSettings?.canChangeFree ?? true);
+  const credits = isProTier ? 0 : (languagesSettings?.languageChangeCredits ?? 0);
+
+  const nextFreeChangeDate = languagesSettings?.nextFreeChangeAt
+    ? new Date(languagesSettings.nextFreeChangeAt)
+    : null;
+  const lastLanguageChangeDate = languagesSettings?.lastLanguageChangeAt
+    ? new Date(languagesSettings.lastLanguageChangeAt)
+    : null;
+  const nextFreeChangeLabel = nextFreeChangeDate
+    ? nextFreeChangeDate.toLocaleDateString(getDateLocale(locale), {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      })
+    : null;
+  const daysRemaining = nextFreeChangeDate
+    ? Math.max(
+        1,
+        lastLanguageChangeDate
+          ? Math.ceil(
+              (nextFreeChangeDate.getTime() - lastLanguageChangeDate.getTime()) /
+                (1000 * 60 * 60 * 24),
+            )
+          : 365,
       )
     : null;
 
@@ -125,6 +205,18 @@ export function LearningPreferencesCard({
           id: lang.id,
           name: t.languages[lang.id],
         }));
+
+  useEffect(() => {
+    if (!showLockedModal && !showConsumeModal) return;
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === "Escape" && !isSaving && !isUnlockingLanguage) {
+        setShowLockedModal(false);
+        setShowConsumeModal(false);
+      }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [isSaving, isUnlockingLanguage, showConsumeModal, showLockedModal]);
 
   const handleToggleLanguage = (code: TargetLanguageCode): void => {
     const base = draftLanguages ?? [...savedSelection];
@@ -145,12 +237,38 @@ export function LearningPreferencesCard({
     setDraftLanguages([...base, code]);
   };
 
-  const handleSaveLanguages = async (): Promise<void> => {
+  const executeLanguageSave = async (): Promise<void> => {
     if (!draftLanguages || draftLanguages.length === 0) return;
     const ok = await onUpdateLanguages(draftLanguages);
     if (ok) {
       setDraftLanguages(null);
+      setShowConsumeModal(false);
+      setShowLockedModal(false);
     }
+  };
+
+  const handleSaveLanguagesClick = async (): Promise<void> => {
+    if (!draftLanguages || draftLanguages.length === 0) return;
+
+    const requiresCreditOrLock = doesLanguageChangeRequireCreditOrLock({
+      tier: activeTier,
+      canChangeFree,
+      savedSelection,
+      activeCodes,
+      nextSelection: draftLanguages,
+      maxLanguages,
+    });
+
+    if (requiresCreditOrLock) {
+      if (credits === 0) {
+        setShowLockedModal(true);
+        return;
+      }
+      setShowConsumeModal(true);
+      return;
+    }
+
+    await executeLanguageSave();
   };
 
   const handleConfirmUnlock = async (): Promise<void> => {
@@ -159,6 +277,7 @@ export function LearningPreferencesCard({
     );
     if (ok) {
       setConfirmingUnlock(false);
+      setShowLockedModal(false);
       setUnlockMessage("");
     }
   };
@@ -176,8 +295,18 @@ export function LearningPreferencesCard({
     }
   };
 
+  const lm = t.billing.languageModals;
+  const buyCreditButtonText = languageUnlockPriceLabel
+    ? formatMessage(lm.buyCreditButton, { price: languageUnlockPriceLabel })
+    : lm.buyCreditButtonFallback;
+
   return (
-    <Card padding="lg" as="section" className="flex flex-col gap-6">
+    <Card
+      id="preferences"
+      padding="lg"
+      as="section"
+      className="flex flex-col gap-6"
+    >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
           <Icon name="sliders" size="md" className="text-heading" />
@@ -272,7 +401,9 @@ export function LearningPreferencesCard({
                       size="xs"
                       disabled={isSaving}
                       leftIcon={<Icon name="arrow-up-down" size="xs" />}
-                      onClick={() => onPromoteLanguage(lang.code)}
+                      onClick={() => {
+                        void onPromoteLanguage(lang.code);
+                      }}
                     >
                       {t.profile.movePriorityButton}
                     </Button>
@@ -282,7 +413,7 @@ export function LearningPreferencesCard({
             </div>
           )}
 
-          {languagesSettings && (
+          {languagesSettings && !isProTier && (
             <div className="flex flex-col gap-3 rounded-base border border-default bg-neutral-primary-soft p-3.5">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-1.5">
@@ -357,7 +488,7 @@ export function LearningPreferencesCard({
                     disabled={isSaving || effectiveSelection.length === 0}
                     isLoading={isSaving}
                     onClick={() => {
-                      void handleSaveLanguages();
+                      void handleSaveLanguagesClick();
                     }}
                   >
                     {t.profile.saveLanguagesButton}
@@ -538,7 +669,9 @@ export function LearningPreferencesCard({
                           leftIcon={<Icon name="unlock" size="xs" />}
                           onClick={() => setConfirmingUnlock(true)}
                         >
-                          {t.profile.unlockLanguageChangeButton}
+                          {languageUnlockPriceLabel
+                            ? `${t.profile.unlockLanguageChangeButton} (${languageUnlockPriceLabel})`
+                            : t.profile.unlockLanguageChangeButton}
                         </Button>
                       ) : (
                         <>
@@ -717,6 +850,212 @@ export function LearningPreferencesCard({
           </div>
         </div>
       </div>
+
+      {/* Modal A: Candado anual activo y 0 créditos (!canChangeFree && credits === 0) */}
+      {showLockedModal && !isProTier && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            aria-hidden="true"
+            onClick={() => {
+              if (!isUnlockingLanguage) {
+                setShowLockedModal(false);
+              }
+            }}
+            className="fixed inset-0 bg-brand/45 backdrop-blur-[1px]"
+          />
+
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={lockedTitleId}
+            className="relative z-10 flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-base border border-default bg-surface shadow-xl"
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-default bg-neutral-primary-soft px-5 py-4">
+              <div className="flex flex-col gap-1">
+                <Eyebrow tone="muted" className="text-[10px]">
+                  {lm.lockedEyebrow}
+                </Eyebrow>
+                <Heading id={lockedTitleId} as="h2" variant="subsection">
+                  {lm.lockedTitle}
+                </Heading>
+              </div>
+
+              <IconButton
+                icon="close"
+                variant="ghost"
+                size="sm"
+                aria-label={t.billing.checkout.closeAria}
+                disabled={isUnlockingLanguage}
+                onClick={() => setShowLockedModal(false)}
+              />
+            </div>
+
+            <div className="flex flex-col gap-4 overflow-y-auto p-5">
+              <Text variant="small" tone="muted">
+                {nextFreeChangeLabel && daysRemaining !== null
+                  ? formatMessage(lm.lockedDescriptionWithDate, {
+                      date: nextFreeChangeLabel,
+                      days: daysRemaining,
+                    })
+                  : lm.lockedDescriptionFallback}
+              </Text>
+
+              <div className="flex flex-col gap-2 rounded-base border border-strong bg-neutral-primary-soft p-3.5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-sm font-bold text-heading">
+                    {lm.unitCreditTitle}
+                  </span>
+                  <Badge variant="outline">{lm.unitCreditBadge}</Badge>
+                </div>
+                <Text variant="caption" tone="muted">
+                  {lm.unitCreditDescription}
+                </Text>
+              </div>
+
+              {accessRequestsEnabled && (
+                <Textarea
+                  label={t.profile.languageUnlockMessageLabel}
+                  placeholder={t.profile.languageUnlockMessagePlaceholder}
+                  maxLength={1000}
+                  rows={2}
+                  value={unlockMessage}
+                  onChange={(event) => setUnlockMessage(event.target.value)}
+                />
+              )}
+
+              <div className="flex flex-col gap-2.5 border-t border-default pt-4">
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="md"
+                  fullWidth
+                  isLoading={isUnlockingLanguage}
+                  leftIcon={<Icon name="unlock" size="xs" />}
+                  onClick={() => {
+                    void handleConfirmUnlock();
+                  }}
+                >
+                  {accessRequestsEnabled
+                    ? t.profile.submitLanguageUnlockButton
+                    : buyCreditButtonText}
+                </Button>
+
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <ActionLink
+                    href="#subscription"
+                    variant="secondary"
+                    size="sm"
+                    onClick={() => setShowLockedModal(false)}
+                  >
+                    {lm.upgradePlanButton}
+                  </ActionLink>
+
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    disabled={isUnlockingLanguage}
+                    onClick={() => setShowLockedModal(false)}
+                  >
+                    {lm.cancelButton}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal B: Confirmación de consumo cuando SÍ tiene créditos (!canChangeFree && credits > 0) */}
+      {showConsumeModal && !isProTier && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            aria-hidden="true"
+            onClick={() => {
+              if (!isSaving) {
+                setShowConsumeModal(false);
+              }
+            }}
+            className="fixed inset-0 bg-brand/45 backdrop-blur-[1px]"
+          />
+
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby={consumeTitleId}
+            className="relative z-10 flex max-h-[90dvh] w-full max-w-lg flex-col overflow-hidden rounded-base border border-default bg-surface shadow-xl"
+          >
+            <div className="flex items-start justify-between gap-3 border-b border-default bg-neutral-primary-soft px-5 py-4">
+              <div className="flex flex-col gap-1">
+                <Eyebrow tone="muted" className="text-[10px]">
+                  {lm.consumeEyebrow}
+                </Eyebrow>
+                <Heading id={consumeTitleId} as="h2" variant="subsection">
+                  {lm.consumeTitle}
+                </Heading>
+              </div>
+
+              <IconButton
+                icon="close"
+                variant="ghost"
+                size="sm"
+                aria-label={t.billing.checkout.closeAria}
+                disabled={isSaving}
+                onClick={() => setShowConsumeModal(false)}
+              />
+            </div>
+
+            <div className="flex flex-col gap-4 overflow-y-auto p-5">
+              <Text variant="small" tone="muted">
+                {lm.consumeDescription}
+              </Text>
+
+              <div className="grid grid-cols-2 gap-3 rounded-base border border-strong bg-neutral-primary-soft p-3.5">
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-mono text-[10px] font-bold tracking-wider text-muted uppercase">
+                    {lm.creditsCurrentLabel}
+                  </span>
+                  <span className="font-mono text-lg font-bold text-heading tabular-nums">
+                    {credits}
+                  </span>
+                </div>
+                <div className="flex flex-col gap-0.5">
+                  <span className="font-mono text-[10px] font-bold tracking-wider text-muted uppercase">
+                    {lm.creditsRemainingLabel}
+                  </span>
+                  <span className="font-mono text-lg font-bold text-heading tabular-nums">
+                    {Math.max(0, credits - 1)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-end gap-2.5 border-t border-default pt-4">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="md"
+                  disabled={isSaving}
+                  onClick={() => setShowConsumeModal(false)}
+                >
+                  {lm.cancelButton}
+                </Button>
+                <Button
+                  type="button"
+                  variant="primary"
+                  size="md"
+                  isLoading={isSaving}
+                  leftIcon={<Icon name="check" size="xs" />}
+                  onClick={() => {
+                    void executeLanguageSave();
+                  }}
+                >
+                  {lm.confirmConsumeButton}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </Card>
   );
 }
