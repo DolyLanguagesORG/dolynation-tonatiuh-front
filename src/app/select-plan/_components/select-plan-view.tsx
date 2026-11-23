@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { RegisterStepper } from "@/app/register/_components/register-stepper";
 import { StepPlanSelection } from "@/app/register/_components/step-plan-selection";
 import { AuthShell } from "@/components/auth";
+import { StripeCheckoutModal } from "@/components/billing";
 import { FloatingLocaleSelector } from "@/components/layout/floating-locale-selector";
 import {
   Alert,
@@ -19,7 +20,16 @@ import {
 } from "@/components/ui";
 import { type SubscriptionPlanId, useAuth } from "@/context";
 import { formatMessage, useLocale } from "@/i18n";
-import { ApiClientError, subscriptionsService } from "@/lib";
+import {
+  ApiClientError,
+  billingService,
+  type CheckoutSessionResponse,
+  createBillingIdempotencyKey,
+  ErrorCode,
+  subscriptionsService,
+} from "@/lib";
+import { useBillingConfig } from "@/lib/hooks/use-billing-config";
+import { formatPlanPriceFromBillingConfig } from "@/lib/plan-presentation";
 
 /**
  * Vista dedicada para `/select-plan`: selección obligatoria de suscripción
@@ -42,6 +52,8 @@ export function SelectPlanView() {
     reloadAccountState,
   } = useAuth();
 
+  const { config: billingConfig, isStripeActive } = useBillingConfig();
+
   const [pickedPlan, setPickedPlan] = useState<SubscriptionPlanId | null>(null);
   const [requestMessage, setRequestMessage] = useState("");
   const [planError, setPlanError] = useState<string | null>(null);
@@ -50,6 +62,11 @@ export function SelectPlanView() {
   const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
+  const [checkoutSession, setCheckoutSession] =
+    useState<CheckoutSessionResponse | null>(null);
+  const [rateLimitWaitSeconds, setRateLimitWaitSeconds] = useState<
+    number | null
+  >(null);
 
   // Precargamos el catálogo público para comprobar disponibilidad en segundo plano.
   useEffect(() => {
@@ -107,6 +124,7 @@ export function SelectPlanView() {
 
     setPlanError(null);
     setRequestNotice(null);
+    setRateLimitWaitSeconds(null);
     setIsSubmittingPlan(true);
     try {
       if (accessRequestsEnabled) {
@@ -118,12 +136,42 @@ export function SelectPlanView() {
         });
         setRequestMessage("");
         setRequestNotice(s3.requestSuccessNotice);
+      } else if (
+        isStripeActive &&
+        (effectivePlan === "dolly_plus" || effectivePlan === "dolly_pro")
+      ) {
+        const idemKey = createBillingIdempotencyKey(`sub_${effectivePlan}`);
+        const res = await billingService.createSubscriptionCheckout(
+          {
+            tier: effectivePlan,
+            uiMode: billingConfig.uiMode,
+          },
+          idemKey,
+        );
+        if (res.data.uiMode === "hosted" && res.data.url) {
+          if (typeof window !== "undefined") {
+            window.location.assign(res.data.url);
+          }
+          return;
+        }
+        setCheckoutSession(res.data);
       } else {
         await selectPlan(effectivePlan);
         router.replace("/setup-preferences");
       }
     } catch (error) {
       if (error instanceof ApiClientError) {
+        if (error.code === ErrorCode.BILLING_SUBSCRIPTION_CONFLICT) {
+          await reloadAccountState();
+          setPlanError(error.getUserMessage(locale));
+          return;
+        }
+        if (
+          error.code === ErrorCode.BILLING_RATE_LIMITED &&
+          typeof error.details?.retryAfterSeconds === "number"
+        ) {
+          setRateLimitWaitSeconds(error.details.retryAfterSeconds);
+        }
         setPlanError(error.getUserMessage(locale));
       } else {
         setPlanError(s3.saveErrorFallback);
@@ -296,11 +344,20 @@ export function SelectPlanView() {
             </Alert>
           )}
 
+        {rateLimitWaitSeconds !== null && (
+          <Alert variant="warning">
+            {formatMessage(t.billing.checkout.rateLimitedWaitNotice, {
+              seconds: rateLimitWaitSeconds,
+            })}
+          </Alert>
+        )}
+
         <StepPlanSelection
           t={t}
           selectedPlan={effectivePlan}
           planError={planError}
           isSubmittingPlan={isSubmittingPlan}
+          billingConfig={billingConfig}
           disabled={Boolean(accessRequestsEnabled && pendingSubRequest)}
           showMessageInput={accessRequestsEnabled}
           messageValue={requestMessage}
@@ -312,8 +369,33 @@ export function SelectPlanView() {
           onSelectPlan={(plan) => {
             setPickedPlan(plan);
             setPlanError(null);
+            setRateLimitWaitSeconds(null);
           }}
           onSubmit={handleSubmitPlan}
+        />
+
+        <StripeCheckoutModal
+          session={checkoutSession}
+          productTitle={formatMessage(t.billing.checkout.subscriptionTitle, {
+            plan: formatTierLabel(checkoutSession?.tier ?? effectivePlan),
+          })}
+          productDescription={
+            t.plans.tiers[checkoutSession?.tier ?? effectivePlan]?.description
+          }
+          amountLabel={formatPlanPriceFromBillingConfig(
+            checkoutSession?.tier ?? effectivePlan,
+            billingConfig,
+            locale,
+          )}
+          isRecurring
+          t={t}
+          onClose={() => setCheckoutSession(null)}
+          onSuccess={(sessionId) => {
+            setCheckoutSession(null);
+            router.replace(
+              `/billing/return?session_id=${encodeURIComponent(sessionId)}`,
+            );
+          }}
         />
       </div>
     </AuthShell>
