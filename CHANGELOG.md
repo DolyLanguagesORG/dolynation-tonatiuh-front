@@ -11,6 +11,13 @@ un PR de release contra `develop` que sube la versión y escribe esta sección; 
 mergearlo se crean el tag anotado y la GitHub Release. Ver
 [`conventions/versioning.md`](https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs/blob/develop/conventions/versioning.md).
 
+## [0.12.0](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.11.0...v0.12.0) (2026-11-23)
+
+
+### Features
+
+* **ui:** agrega bloqueo anual y compra de credito de idioma con stripe ([#151](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/151)) ([5b79448](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/5b7944819dfbf602be56fd23df31b1e2136c2816))
+
 ## [0.11.0](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.10.0...v0.11.0) (2026-11-23)
 
 
