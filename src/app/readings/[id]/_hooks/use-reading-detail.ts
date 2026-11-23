@@ -91,6 +91,8 @@ export function useReadingDetail(rawId: string) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   // La lectura se ha servido desde la COPIA LOCAL: no hay red.
   const [isOffline, setIsOffline] = useState(false);
+  // La lectura ya esta guardada en el dispositivo (para leerla sin red).
+  const [isSavedOffline, setIsSavedOffline] = useState(false);
 
   const [fontScale, setFontScale] = useState<0 | 1 | 2>(1);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
@@ -404,6 +406,24 @@ export function useReadingDetail(rawId: string) {
     [toggleGlossaryEntrySave],
   );
 
+  /**
+   * Guarda la lectura **en el dispositivo** para poder leerla sin conexion.
+   *
+   * La copia local ya se guarda sola al abrir la lectura; esto es para
+   * hacerlo **a proposito**, antes de perder la red (el caso de uso: "la
+   * genere con red y ahora no tengo internet").
+   */
+  const saveForOffline = useCallback(async (): Promise<boolean> => {
+    if (!reading) return false;
+    const guardado = await saveOfflineReading({
+      reading,
+      explanations: consultedEntries,
+      userId: user?.id ?? "me",
+    });
+    if (guardado) setIsSavedOffline(true);
+    return guardado;
+  }, [reading, consultedEntries, user?.id]);
+
   const pronounceText = useCallback(
     (textToSpeak: string) => {
       if (
@@ -436,6 +456,10 @@ export function useReadingDetail(rawId: string) {
     readingLanguage,
     // La lectura se esta mostrando desde la copia local del dispositivo.
     isOffline,
+    // La lectura ya esta guardada en el dispositivo.
+    isSavedOffline,
+    // Guardarla para leerla sin conexion.
+    saveForOffline,
     flowT,
     paragraphs,
     consultedEntries,

@@ -27,6 +27,10 @@ export interface ReadingToolbarProps {
   onIncreaseFont: () => void;
   onPronounceTitle: () => void;
   onOpenGlossary: () => void;
+  /** Guardar la lectura en el dispositivo para leerla sin conexion. */
+  onSaveForOffline: () => void;
+  /** La lectura ya esta guardada en el dispositivo. */
+  isSavedOffline: boolean;
 }
 
 /**
@@ -43,6 +47,8 @@ export function ReadingToolbar({
   onIncreaseFont,
   onPronounceTitle,
   onOpenGlossary,
+  onSaveForOffline,
+  isSavedOffline,
 }: ReadingToolbarProps) {
   const diffMeta = getDifficultyMeta(reading.difficulty, displayLanguage);
   const estMinutes = estimateReadingMinutes(reading.wordCount, reading.content);
@@ -97,6 +103,27 @@ export function ReadingToolbar({
               onClick={onPronounceTitle}
             />
             <span aria-hidden="true" className="h-4 w-px bg-border" />
+            <Button
+              variant={isSavedOffline ? "ghost" : "secondary"}
+              size="xs"
+              leftIcon={<Icon name={isSavedOffline ? "check" : "save"} size="xs" />}
+              onClick={onSaveForOffline}
+              aria-label={
+                isSavedOffline
+                  ? t.readings.downloadedForOfflineButton
+                  : t.readings.downloadForOfflineButton
+              }
+              title={
+                isSavedOffline
+                  ? t.readings.downloadedForOfflineButton
+                  : t.readings.downloadForOfflineButton
+              }
+              className="normal-case tracking-normal"
+            >
+              {isSavedOffline
+                ? t.readings.downloadedForOfflineButton
+                : t.readings.downloadForOfflineButton}
+            </Button>
             <Button
               variant="secondary"
               size="xs"

@@ -69,6 +69,8 @@ export function ReadingDetailView({ readingId }: ReadingDetailViewProps) {
                 detail.pronounceText(detail.reading?.title ?? "")
               }
               onOpenGlossary={() => detail.openGlossaryDrawer()}
+              onSaveForOffline={() => void detail.saveForOffline()}
+              isSavedOffline={detail.isSavedOffline}
             />
 
             <div className="w-full">

@@ -35,6 +35,26 @@ import type { PrecacheEntry, SerwistGlobalConfig } from "serwist";
  * las respuestas pendientes) **no viven aquí**: viven en **IndexedDB** (la
  * capa de datos local) y se sincronizan con la cola.
  * ─────────────────────────────────────────────────────────────────────────────
+ *
+ * ─────────────────────────────────────────────────────────────────────────────
+ * LO QUE QUEDA CACHEADO (y por que esta bien)
+ *
+ * El HTML cacheado **lleva el nombre y el correo** de la persona (el layout
+ * los mete en el HTML para el primer pintado). Lo que **no** lleva son los
+ * tokens: esos van en cookies `HttpOnly`, que el service worker no toca.
+ *
+ * El riesgo real es acotado:
+ *
+ *   - el cache es **del dispositivo** (el del navegador de esa persona);
+ *   - **expira en un dia**;
+ *   - **se borra al cerrar sesion** (mensaje al service worker);
+ *   - y sin la cache, la recarga sin red no arranca: esa es la funcion.
+ *
+ * El caso limite: dos personas en el **mismo** dispositivo sin cerrar sesion
+ * entre una y otra. Para eso esta el boton de cerrar sesion. La alternativa
+ * (una "shell" estatica sin datos de sesion) haria que la recarga sin red
+ * no llegara a mostrar la lectura: se perderia la funcion principal.
+ * ─────────────────────────────────────────────────────────────────────────────
  */
 
 declare global {

@@ -920,7 +920,9 @@
     "evaluationResultUnavailable": "Reading is already evaluated, but the full breakdown is not available yet.",
     "readingNotFoundFallback": "Requested reading was not found.",
     "historyEyebrow": "[ACADEMIC ARCHIVE] / HISTORY",
-    "loadHistoryErrorTitle": "Error loading history"
+    "loadHistoryErrorTitle": "Error loading history",
+    "downloadForOfflineButton": "Save to read offline",
+    "downloadedForOfflineButton": "Saved on this device"
   },
   "readingCard": {
     "feedbackButton": "FEEDBACK",
