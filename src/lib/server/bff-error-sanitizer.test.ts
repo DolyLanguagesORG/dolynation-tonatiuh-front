@@ -102,4 +102,63 @@ describe("sanitizeUpstreamErrorForBrowser", () => {
     expect(sanitized.error.code).toBe("INTERNAL_ERROR");
     expect(JSON.stringify(sanitized)).not.toContain("Bad Gateway");
   });
+
+  it("preserves retryAfterSeconds for BILLING_RATE_LIMITED while stripping internal properties", () => {
+    const raw = JSON.stringify({
+      message: "Too many checkout requests",
+      data: null,
+      error: {
+        code: "BILLING_RATE_LIMITED",
+        message: "Rate limit exceeded for bucket checkout",
+        details: {
+          retryAfterSeconds: 42,
+          bucket: "checkout",
+          userId: 99,
+        },
+      },
+    });
+
+    const sanitized = JSON.parse(sanitizeUpstreamErrorForBrowser(raw, 429)) as {
+      error: {
+        code: string;
+        details?: Record<string, unknown>;
+      };
+    };
+
+    expect(sanitized.error.code).toBe("BILLING_RATE_LIMITED");
+    expect(sanitized.error.details).toEqual({ retryAfterSeconds: 42 });
+    expect(JSON.stringify(sanitized)).not.toContain("bucket");
+    expect(JSON.stringify(sanitized)).not.toContain("userId");
+  });
+
+  it("preserves daysRemaining and nextFreeChangeAt for LANGUAGE_CHANGE_LOCKED while stripping internal fields", () => {
+    const raw = JSON.stringify({
+      message: "Language change locked",
+      data: null,
+      error: {
+        code: "LANGUAGE_CHANGE_LOCKED",
+        message: "Annual lock active",
+        details: {
+          daysRemaining: 215,
+          nextFreeChangeAt: "2027-06-25T10:00:00.000Z",
+          internalReason: "cooldown_365",
+        },
+      },
+    });
+
+    const sanitized = JSON.parse(sanitizeUpstreamErrorForBrowser(raw, 403)) as {
+      error: {
+        code: string;
+        details?: Record<string, unknown>;
+      };
+    };
+
+    expect(sanitized.error.code).toBe("LANGUAGE_CHANGE_LOCKED");
+    expect(sanitized.error.details).toEqual({
+      daysRemaining: 215,
+      nextFreeChangeAt: "2027-06-25T10:00:00.000Z",
+    });
+    expect(JSON.stringify(sanitized)).not.toContain("internalReason");
+    expect(JSON.stringify(sanitized)).not.toContain("cooldown_365");
+  });
 });

@@ -413,6 +413,46 @@ export async function attachMockBackend(
       return okResponse(route, [...PLAN_CATALOG]);
     }
 
+    if (apiPath === "/billing/config" && method === "GET") {
+      return okResponse(route, {
+        provider: "manual",
+        publishableKey: null,
+        currency: "mxn",
+        uiMode: "custom",
+        plans: [
+          {
+            tier: "dolly",
+            isFree: true,
+            checkoutRequired: false,
+            amountCents: 0,
+            currency: "mxn",
+            interval: null,
+          },
+          {
+            tier: "dolly_plus",
+            isFree: false,
+            checkoutRequired: false,
+            amountCents: null,
+            currency: "mxn",
+            interval: "month",
+          },
+          {
+            tier: "dolly_pro",
+            isFree: false,
+            checkoutRequired: false,
+            amountCents: null,
+            currency: "mxn",
+            interval: "month",
+          },
+        ],
+        languageUnlock: {
+          checkoutRequired: false,
+          amountCents: null,
+          currency: "mxn",
+        },
+      });
+    }
+
     if (apiPath === "/auth/oauth/providers" && method === "GET") {
       return okResponse(route, {
         providers: config.oauthProviders ?? [

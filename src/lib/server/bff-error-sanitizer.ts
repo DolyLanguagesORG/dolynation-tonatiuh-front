@@ -64,6 +64,37 @@ export function sanitizeUpstreamErrorForBrowser(
       if (fields.length > 0) {
         sanitizedDetails = { fields };
       }
+    } else if (code === "BILLING_RATE_LIMITED" && rawDetails) {
+      const retryAfterSeconds = rawDetails.retryAfterSeconds;
+      if (
+        typeof retryAfterSeconds === "number" &&
+        Number.isFinite(retryAfterSeconds) &&
+        retryAfterSeconds > 0
+      ) {
+        sanitizedDetails = { retryAfterSeconds: Math.ceil(retryAfterSeconds) };
+      }
+    } else if (code === "LANGUAGE_CHANGE_LOCKED" && rawDetails) {
+      const nextDetails: Record<string, unknown> = {};
+      const daysRemaining = rawDetails.daysRemaining;
+      if (
+        typeof daysRemaining === "number" &&
+        Number.isFinite(daysRemaining) &&
+        daysRemaining >= 0
+      ) {
+        nextDetails.daysRemaining = Math.ceil(daysRemaining);
+      }
+      const nextFreeChangeAt = rawDetails.nextFreeChangeAt;
+      if (
+        typeof nextFreeChangeAt === "string" &&
+        nextFreeChangeAt.trim().length > 0
+      ) {
+        nextDetails.nextFreeChangeAt = nextFreeChangeAt.trim();
+      } else if (nextFreeChangeAt === null) {
+        nextDetails.nextFreeChangeAt = null;
+      }
+      if (Object.keys(nextDetails).length > 0) {
+        sanitizedDetails = nextDetails;
+      }
     }
 
     return JSON.stringify({

@@ -33,6 +33,13 @@ const BACKEND_FLOW_ERROR_CODES = [
   ErrorCode.AUTH_OAUTH_PROVIDER_ERROR,
   ErrorCode.AUTH_OAUTH_STATE_INVALID,
   ErrorCode.AUTH_OAUTH_CANCELLED,
+  ErrorCode.BILLING_PAYMENT_REQUIRED,
+  ErrorCode.BILLING_CHECKOUT_INVALID,
+  ErrorCode.BILLING_WEBHOOK_SIGNATURE_INVALID,
+  ErrorCode.BILLING_SUBSCRIPTION_CONFLICT,
+  ErrorCode.BILLING_PROVIDER_ERROR,
+  ErrorCode.BILLING_NOT_CONFIGURED,
+  ErrorCode.BILLING_RATE_LIMITED,
 ] as const;
 
 describe("api-errors catalog", () => {
@@ -89,6 +96,17 @@ describe("api-errors catalog", () => {
     expect(err.getRejectedCategories()).toHaveLength(2);
     expect(err.getUserMessage("es")).toContain('"spam", "gore"');
     expect(err.getUserMessage("en")).toContain('"spam", "gore"');
+  });
+
+  it("marks BILLING_RATE_LIMITED as rate limited", () => {
+    const err = new ApiClientError({
+      code: ErrorCode.BILLING_RATE_LIMITED,
+      status: 429,
+      details: { retryAfterSeconds: 30 },
+    });
+
+    expect(err.isRateLimited).toBe(true);
+    expect(err.details?.retryAfterSeconds).toBe(30);
   });
 
   it("avoids internal infrastructure jargon across all localized error messages", () => {

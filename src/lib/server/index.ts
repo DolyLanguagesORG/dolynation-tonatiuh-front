@@ -13,6 +13,7 @@ import { serverHttpClient } from "@/lib/server/server-http-client";
 import { createAccessRequestsService } from "@/lib/services/access-requests-service";
 import { createAdminService } from "@/lib/services/admin-service";
 import { createAuthService } from "@/lib/services/auth-service";
+import { createBillingService } from "@/lib/services/billing-service";
 import { createContentService } from "@/lib/services/content-service";
 import { createEvaluationService } from "@/lib/services/evaluation-service";
 import { createHistoryService } from "@/lib/services/history-service";
@@ -32,6 +33,7 @@ export const serverAuthService = createAuthService(serverHttpClient);
 export const serverUsersService = createUsersService(serverHttpClient);
 export const serverSubscriptionsService =
   createSubscriptionsService(serverHttpClient);
+export const serverBillingService = createBillingService(serverHttpClient);
 export const serverSettingsService = createSettingsService(serverHttpClient);
 export const serverReadingsService = createReadingsService(serverHttpClient);
 export const serverContentService = createContentService(serverHttpClient);
@@ -48,6 +50,7 @@ export const serverApi = {
   auth: serverAuthService,
   users: serverUsersService,
   subscriptions: serverSubscriptionsService,
+  billing: serverBillingService,
   settings: serverSettingsService,
   readings: serverReadingsService,
   content: serverContentService,
