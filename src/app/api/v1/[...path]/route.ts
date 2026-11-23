@@ -35,6 +35,7 @@ const FORWARDED_REQUEST_HEADERS = [
   "accept-language",
   "authorization",
   "content-type",
+  "idempotency-key",
   "user-agent",
   "cf-connecting-ip",
   "cf-ipcountry",
