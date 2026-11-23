@@ -3,6 +3,7 @@
 import Link from "next/link";
 
 import { AuthShell, OAuthProvidersSection } from "@/components/auth";
+import { TurnstileField } from "@/components/security";
 import { FloatingLocaleSelector } from "@/components/layout/floating-locale-selector";
 import {
   Alert,
@@ -20,6 +21,7 @@ import { useLoginForm } from "@/app/login/_hooks/use-login-form";
 export function LoginView() {
   const {
     t,
+    captchaContainerRef,
     emailRef,
     passwordRef,
     email,
@@ -144,6 +146,8 @@ export function LoginView() {
             label={t.auth.login.rememberDeviceLabel}
           />
         </div>
+
+        <TurnstileField containerRef={captchaContainerRef} />
 
         <div className="pt-2">
           <Button

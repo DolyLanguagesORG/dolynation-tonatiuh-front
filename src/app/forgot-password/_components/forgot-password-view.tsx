@@ -4,6 +4,7 @@ import Link from "next/link";
 import { type FormEvent, useState } from "react";
 
 import { FloatingLocaleSelector } from "@/components/layout/floating-locale-selector";
+import { TurnstileField, useTurnstile } from "@/components/security";
 import {
   ActionLink,
   Alert,
@@ -33,6 +34,7 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 export function ForgotPasswordView() {
   const { locale, t } = useLocale();
   const fp = t.auth.forgotPassword;
+  const captcha = useTurnstile("forgot_password");
   const [email, setEmail] = useState("");
   const [fieldError, setFieldError] = useState<string | null>(null);
   const [apiError, setApiError] = useState<{
@@ -54,7 +56,12 @@ export function ForgotPasswordView() {
     setIsSubmitting(true);
 
     try {
-      await authService.forgotPassword({ email: trimmed });
+      const captchaToken = await captcha.execute("forgot_password");
+      if (captchaToken) {
+        await authService.forgotPassword({ email: trimmed }, { captchaToken });
+      } else {
+        await authService.forgotPassword({ email: trimmed });
+      }
       setEmailSent(true);
     } catch (err) {
       if (err instanceof ApiClientError) {
@@ -67,6 +74,7 @@ export function ForgotPasswordView() {
         });
       }
     } finally {
+      captcha.reset();
       setIsSubmitting(false);
     }
   };
@@ -151,6 +159,8 @@ export function ForgotPasswordView() {
                   if (fieldError) setFieldError(null);
                 }}
               />
+
+              <TurnstileField containerRef={captcha.containerRef} />
 
               <Button
                 type="submit"

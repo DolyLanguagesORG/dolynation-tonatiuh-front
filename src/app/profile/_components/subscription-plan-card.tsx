@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { type RefObject, useEffect, useId, useState } from "react";
 
+import { TurnstileField } from "@/components/security";
 import {
   Alert,
   Badge,
@@ -62,6 +63,7 @@ export interface SubscriptionPlanCardProps {
   onCancelAccessRequest?: (requestId: number) => Promise<boolean>;
   onRefreshAccessRequests?: () => Promise<void>;
   onLogoutAll: () => Promise<void>;
+  captchaContainerRef?: RefObject<HTMLDivElement | null>;
 }
 
 interface QuotaRowProps {
@@ -156,6 +158,7 @@ export function SubscriptionPlanCard({
   onCancelAccessRequest,
   onRefreshAccessRequests,
   onLogoutAll,
+  captchaContainerRef,
 }: SubscriptionPlanCardProps) {
   const [confirmingLogoutAll, setConfirmingLogoutAll] = useState(false);
   const [confirmingCancelRequest, setConfirmingCancelRequest] = useState(false);
@@ -496,6 +499,10 @@ export function SubscriptionPlanCard({
       )}
 
       <Divider />
+
+      {captchaContainerRef && (
+        <TurnstileField containerRef={captchaContainerRef} />
+      )}
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-2">

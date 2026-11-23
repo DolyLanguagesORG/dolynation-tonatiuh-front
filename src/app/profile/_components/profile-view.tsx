@@ -111,6 +111,7 @@ function ProfileContent() {
             onCancelAccessRequest={data.handleCancelAccessRequest}
             onRefreshAccessRequests={data.handleRefreshAccessRequests}
             onLogoutAll={data.handleLogoutAll}
+            captchaContainerRef={data.captchaContainerRef}
           />
 
           <StripeCheckoutModal

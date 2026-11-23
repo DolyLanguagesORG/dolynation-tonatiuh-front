@@ -39,6 +39,7 @@ const FORWARDED_REQUEST_HEADERS = [
   "user-agent",
   "cf-connecting-ip",
   "cf-ipcountry",
+  "x-captcha-token",
   "x-real-ip",
   "x-request-id",
 ] as const;
@@ -69,6 +70,7 @@ const PUBLIC_NO_BEARER_ROUTES = new Set([
   "auth/forgot-password",
   "auth/reset-password",
   "auth/oauth/providers",
+  "security/captcha/config",
 ]);
 
 function apiError(

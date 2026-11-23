@@ -4,6 +4,7 @@ import Link from "next/link";
 import { type FormEvent, type RefObject } from "react";
 
 import { OAuthProvidersSection } from "@/components/auth";
+import { TurnstileField } from "@/components/security";
 import {
   Alert,
   Button,
@@ -54,6 +55,7 @@ export interface StepAccountFormProps {
   onAcceptTermsChange: (checked: boolean) => void;
   onDismissError: () => void;
   onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  captchaContainerRef?: RefObject<HTMLDivElement | null>;
 }
 
 /**
@@ -88,6 +90,7 @@ export function StepAccountForm({
   onAcceptTermsChange,
   onDismissError,
   onSubmit,
+  captchaContainerRef,
 }: StepAccountFormProps) {
   return (
     <div className="flex flex-col gap-6">
@@ -222,6 +225,10 @@ export function StepAccountForm({
             }
           />
         </div>
+
+        {captchaContainerRef && (
+          <TurnstileField containerRef={captchaContainerRef} />
+        )}
 
         <div className="pt-2">
           <Button

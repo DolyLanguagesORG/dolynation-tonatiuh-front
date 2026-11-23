@@ -8,6 +8,7 @@ import { StepPlanSelection } from "@/app/register/_components/step-plan-selectio
 import { AuthShell } from "@/components/auth";
 import { StripeCheckoutModal } from "@/components/billing";
 import { FloatingLocaleSelector } from "@/components/layout/floating-locale-selector";
+import { useTurnstile } from "@/components/security";
 import {
   Alert,
   Badge,
@@ -51,7 +52,6 @@ export function SelectPlanView() {
     cancelAccessRequest,
     reloadAccountState,
   } = useAuth();
-
   const {
     config: billingConfig,
     isStripeActive,
@@ -59,6 +59,9 @@ export function SelectPlanView() {
   } = useBillingConfig();
   const effectiveAccessRequestsEnabled =
     accessRequestsEnabled && !isStripeActive;
+  const captcha = useTurnstile(
+    effectiveAccessRequestsEnabled ? "access_request" : "subscription_select",
+  );
 
   const [pickedPlan, setPickedPlan] = useState<SubscriptionPlanId | null>(null);
   const [requestMessage, setRequestMessage] = useState("");
@@ -157,16 +160,27 @@ export function SelectPlanView() {
         }
         setCheckoutSession(res.data);
       } else if (effectiveAccessRequestsEnabled) {
+        const captchaToken = await captcha.execute("access_request");
         const trimmed = requestMessage.trim();
-        await submitAccessRequest({
-          type: "subscription",
+        const requestPayload = {
+          type: "subscription" as const,
           tier: effectivePlan,
           ...(trimmed ? { message: trimmed } : {}),
-        });
+        };
+        if (captchaToken) {
+          await submitAccessRequest(requestPayload, { captchaToken });
+        } else {
+          await submitAccessRequest(requestPayload);
+        }
         setRequestMessage("");
         setRequestNotice(s3.requestSuccessNotice);
       } else {
-        await selectPlan(effectivePlan);
+        const captchaToken = await captcha.execute("subscription_select");
+        if (captchaToken) {
+          await selectPlan(effectivePlan, { captchaToken });
+        } else {
+          await selectPlan(effectivePlan);
+        }
         router.replace("/setup-preferences");
       }
     } catch (error) {
@@ -187,6 +201,7 @@ export function SelectPlanView() {
         setPlanError(s3.saveErrorFallback);
       }
     } finally {
+      captcha.reset();
       setIsSubmittingPlan(false);
     }
   };
@@ -386,6 +401,7 @@ export function SelectPlanView() {
             setRateLimitWaitSeconds(null);
           }}
           onSubmit={handleSubmitPlan}
+          captchaContainerRef={captcha.containerRef}
         />
 
         <StripeCheckoutModal

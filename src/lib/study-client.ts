@@ -273,13 +273,21 @@ export const studyClient = {
   /**
    * Invoca `POST /readings` con timeout extendido (`AI_TIMEOUT_MS = 110 s`).
    */
-  async generateReading(params: StudyParameters): Promise<ReadingDto> {
-    const response = await readingsService.generate({
+  async generateReading(
+    params: StudyParameters,
+    options?: { captchaToken?: string | null },
+  ): Promise<ReadingDto> {
+    const payload = {
       category: params.category,
       language: params.language,
       difficulty: params.difficulty,
       size: params.size,
-    });
+    };
+    const response = options?.captchaToken
+      ? await readingsService.generate(payload, {
+          captchaToken: options.captchaToken,
+        })
+      : await readingsService.generate(payload);
     return response.data;
   },
 

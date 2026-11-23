@@ -1,5 +1,8 @@
 "use client";
 
+import { type RefObject } from "react";
+
+import { TurnstileField } from "@/components/security";
 import { Alert, Button, Eyebrow, Icon, Input, Text } from "@/components/ui";
 import { type Dictionary, type Locale } from "@/i18n";
 
@@ -23,6 +26,7 @@ export interface StepVerifyEmailProps {
   onResendEmail: () => void;
   onContinueToPlan?: () => void;
   onUseAnotherAccount?: () => void;
+  captchaContainerRef?: RefObject<HTMLDivElement | null>;
 }
 
 /**
@@ -41,6 +45,7 @@ export function StepVerifyEmail({
   onResendEmail,
   onContinueToPlan,
   onUseAnotherAccount,
+  captchaContainerRef,
 }: StepVerifyEmailProps) {
   const s2 = t.auth.stepper.step2VerifyEmail;
   const isResendDisabled =
@@ -101,6 +106,10 @@ export function StepVerifyEmail({
       )}
 
       <div className="flex flex-col gap-3 pt-1">
+        {captchaContainerRef && tokenState !== "verified" && (
+          <TurnstileField containerRef={captchaContainerRef} />
+        )}
+
         {tokenState === "verified" && onContinueToPlan ? (
           <Button
             type="button"
