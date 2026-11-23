@@ -7,6 +7,7 @@ import { NextRequest } from "next/server";
 jest.mock("server-only", () => ({}));
 
 import {
+  SUPPORTED_OAUTH_PROVIDERS,
   generatePkcePair,
   parseOAuthTransaction,
   resolvePublicOrigin,
@@ -17,6 +18,11 @@ import {
 } from "@/lib/server/oauth-bff";
 
 describe("oauth-bff server utilities", () => {
+  it("supports both google and microsoft OAuth providers and rejects unknown ones", () => {
+    expect(SUPPORTED_OAUTH_PROVIDERS.has("google")).toBe(true);
+    expect(SUPPORTED_OAUTH_PROVIDERS.has("microsoft")).toBe(true);
+    expect(SUPPORTED_OAUTH_PROVIDERS.has("github")).toBe(false);
+  });
   it("generates RFC 7636 S256 PKCE verifier and challenge pair", () => {
     const { codeVerifier, codeChallenge } = generatePkcePair();
 

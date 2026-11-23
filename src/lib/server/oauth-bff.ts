@@ -11,7 +11,10 @@ import { backendInternalUrl } from "@/lib/server/backend-url";
 
 export const OAUTH_TX_COOKIE_NAME = "doly_oauth_tx";
 export const OAUTH_TX_MAX_AGE_SECONDS = 600;
-export const SUPPORTED_OAUTH_PROVIDERS = new Set<string>(["google"]);
+export const SUPPORTED_OAUTH_PROVIDERS = new Set<string>([
+  "google",
+  "microsoft",
+]);
 
 export type OAuthUiOrigin = "login" | "register";
 export type OAuthUiLocale = "es" | "en" | "fr" | "it";
