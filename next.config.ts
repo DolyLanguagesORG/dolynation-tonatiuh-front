@@ -14,7 +14,7 @@ import withFlowbiteReact from 'flowbite-react/plugin/nextjs';
  *
  * El host publico de desarrollo entra por variable (`NEXT_ALLOWED_DEV_ORIGINS`)
  * para que cambiar de dominio no obligue a tocar codigo. Admite comodines:
- * `**.yacaterkos.tech` matchea cualquier subdominio (no el apex).
+ * `**.dolynation.app` matchea cualquier subdominio (no el apex).
  *
  * Solo aplica al dev server: en rehearsal, staging y produccion la app corre
  * compilada (`output: 'standalone'`), sin HMR y sin websocket.
