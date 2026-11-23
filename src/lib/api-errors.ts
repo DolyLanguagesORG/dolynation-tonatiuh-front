@@ -53,6 +53,15 @@ export const ErrorCode = {
   ACCESS_REQUEST_ALREADY_PENDING: "ACCESS_REQUEST_ALREADY_PENDING",
   ACCESS_REQUEST_ALREADY_REVIEWED: "ACCESS_REQUEST_ALREADY_REVIEWED",
 
+  // Facturación y pagos (4xx / 429 / 5xx)
+  BILLING_PAYMENT_REQUIRED: "BILLING_PAYMENT_REQUIRED",
+  BILLING_CHECKOUT_INVALID: "BILLING_CHECKOUT_INVALID",
+  BILLING_WEBHOOK_SIGNATURE_INVALID: "BILLING_WEBHOOK_SIGNATURE_INVALID",
+  BILLING_SUBSCRIPTION_CONFLICT: "BILLING_SUBSCRIPTION_CONFLICT",
+  BILLING_PROVIDER_ERROR: "BILLING_PROVIDER_ERROR",
+  BILLING_NOT_CONFIGURED: "BILLING_NOT_CONFIGURED",
+  BILLING_RATE_LIMITED: "BILLING_RATE_LIMITED",
+
   // Validación (4xx)
   VALIDATION_ERROR: "VALIDATION_ERROR",
 
@@ -170,6 +179,20 @@ const ERROR_MESSAGES_ES: Record<KnownErrorCode, string> = {
     "Ya tienes una solicitud pendiente en revisión para este tipo de acceso.",
   ACCESS_REQUEST_ALREADY_REVIEWED:
     "Esta solicitud de acceso ya fue revisada anteriormente.",
+  BILLING_PAYMENT_REQUIRED:
+    "Esta acción requiere completar el pago o regularizar tu método de pago activo.",
+  BILLING_CHECKOUT_INVALID:
+    "La sesión de pago no es válida o ya expiró. Inicia nuevamente el proceso de pago.",
+  BILLING_WEBHOOK_SIGNATURE_INVALID:
+    "No se pudo verificar la confirmación de la pasarela de pago.",
+  BILLING_SUBSCRIPTION_CONFLICT:
+    "Ya cuentas con una suscripción activa. Administra o cambia tu plan desde tu perfil.",
+  BILLING_PROVIDER_ERROR:
+    "No pudimos comunicarnos con la pasarela de pagos en este momento. Intenta nuevamente sin riesgo de cargo duplicado.",
+  BILLING_NOT_CONFIGURED:
+    "La pasarela de pagos en línea no está disponible en este entorno.",
+  BILLING_RATE_LIMITED:
+    "Realizaste demasiados intentos de pago seguidos. Espera un momento antes de volver a intentarlo.",
   VALIDATION_ERROR:
     "Algunos campos del formulario contienen errores. Revisa los datos marcados.",
   CAPTCHA_REQUIRED:
@@ -267,6 +290,20 @@ const ERROR_MESSAGES_EN: Record<KnownErrorCode, string> = {
     "You already have a pending access request of this type awaiting review.",
   ACCESS_REQUEST_ALREADY_REVIEWED:
     "This access request has already been reviewed.",
+  BILLING_PAYMENT_REQUIRED:
+    "This action requires completing payment or updating your active payment method.",
+  BILLING_CHECKOUT_INVALID:
+    "The checkout session is invalid or has expired. Please start the payment process again.",
+  BILLING_WEBHOOK_SIGNATURE_INVALID:
+    "Could not verify the payment confirmation signature.",
+  BILLING_SUBSCRIPTION_CONFLICT:
+    "You already have an active subscription. Manage or change your plan from your profile.",
+  BILLING_PROVIDER_ERROR:
+    "We could not reach the payment provider right now. Please try again without risk of a duplicate charge.",
+  BILLING_NOT_CONFIGURED:
+    "Online payments are not available in this environment.",
+  BILLING_RATE_LIMITED:
+    "Too many payment attempts in a short period. Please wait a moment before trying again.",
   VALIDATION_ERROR:
     "Some form fields contain validation errors. Please check the highlighted inputs.",
   CAPTCHA_REQUIRED:
@@ -364,6 +401,20 @@ const ERROR_MESSAGES_FR: Record<KnownErrorCode, string> = {
     "Vous avez déjà une demande d'accès de ce type en attente de validation.",
   ACCESS_REQUEST_ALREADY_REVIEWED:
     "Cette demande d'accès a déjà été examinée.",
+  BILLING_PAYMENT_REQUIRED:
+    "Cette action nécessite de finaliser le paiement ou de mettre à jour votre moyen de paiement actif.",
+  BILLING_CHECKOUT_INVALID:
+    "La session de paiement est invalide ou a expiré. Veuillez relancer le paiement.",
+  BILLING_WEBHOOK_SIGNATURE_INVALID:
+    "Impossible de vérifier la confirmation de la passerelle de paiement.",
+  BILLING_SUBSCRIPTION_CONFLICT:
+    "Vous disposez déjà d'un abonnement actif. Gérez ou modifiez votre forfait depuis votre profil.",
+  BILLING_PROVIDER_ERROR:
+    "Impossible de joindre le service de paiement pour le moment. Veuillez réessayer sans risque de double facturation.",
+  BILLING_NOT_CONFIGURED:
+    "Les paiements en ligne ne sont pas disponibles dans cet environnement.",
+  BILLING_RATE_LIMITED:
+    "Trop de tentatives de paiement rapprochées. Veuillez patienter un instant avant de réessayer.",
   VALIDATION_ERROR:
     "Certains champs du formulaire contiennent des erreurs. Vérifiez les données saisies.",
   CAPTCHA_REQUIRED:
@@ -461,6 +512,20 @@ const ERROR_MESSAGES_IT: Record<KnownErrorCode, string> = {
     "Hai già una richiesta di accesso di questo tipo in attesa di revisione.",
   ACCESS_REQUEST_ALREADY_REVIEWED:
     "Questa richiesta di accesso è già stata esaminata.",
+  BILLING_PAYMENT_REQUIRED:
+    "Questa operazione richiede di completare il pagamento o aggiornare il metodo di pagamento attivo.",
+  BILLING_CHECKOUT_INVALID:
+    "La sessione di pagamento non è valida o è scaduta. Avvia nuovamente la procedura di pagamento.",
+  BILLING_WEBHOOK_SIGNATURE_INVALID:
+    "Impossibile verificare la conferma della piattaforma di pagamento.",
+  BILLING_SUBSCRIPTION_CONFLICT:
+    "Hai già un abbonamento attivo. Gestisci o modifica il tuo piano dal profilo.",
+  BILLING_PROVIDER_ERROR:
+    "Impossibile contattare il servizio di pagamento al momento. Riprova senza rischio di addebito duplicato.",
+  BILLING_NOT_CONFIGURED:
+    "I pagamenti online non sono disponibili in questo ambiente.",
+  BILLING_RATE_LIMITED:
+    "Troppi tentativi di pagamento ravvicinati. Attendi qualche istante prima di riprovare.",
   VALIDATION_ERROR:
     "Alcuni campi del modulo contengono errori. Controlla i dati evidenziati.",
   CAPTCHA_REQUIRED:
@@ -682,7 +747,8 @@ export class ApiClientError extends Error {
       this.code === ErrorCode.RATE_LIMIT_EXCEEDED ||
       this.code === ErrorCode.READING_DAILY_LIMIT_REACHED ||
       this.code === ErrorCode.EXPLANATION_DAILY_LIMIT_REACHED ||
-      this.code === ErrorCode.CATEGORY_DAILY_LIMIT_REACHED
+      this.code === ErrorCode.CATEGORY_DAILY_LIMIT_REACHED ||
+      this.code === ErrorCode.BILLING_RATE_LIMITED
     );
   }
 

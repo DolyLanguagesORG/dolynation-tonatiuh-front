@@ -143,7 +143,7 @@ jobs:
           if [ -z "${NEXT_ALLOWED_DEV_ORIGINS:-}" ]; then
             echo "::error::Falta NEXT_ALLOWED_DEV_ORIGINS en el environment 'desarrollo'."
             echo "::error::Es el host publico del frontend de desarrollo (admite comodines:"
-            echo "::error::'**.yacaterkos.tech'), separado por comas si hay varios."
+            echo "::error::'**.dolynation.app'), separado por comas si hay varios."
             exit 1
           fi
           # La version de la APLICACION (la que compone `versions.yml`, el
