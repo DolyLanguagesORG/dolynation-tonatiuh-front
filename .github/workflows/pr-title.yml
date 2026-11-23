@@ -3,7 +3,10 @@ name: pr-title
 on:
   pull_request:
     types: [opened, edited, reopened, synchronize]
-    branches: [develop, main]
+    # El carril de la PWA tambien: su ruleset exige `pr-title` y `pr-target`,
+    # y si el workflow no se dispara esos checks nunca reportan y el PR
+    # queda bloqueado para siempre.
+    branches: [develop, main, feat/issue-131-pwa]
 
 permissions:
   contents: read
@@ -144,8 +147,29 @@ jobs:
                 exit 1
               fi
               ;;
+            feat/issue-131-pwa)
+              # El carril de la PWA: es una rama mas del equipo, con la misma
+              # convencion que hacia `develop` (y un nombre propio para los
+              # PRs que trae `develop` al carril).
+              types='feat|fix|refactor|docs|test|chore|build|ci|perf|style'
+
+              HEAD_NORM="$(printf '%s' "$HEAD" | iconv -f UTF-8 -t ASCII//TRANSLIT 2>/dev/null | tr '[:upper:]' '[:lower:]' || printf '%s' "$HEAD")"
+
+              if [[ "$HEAD_NORM" =~ ^(${types})/(issue-)?[0-9]+-[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+                :
+              elif [[ "$HEAD_NORM" =~ ^(${types})/pwa-[a-z0-9]+(-[a-z0-9]+)*$ ]]; then
+                :
+              else
+                echo "::error::Rama origen inválida para el carril de la PWA: '$HEAD'"
+                echo "::error::Usa <tipo>/issue-<n>-<módulo>-<detalle>, por ejemplo:"
+                echo "::error::  feat/issue-131-boton-descargar"
+                echo "::error::Tipos permitidos: $types"
+                echo "::error::También se acepta 'chore/pwa-<detalle>' para los PRs que sincronizan el carril."
+                exit 1
+              fi
+              ;;
             *)
-              echo "::error::Base '$BASE' no permitida. Solo 'develop' y 'main' aceptan PRs."
+              echo "::error::Base '$BASE' no permitida. Solo 'develop', 'main' y el carril de la PWA aceptan PRs."
               exit 1
               ;;
           esac

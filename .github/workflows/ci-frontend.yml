@@ -6,9 +6,12 @@ on:
   # y el PR queda bloqueado indefinidamente. El repo es público, así que
   # los minutos de Actions son gratuitos.
   pull_request:
-    branches: [develop, main]
+    # `feat/issue-131-pwa` tambien: su ruleset exige estos mismos checks, y
+    # un workflow que no se dispara nunca reporta: el PR se queda bloqueado
+    # para siempre (y solo lo puede mergear quien tenga permisos de admin).
+    branches: [develop, main, feat/issue-131-pwa]
   push:
-    branches: [develop, main]
+    branches: [develop, main, feat/issue-131-pwa]
 
 permissions:
   contents: read
