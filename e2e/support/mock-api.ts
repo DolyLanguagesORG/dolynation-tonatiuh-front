@@ -5,10 +5,7 @@ export type TargetLanguageCode = "es" | "en" | "fr" | "it";
 export type UserRole = "student" | "admin";
 export type AccessRequestType = "subscription" | "language_unlock";
 export type AccessRequestStatus =
-  | "pending"
-  | "approved"
-  | "rejected"
-  | "cancelled";
+  "pending" | "approved" | "rejected" | "cancelled";
 
 export interface MockUserState {
   id: number;
@@ -95,7 +92,11 @@ export interface MockGlossaryEntry {
     literalDefinition: string;
   }[];
   otherWaysToSay: { expression: string; note: string }[];
-  otherContexts: { contextLabel: string; explanation: string; example: string }[];
+  otherContexts: {
+    contextLabel: string;
+    explanation: string;
+    example: string;
+  }[];
   isSaved: boolean;
   savedAt: string | null;
   createdAt: string;
@@ -313,7 +314,9 @@ export async function attachMockBackend(
     languageChangeCredits: config.initialLanguageChangeCredits ?? 0,
     readings: [...(config.initialReadings ?? [])],
     readingsCreatedToday: config.initialReadingsCreatedToday ?? 0,
-    categoriesEvaluatedToday: [...(config.initialCategoriesEvaluatedToday ?? [])],
+    categoriesEvaluatedToday: [
+      ...(config.initialCategoriesEvaluatedToday ?? []),
+    ],
     explanations: [...(config.initialExplanations ?? [])],
     accessRequests: [...(config.initialAccessRequests ?? [])],
     adminUsers: seededAdminUsers,
@@ -488,6 +491,7 @@ export async function attachMockBackend(
       return okResponse(route, {
         providers: config.oauthProviders ?? [
           { provider: "google", enabled: false },
+          { provider: "microsoft", enabled: false },
         ],
       });
     }
@@ -845,7 +849,8 @@ export async function attachMockBackend(
         userEmailVerifiedAt: state.user.emailVerifiedAt,
         userCurrentTier: state.user.subscriptionTier,
         requestType: reqType,
-        requestedTier: reqType === "subscription" ? (body.tier ?? "dolly") : null,
+        requestedTier:
+          reqType === "subscription" ? (body.tier ?? "dolly") : null,
         currentTier: state.user.subscriptionTier,
         userMessage: body.message?.trim() || null,
         status: "pending",
@@ -1062,7 +1067,9 @@ export async function attachMockBackend(
 
     if (apiPath === "/settings/categories" && method === "PUT") {
       const body = (parsedBody ?? {}) as { categories?: string[] };
-      const requested = (body.categories ?? []).map((c) => c.trim()).filter(Boolean);
+      const requested = (body.categories ?? [])
+        .map((c) => c.trim())
+        .filter(Boolean);
       if (requested.length < 3) {
         return errorResponse(
           route,
@@ -1144,7 +1151,10 @@ export async function attachMockBackend(
       };
 
       const langsDto = buildLanguagesDto();
-      if (activePlan.id !== "dolly_pro" && state.selectedLanguages.length === 0) {
+      if (
+        activePlan.id !== "dolly_pro" &&
+        state.selectedLanguages.length === 0
+      ) {
         return errorResponse(
           route,
           403,
@@ -1247,7 +1257,9 @@ export async function attachMockBackend(
       return okResponse(route, state.explanations.map(withReadingAvailability));
     }
 
-    const readingExplainMatch = /^\/readings\/(\d+)\/explanations$/.exec(apiPath);
+    const readingExplainMatch = /^\/readings\/(\d+)\/explanations$/.exec(
+      apiPath,
+    );
     if (readingExplainMatch) {
       const readingId = Number(readingExplainMatch[1]);
       if (method === "GET") {

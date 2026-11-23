@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 
 import { Button, Divider } from "@/components/ui";
 import { useLocale } from "@/i18n";
-import { authService, type OAuthProviderConfig } from "@/lib";
+import {
+  authService,
+  type OAuthProviderConfig,
+  type OAuthProviderId,
+} from "@/lib";
 
 export interface OAuthProvidersSectionProps {
   mode: "login" | "register";
@@ -48,6 +52,22 @@ function GoogleMarkIcon() {
  * Botones de inicio de sesión / registro con proveedores OAuth externos habilitados
  * en runtime por el backend. No renderiza nada si ningún proveedor está activo.
  */
+function MicrosoftMarkIcon() {
+  return (
+    <svg
+      aria-hidden="true"
+      className="h-4 w-4 shrink-0"
+      viewBox="0 0 21 21"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <rect x="1" y="1" width="9" height="9" fill="#F25022" />
+      <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
+      <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
+      <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
+    </svg>
+  );
+}
+
 export function OAuthProvidersSection({
   mode,
   redirectTarget = "/",
@@ -56,7 +76,8 @@ export function OAuthProvidersSection({
 }: OAuthProvidersSectionProps) {
   const { locale, t } = useLocale();
   const [providers, setProviders] = useState<OAuthProviderConfig[]>([]);
-  const [isRedirecting, setIsRedirecting] = useState(false);
+  const [redirectingProvider, setRedirectingProvider] =
+    useState<OAuthProviderId | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -80,31 +101,50 @@ export function OAuthProvidersSection({
     };
   }, []);
 
-  const hasGoogle = providers.some(
-    (item) => item.provider === "google" && item.enabled,
+  const enabledProviders = providers.filter(
+    (item) =>
+      item.enabled &&
+      (item.provider === "google" || item.provider === "microsoft"),
   );
-  if (!hasGoogle) {
+  if (enabledProviders.length === 0) {
     return null;
   }
 
-  const label =
-    mode === "login"
-      ? t.auth.login.googleButton
-      : t.auth.register.googleButton;
   const dividerLabel =
     mode === "login" ? t.auth.login.divider : t.auth.register.divider;
+  const isAnyRedirecting = redirectingProvider !== null;
 
-  const handleGoogleClick = (): void => {
-    if (disabled || isRedirecting) {
+  const providerMeta: Record<
+    OAuthProviderId,
+    { label: string; icon: ReactNode }
+  > = {
+    google: {
+      label:
+        mode === "login"
+          ? t.auth.login.googleButton
+          : t.auth.register.googleButton,
+      icon: <GoogleMarkIcon />,
+    },
+    microsoft: {
+      label:
+        mode === "login"
+          ? t.auth.login.microsoftButton
+          : t.auth.register.microsoftButton,
+      icon: <MicrosoftMarkIcon />,
+    },
+  };
+
+  const handleProviderClick = (provider: OAuthProviderId): void => {
+    if (disabled || isAnyRedirecting) {
       return;
     }
-    setIsRedirecting(true);
+    setRedirectingProvider(provider);
     const params = new URLSearchParams({
       origin: mode,
       locale,
       redirect: redirectTarget || "/",
     });
-    const url = `/api/auth/oauth/google?${params.toString()}`;
+    const url = `/api/auth/oauth/${provider}?${params.toString()}`;
     if (onNavigate) {
       onNavigate(url);
     } else {
@@ -114,19 +154,27 @@ export function OAuthProvidersSection({
 
   return (
     <div className="flex flex-col gap-4">
-      <Button
-        type="button"
-        variant="outline"
-        size="lg"
-        fullWidth
-        isLoading={isRedirecting}
-        disabled={disabled || isRedirecting}
-        leftIcon={<GoogleMarkIcon />}
-        onClick={handleGoogleClick}
-        className="normal-case tracking-normal"
-      >
-        {label}
-      </Button>
+      <div className="flex flex-col gap-2.5">
+        {enabledProviders.map((item) => {
+          const meta = providerMeta[item.provider];
+          return (
+            <Button
+              key={item.provider}
+              type="button"
+              variant="outline"
+              size="lg"
+              fullWidth
+              isLoading={redirectingProvider === item.provider}
+              disabled={disabled || isAnyRedirecting}
+              leftIcon={meta.icon}
+              onClick={() => handleProviderClick(item.provider)}
+              className="normal-case tracking-normal"
+            >
+              {meta.label}
+            </Button>
+          );
+        })}
+      </div>
 
       <Divider label={dividerLabel} />
     </div>

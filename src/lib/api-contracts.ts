@@ -18,7 +18,14 @@ export type ReadingDifficulty = (typeof READING_DIFFICULTIES)[number];
 export const READING_TEXT_SIZES = ["short", "medium", "long"] as const;
 export type ReadingSize = (typeof READING_TEXT_SIZES)[number];
 
-export const READING_CEFR_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
+export const READING_CEFR_LEVELS = [
+  "A1",
+  "A2",
+  "B1",
+  "B2",
+  "C1",
+  "C2",
+] as const;
 export type CefrLevel = (typeof READING_CEFR_LEVELS)[number];
 
 /**
@@ -204,7 +211,7 @@ export interface EmailSentResponse {
   emailSent: boolean;
 }
 
-export type OAuthProviderId = "google";
+export type OAuthProviderId = "google" | "microsoft";
 
 export interface OAuthProviderConfig {
   provider: OAuthProviderId;
@@ -666,10 +673,7 @@ export interface ChatResponse {
 
 export type AccessRequestType = "subscription" | "language_unlock";
 export type AccessRequestStatus =
-  | "pending"
-  | "approved"
-  | "rejected"
-  | "cancelled";
+  "pending" | "approved" | "rejected" | "cancelled";
 
 export interface AccessRequestItem {
   id: number;
