@@ -10,7 +10,10 @@ import {
 } from "@/components/ui";
 import { type SubscriptionPlanId } from "@/context";
 import { type Dictionary, useLocale } from "@/i18n";
-import { type SubscriptionPlanItem } from "@/lib";
+import {
+  type BillingConfigResponse,
+  type SubscriptionPlanItem,
+} from "@/lib";
 import { useSubscriptionPlans } from "@/lib/hooks/use-subscription-plans";
 import { formatPlanFromBackend } from "@/lib/plan-presentation";
 
@@ -20,6 +23,7 @@ export interface StepPlanSelectionProps {
   planError: string | null;
   isSubmittingPlan: boolean;
   plans?: readonly SubscriptionPlanItem[];
+  billingConfig?: BillingConfigResponse | null;
   disabled?: boolean;
   submitLabel?: string;
   showMessageInput?: boolean;
@@ -41,6 +45,7 @@ export function StepPlanSelection({
   planError,
   isSubmittingPlan,
   plans: providedPlans,
+  billingConfig,
   disabled = false,
   submitLabel,
   showMessageInput = false,
@@ -60,7 +65,7 @@ export function StepPlanSelection({
   const plansLoadError = !providedPlans ? loadedPlans.error : null;
 
   const planDefinitions = rawPlans.map((plan) =>
-    formatPlanFromBackend(plan, locale),
+    formatPlanFromBackend(plan, locale, billingConfig),
   );
 
   return (
@@ -113,9 +118,16 @@ export function StepPlanSelection({
                   className="h-full"
                   badge={isSelected ? s3.currentSelection : plan.tierBadge}
                   title={
-                    <span className="font-serif text-lg font-bold text-heading sm:text-xl">
-                      {plan.name}
-                    </span>
+                    <div className="flex flex-col gap-1">
+                      <span className="font-serif text-lg font-bold text-heading sm:text-xl">
+                        {plan.name}
+                      </span>
+                      {plan.priceLabel && (
+                        <span className="font-mono text-xs font-bold tracking-wide text-heading">
+                          {plan.priceLabel}
+                        </span>
+                      )}
+                    </div>
                   }
                   meta={plan.quotaHeadline}
                   description={plan.description}

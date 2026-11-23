@@ -1,13 +1,60 @@
 import { formatMessage, getDictionary, type Locale } from "@/i18n";
-import { type SubscriptionPlanItem, type SubscriptionTier } from "@/lib";
+import {
+  type BillingConfigResponse,
+  formatBillingAmount,
+  type SubscriptionPlanItem,
+  type SubscriptionTier,
+} from "@/lib";
 
 export interface FormattedPlanSummary {
   id: SubscriptionTier;
   name: string;
   tierBadge: string;
   quotaHeadline: string;
+  priceLabel: string | null;
   description: string;
   features: readonly string[];
+}
+
+/**
+ * Resuelve la etiqueta de precio localizada para un plan consultando dinámicamente
+ * `GET /api/v1/billing/config` (sin montos hardcodeados).
+ */
+export function formatPlanPriceFromBillingConfig(
+  tier: SubscriptionTier,
+  billingConfig: BillingConfigResponse | null | undefined,
+  locale: Locale,
+): string | null {
+  if (!billingConfig) {
+    return null;
+  }
+
+  const { billing: tBilling } = getDictionary(locale);
+  const planPricing = billingConfig.plans.find((item) => item.tier === tier);
+  if (!planPricing) {
+    return null;
+  }
+
+  if (planPricing.isFree || planPricing.amountCents === 0) {
+    return tBilling.pricing.freeLabel;
+  }
+
+  const formattedAmount = formatBillingAmount(
+    planPricing.amountCents,
+    planPricing.currency || billingConfig.currency,
+  );
+
+  if (!formattedAmount) {
+    return null;
+  }
+
+  if (planPricing.interval === "month") {
+    return formatMessage(tBilling.pricing.monthlyInterval, {
+      price: formattedAmount,
+    });
+  }
+
+  return formattedAmount;
 }
 
 /**
@@ -17,6 +64,7 @@ export interface FormattedPlanSummary {
 export function formatPlanFromBackend(
   plan: SubscriptionPlanItem,
   locale: Locale,
+  billingConfig?: BillingConfigResponse | null,
 ): FormattedPlanSummary {
   const { plans: tPlans } = getDictionary(locale);
   const tierCopy = tPlans.tiers[plan.id];
@@ -59,6 +107,7 @@ export function formatPlanFromBackend(
     name: tierCopy.name,
     tierBadge: tierCopy.badge,
     quotaHeadline,
+    priceLabel: formatPlanPriceFromBillingConfig(plan.id, billingConfig, locale),
     description: tierCopy.description,
     features: [languagesText, categoriesText, readingsText, questionsText],
   };
