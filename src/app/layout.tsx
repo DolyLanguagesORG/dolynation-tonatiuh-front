@@ -88,8 +88,27 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col bg-neutral-secondary-soft text-heading font-sans">
         {/* El provider de Serwist registra el service worker: lo que hace
             que la app arranque sin servidor (y se pueda leer y responder
-            sin red). */}
-        <SerwistProvider swUrl="/serwist/sw.js">
+            sin red).
+
+            En DESARROLLO no se registra, a proposito: el service worker
+            intercepta las peticiones y las pruebas de extremo a extremo
+            usan un backend simulado (las intercepta el navegador, no el
+            service worker), asi que con el service worker activo las
+            pruebas dejarian de ver sus datos. Ademas, cachear el codigo
+            que se esta editando hace que el navegador no vea los
+            cambios.
+
+            `reloadOnOnline={false}`: Serwist recarga la pagina sola cuando
+            vuelve la red (es su comportamiento por defecto), pero aqui la
+            app **ya** se encarga de eso (sincroniza la cola de lo hecho
+            sin conexion). Recargar en ese momento, ademas de perder el
+            sitio donde estaba la persona, **cortaba la sincronizacion a
+            medias**. */}
+        <SerwistProvider
+          swUrl="/serwist/sw.js"
+          disable={process.env.NODE_ENV === "development"}
+          reloadOnOnline={false}
+        >
           <ThemeProvider theme={dolyFlowbiteTheme}>
           <LocaleProvider initialLocale={initialLocale}>
             <ToastProvider>

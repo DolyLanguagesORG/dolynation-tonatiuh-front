@@ -50,20 +50,27 @@ async function leerAlmacen(
   page: import("@playwright/test").Page,
   almacen: "readings" | "outbox",
 ): Promise<unknown[]> {
-  return page.evaluate(async (nombre) => {
-    const db = await new Promise<IDBDatabase | null>((resolve) => {
-      const req = indexedDB.open("doly-offline", 1);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => resolve(null);
-    });
-    if (!db) return [];
-    return new Promise((resolve) => {
-      const tx = db.transaction(nombre, "readonly");
-      const req = tx.objectStore(nombre).getAll();
-      req.onsuccess = () => resolve(req.result ?? []);
-      req.onerror = () => resolve([]);
-    });
-  }, almacen);
+  // Si la pagina navega mientras se lee (la app recarga al volver la red),
+  // el contexto de ejecucion se destruye: se devuelve -1 para que el
+  // `expect.poll` lo reintente en vez de fallar.
+  try {
+    return await page.evaluate(async (nombre) => {
+      const db = await new Promise<IDBDatabase | null>((resolve) => {
+        const req = indexedDB.open("doly-offline", 1);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => resolve(null);
+      });
+      if (!db) return [];
+      return new Promise((resolve) => {
+        const tx = db.transaction(nombre, "readonly");
+        const req = tx.objectStore(nombre).getAll();
+        req.onsuccess = () => resolve(req.result ?? []);
+        req.onerror = () => resolve([]);
+      });
+    }, almacen);
+  } catch {
+    return [-1];
+  }
 }
 
 test.describe("El modo offline", () => {
