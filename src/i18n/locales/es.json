@@ -920,7 +920,9 @@
     "evaluationResultUnavailable": "La lectura ya está evaluada pero el resultado completo aún no está disponible.",
     "readingNotFoundFallback": "No se encontró la lectura solicitada.",
     "historyEyebrow": "[ARCHIVO ACADÉMICO] / HISTORIAL",
-    "loadHistoryErrorTitle": "Error al cargar historial"
+    "loadHistoryErrorTitle": "Error al cargar historial",
+    "downloadForOfflineButton": "Descargar para leer sin conexión",
+    "downloadedForOfflineButton": "Guardada en este dispositivo"
   },
   "readingCard": {
     "feedbackButton": "FEEDBACK",

@@ -920,7 +920,9 @@
     "evaluationResultUnavailable": "La lettura è stata valutata ma il risultato completo non è ancora disponibile.",
     "readingNotFoundFallback": "La lettura richiesta non è stata trovata.",
     "historyEyebrow": "[ARCHIVIO ACCADEMICO] / CRONOLOGIA",
-    "loadHistoryErrorTitle": "Errore durante il caricamento della cronologia"
+    "loadHistoryErrorTitle": "Errore durante il caricamento della cronologia",
+    "downloadForOfflineButton": "Scarica per leggere offline",
+    "downloadedForOfflineButton": "Salvata su questo dispositivo"
   },
   "readingCard": {
     "statusCompleted": "COMPLETATA",
