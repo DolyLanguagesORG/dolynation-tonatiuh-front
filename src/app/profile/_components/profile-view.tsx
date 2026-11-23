@@ -6,7 +6,10 @@ import { StreakCalendarCard } from "@/app/profile/_components/streak-calendar-ca
 import { SubscriptionPlanCard } from "@/app/profile/_components/subscription-plan-card";
 import { useProfileData } from "@/app/profile/_hooks/use-profile-data";
 import { RequireAuth } from "@/components/auth";
-import { StripeCheckoutModal } from "@/components/billing";
+import {
+  StripeCheckoutModal,
+  StripeSetupMethodModal,
+} from "@/components/billing";
 import { Container, Eyebrow, SkeletonCard } from "@/components/ui";
 import { formatMessage } from "@/i18n";
 import { formatPlanPriceFromBillingConfig } from "@/lib/plan-presentation";
@@ -84,10 +87,14 @@ function ProfileContent() {
             t={t}
             locale={locale}
             currentSubscription={data.currentSubscription}
+            billingConfig={data.billingConfig}
+            billingStatus={data.billingStatus}
+            invoices={data.invoices}
             plans={data.plans}
             isLoadingPlans={data.isLoadingPlans}
             plansError={data.plansError}
             isSavingPlan={data.isSavingPlan}
+            isManagingBilling={data.isManagingBilling}
             isLoggingOutAll={data.isLoggingOutAll}
             accessRequestsEnabled={data.accessRequestsEnabled}
             pendingSubscriptionRequest={data.pendingSubscriptionRequest}
@@ -96,6 +103,11 @@ function ProfileContent() {
             }
             isCancellingRequest={data.isCancellingRequest}
             onSelectPlan={data.handleSelectPlan}
+            onChangePaidPlan={data.handleChangePaidPlan}
+            onCancelSubscription={data.handleCancelSubscription}
+            onResumeSubscription={data.handleResumeSubscription}
+            onOpenUpdateCard={data.handleOpenUpdateCard}
+            onOpenBillingPortal={data.handleOpenBillingPortal}
             onCancelAccessRequest={data.handleCancelAccessRequest}
             onRefreshAccessRequests={data.handleRefreshAccessRequests}
             onLogoutAll={data.handleLogoutAll}
@@ -129,6 +141,16 @@ function ProfileContent() {
             onClose={() => data.setCheckoutSession(null)}
             onSuccess={(sessionId) => {
               void data.handleCheckoutCompleted(sessionId);
+            }}
+          />
+
+          <StripeSetupMethodModal
+            setupSession={data.setupIntentSession}
+            t={t}
+            locale={locale}
+            onClose={() => data.setSetupIntentSession(null)}
+            onSuccess={(summary) => {
+              void data.handlePaymentMethodSaved(summary);
             }}
           />
         </>
