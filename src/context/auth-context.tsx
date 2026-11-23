@@ -184,6 +184,15 @@ function saveUserSnapshot(user: AuthUser | null): void {
   }
 }
 
+/**
+ * True si el fallo es de **conectividad** (no hay red o el servidor no
+ * responde), y no un rechazo del servidor (sesion invalida, cuenta
+ * bloqueada...). Solo los primeros permiten seguir con la sesion local.
+ */
+function esErrorDeConectividad(error: unknown): boolean {
+  return error instanceof ApiClientError && error.isConnectivityError;
+}
+
 function loadUserSnapshot(): AuthUser | null {
   if (typeof window === "undefined") return null;
   try {
@@ -409,6 +418,25 @@ export function AuthProvider({
     },
     [],
   );
+
+  /**
+   * Sin red, se restaura la sesion desde la copia local del usuario.
+   *
+   * Sin esto, al abrir la app **sin conexion** la validacion de la sesion
+   * falla, se borra la sesion y el usuario acaba en el login: la app deja
+   * de poder usarse sin red, que es justo lo que la PWA tiene que resolver.
+   *
+   * La copia local del usuario ya se guardaba para el paso de elegir plan
+   * (\`sessionStorage\`, sin tokens): aqui se reutiliza. Es del navegador y
+   * de la pestana, y se borra al cerrar sesion.
+   */
+  const restoreOfflineSession = useCallback((): boolean => {
+    const snapshot = loadUserSnapshot();
+    if (!snapshot) return false;
+    setUser(snapshot);
+    setStatus("authenticated");
+    return true;
+  }, []);
 
   const resolveRequestToastDict = useCallback(() => {
     const rawLocale =
@@ -942,7 +970,10 @@ export function AuthProvider({
         if (hasSessionCookieFlag()) {
           try {
             await reloadAccountState();
-          } catch {
+          } catch (error) {
+            // Sin red: se sigue con la sesion local (la app tiene que
+            // funcionar sin conexion).
+            if (esErrorDeConectividad(error) && restoreOfflineSession()) return;
             clearSessionState({ preservePendingEmail: Boolean(pendingEmail) });
           }
         }
@@ -956,7 +987,9 @@ export function AuthProvider({
 
       try {
         await reloadAccountState();
-      } catch {
+      } catch (error) {
+        // Sin red: se sigue con la sesion local.
+        if (esErrorDeConectividad(error) && restoreOfflineSession()) return;
         clearSessionState({ preservePendingEmail: Boolean(pendingEmail) });
       }
     };
