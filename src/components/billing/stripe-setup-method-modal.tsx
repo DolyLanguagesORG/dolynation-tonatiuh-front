@@ -185,6 +185,19 @@ export function StripeSetupMethodModal({
     [setupSession?.publishableKey],
   );
 
+  const clientSecret = setupSession?.clientSecret ?? null;
+
+  const elementsOptions = useMemo(
+    () =>
+      clientSecret
+        ? {
+            clientSecret,
+            appearance: dolyStripeAppearance,
+          }
+        : null,
+    [clientSecret],
+  );
+
   useEffect(() => {
     if (!setupSession) return;
     const handleKeyDown = (event: KeyboardEvent): void => {
@@ -237,14 +250,8 @@ export function StripeSetupMethodModal({
         </div>
 
         <div className="flex flex-col gap-4 overflow-y-auto p-5">
-          {stripePromise && setupSession.clientSecret ? (
-            <Elements
-              stripe={stripePromise}
-              options={{
-                clientSecret: setupSession.clientSecret,
-                appearance: dolyStripeAppearance,
-              }}
-            >
+          {stripePromise && elementsOptions ? (
+            <Elements stripe={stripePromise} options={elementsOptions}>
               <InnerSetupForm
                 t={t}
                 locale={locale}
