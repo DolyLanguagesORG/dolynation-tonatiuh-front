@@ -11,6 +11,20 @@ un PR de release contra `develop` que sube la versión y escribe esta sección; 
 mergearlo se crean el tag anotado y la GitHub Release. Ver
 [`conventions/versioning.md`](https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs/blob/develop/conventions/versioning.md).
 
+## [0.14.1](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.14.0...v0.14.1) (2026-11-23)
+
+
+### Bug Fixes
+
+* **kanban:** el tablero se lee entero (pagina los items) ([#163](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/163)) ([01289d4](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/01289d4e013821b11dcb1e3e1ada079de6343d55))
+
+## [0.14.0](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.13.0...v0.14.0) (2026-11-23)
+
+
+### Features
+
+* **security:** integra cloudflare turnstile invisible en formularios criticos y proxy bff ([#140](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/140)) ([294c562](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/294c562f782bda0cc7b60dbb4575ab773b601522))
+
 ## [0.13.0](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.12.0...v0.13.0) (2026-11-23)
 
 
