@@ -52,7 +52,13 @@ export function SelectPlanView() {
     reloadAccountState,
   } = useAuth();
 
-  const { config: billingConfig, isStripeActive } = useBillingConfig();
+  const {
+    config: billingConfig,
+    isStripeActive,
+    isLoading: isLoadingBillingConfig,
+  } = useBillingConfig();
+  const effectiveAccessRequestsEnabled =
+    accessRequestsEnabled && !isStripeActive;
 
   const [pickedPlan, setPickedPlan] = useState<SubscriptionPlanId | null>(null);
   const [requestMessage, setRequestMessage] = useState("");
@@ -83,6 +89,7 @@ export function SelectPlanView() {
 
   if (
     isLoading ||
+    isLoadingBillingConfig ||
     (accessPhase !== "plan_required" && accessPhase !== "ready")
   ) {
     return (
@@ -107,7 +114,9 @@ export function SelectPlanView() {
 
   const effectivePlan: SubscriptionPlanId =
     pickedPlan ??
-    pendingSubRequest?.requestedTier ??
+    (effectiveAccessRequestsEnabled
+      ? pendingSubRequest?.requestedTier
+      : null) ??
     user?.subscriptionTier ??
     onboarding.subscriptionPlan ??
     "dolly_plus";
@@ -120,23 +129,15 @@ export function SelectPlanView() {
       setPlanError(s3.selectPlanRequired);
       return;
     }
-    if (isSubmittingPlan || pendingSubRequest) return;
+    if (isSubmittingPlan || (effectiveAccessRequestsEnabled && pendingSubRequest))
+      return;
 
     setPlanError(null);
     setRequestNotice(null);
     setRateLimitWaitSeconds(null);
     setIsSubmittingPlan(true);
     try {
-      if (accessRequestsEnabled) {
-        const trimmed = requestMessage.trim();
-        await submitAccessRequest({
-          type: "subscription",
-          tier: effectivePlan,
-          ...(trimmed ? { message: trimmed } : {}),
-        });
-        setRequestMessage("");
-        setRequestNotice(s3.requestSuccessNotice);
-      } else if (
+      if (
         isStripeActive &&
         (effectivePlan === "dolly_plus" || effectivePlan === "dolly_pro")
       ) {
@@ -155,6 +156,15 @@ export function SelectPlanView() {
           return;
         }
         setCheckoutSession(res.data);
+      } else if (effectiveAccessRequestsEnabled) {
+        const trimmed = requestMessage.trim();
+        await submitAccessRequest({
+          type: "subscription",
+          tier: effectivePlan,
+          ...(trimmed ? { message: trimmed } : {}),
+        });
+        setRequestMessage("");
+        setRequestNotice(s3.requestSuccessNotice);
       } else {
         await selectPlan(effectivePlan);
         router.replace("/setup-preferences");
@@ -217,7 +227,9 @@ export function SelectPlanView() {
   return (
     <AuthShell
       title={s3.title}
-      subtitle={accessRequestsEnabled ? s3.waitlistSubtitle : s3.subtitle}
+      subtitle={
+        effectiveAccessRequestsEnabled ? s3.waitlistSubtitle : s3.subtitle
+      }
       maxWidthClass="max-w-5xl"
       headerAction={<FloatingLocaleSelector />}
       topSlot={
@@ -248,7 +260,7 @@ export function SelectPlanView() {
           </Alert>
         )}
 
-        {accessRequestsEnabled && pendingSubRequest && (
+        {effectiveAccessRequestsEnabled && pendingSubRequest && (
           <Card
             padding="md"
             variant="subtle"
@@ -333,7 +345,7 @@ export function SelectPlanView() {
           </Card>
         )}
 
-        {accessRequestsEnabled &&
+        {effectiveAccessRequestsEnabled &&
           latestRejectedSub &&
           latestRejectedSub.rejectionReason && (
             <Alert variant="warning" title={s3.rejectedTitle}>
@@ -358,12 +370,14 @@ export function SelectPlanView() {
           planError={planError}
           isSubmittingPlan={isSubmittingPlan}
           billingConfig={billingConfig}
-          disabled={Boolean(accessRequestsEnabled && pendingSubRequest)}
-          showMessageInput={accessRequestsEnabled}
+          disabled={Boolean(
+            effectiveAccessRequestsEnabled && pendingSubRequest,
+          )}
+          showMessageInput={effectiveAccessRequestsEnabled}
           messageValue={requestMessage}
           onMessageChange={setRequestMessage}
           submitLabel={
-            accessRequestsEnabled ? s3.requestSubmitButton : undefined
+            effectiveAccessRequestsEnabled ? s3.requestSubmitButton : undefined
           }
           onDismissError={() => setPlanError(null)}
           onSelectPlan={(plan) => {
