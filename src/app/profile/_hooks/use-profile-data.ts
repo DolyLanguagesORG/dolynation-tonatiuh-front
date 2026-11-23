@@ -63,6 +63,8 @@ export function useProfileData() {
     error: plansError,
   } = useSubscriptionPlans(locale);
   const { config: billingConfig, isStripeActive } = useBillingConfig();
+  const effectiveAccessRequestsEnabled =
+    accessRequestsEnabled && !isStripeActive;
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [historySummary, setHistorySummary] = useState<HistorySummary | null>(
@@ -529,16 +531,6 @@ export function useProfileData() {
 
     setIsUnlockingLanguage(true);
     try {
-      if (accessRequestsEnabled) {
-        const trimmed = message?.trim();
-        await submitAccessRequest({
-          type: "language_unlock",
-          ...(trimmed ? { message: trimmed } : {}),
-        });
-        reportSuccess(t.profile.hooks.unlockRequestSuccess);
-        return true;
-      }
-
       if (isStripeActive) {
         const idemKey = createBillingIdempotencyKey("lang_unlock");
         const sessionRes = await billingService.createLanguageUnlockCheckout(
@@ -553,6 +545,16 @@ export function useProfileData() {
         }
         setCheckoutKind("language_unlock");
         setCheckoutSession(sessionRes.data);
+        return true;
+      }
+
+      if (effectiveAccessRequestsEnabled) {
+        const trimmed = message?.trim();
+        await submitAccessRequest({
+          type: "language_unlock",
+          ...(trimmed ? { message: trimmed } : {}),
+        });
+        reportSuccess(t.profile.hooks.unlockRequestSuccess);
         return true;
       }
 
@@ -577,25 +579,6 @@ export function useProfileData() {
 
     setIsSavingPlan(true);
     try {
-      if (accessRequestsEnabled) {
-        const trimmed = message?.trim();
-        await submitAccessRequest({
-          type: "subscription",
-          tier,
-          ...(trimmed ? { message: trimmed } : {}),
-        });
-        const planDisplayName =
-          t.plans.tiers[tier]?.name ??
-          plans.find((item) => item.id === tier)?.name ??
-          tier;
-        reportSuccess(
-          formatMessage(t.profile.hooks.planRequestSuccess, {
-            name: planDisplayName,
-          }),
-        );
-        return true;
-      }
-
       if (isStripeActive && (tier === "dolly_plus" || tier === "dolly_pro")) {
         const hasActiveStripe = Boolean(
           billingStatus?.subscription &&
@@ -618,6 +601,25 @@ export function useProfileData() {
         }
         setCheckoutKind("subscription");
         setCheckoutSession(sessionRes.data);
+        return true;
+      }
+
+      if (effectiveAccessRequestsEnabled) {
+        const trimmed = message?.trim();
+        await submitAccessRequest({
+          type: "subscription",
+          tier,
+          ...(trimmed ? { message: trimmed } : {}),
+        });
+        const planDisplayName =
+          t.plans.tiers[tier]?.name ??
+          plans.find((item) => item.id === tier)?.name ??
+          tier;
+        reportSuccess(
+          formatMessage(t.profile.hooks.planRequestSuccess, {
+            name: planDisplayName,
+          }),
+        );
         return true;
       }
 
@@ -934,7 +936,7 @@ export function useProfileData() {
     resolvedCategories,
     selectedCategoryIds,
     activeLanguageItems,
-    accessRequestsEnabled,
+    accessRequestsEnabled: effectiveAccessRequestsEnabled,
     pendingSubscriptionRequest,
     pendingLanguageUnlockRequest,
     latestRejectedSubscriptionRequest,
