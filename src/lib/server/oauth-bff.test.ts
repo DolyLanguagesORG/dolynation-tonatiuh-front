@@ -52,7 +52,7 @@ describe("oauth-bff server utilities", () => {
     const encoded = serializeOAuthTransaction({
       state: "state-1",
       codeVerifier: "v".repeat(43),
-      redirectUri: "https://stagingweb.dolynation.app/api/auth/oauth/google/callback",
+      redirectUri: "https://stagingplay.dolynation.app/api/auth/oauth/google/callback",
       origin: "register",
       redirectTarget: "/select-plan",
       locale: "en",
@@ -61,7 +61,7 @@ describe("oauth-bff server utilities", () => {
     expect(parseOAuthTransaction(encoded)).toEqual({
       state: "state-1",
       codeVerifier: "v".repeat(43),
-      redirectUri: "https://stagingweb.dolynation.app/api/auth/oauth/google/callback",
+      redirectUri: "https://stagingplay.dolynation.app/api/auth/oauth/google/callback",
       origin: "register",
       redirectTarget: "/select-plan",
       locale: "en",
@@ -75,11 +75,11 @@ describe("oauth-bff server utilities", () => {
     const req = new NextRequest("http://0.0.0.0:3000/api/auth/oauth/google", {
       headers: {
         "x-forwarded-proto": "https",
-        "x-forwarded-host": "stagingweb.dolynation.app",
+        "x-forwarded-host": "stagingplay.dolynation.app",
       },
     });
 
-    expect(resolvePublicOrigin(req)).toBe("https://stagingweb.dolynation.app");
+    expect(resolvePublicOrigin(req)).toBe("https://stagingplay.dolynation.app");
     expect(
       resolvePublicOrigin(
         req,
