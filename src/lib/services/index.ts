@@ -5,6 +5,10 @@ import {
 import { adminService, createAdminService } from "@/lib/services/admin-service";
 import { authService, createAuthService } from "@/lib/services/auth-service";
 import {
+  billingService,
+  createBillingService,
+} from "@/lib/services/billing-service";
+import {
   contentService,
   createContentService,
 } from "@/lib/services/content-service";
@@ -38,6 +42,7 @@ import { createUsersService, usersService } from "@/lib/services/users-service";
 export * from "@/lib/services/access-requests-service";
 export * from "@/lib/services/admin-service";
 export * from "@/lib/services/auth-service";
+export * from "@/lib/services/billing-service";
 export * from "@/lib/services/content-service";
 export * from "@/lib/services/evaluation-service";
 export * from "@/lib/services/history-service";
@@ -56,6 +61,7 @@ export const apiServices = {
   auth: authService,
   users: usersService,
   subscriptions: subscriptionsService,
+  billing: billingService,
   settings: settingsService,
   readings: readingsService,
   content: contentService,
@@ -71,6 +77,7 @@ export const serviceFactories = {
   createAuthService,
   createUsersService,
   createSubscriptionsService,
+  createBillingService,
   createSettingsService,
   createReadingsService,
   createContentService,
