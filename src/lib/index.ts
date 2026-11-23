@@ -41,6 +41,11 @@ export {
 } from "@/lib/reading-utils";
 export * from "@/lib/services";
 export {
+  dolyStripeAppearance,
+  formatBillingAmount,
+  getStripePromise,
+} from "@/lib/stripe-appearance";
+export {
   DEFAULT_DIFFICULTIES,
   DEFAULT_LANGUAGES,
   DEFAULT_SIZES,

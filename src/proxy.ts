@@ -10,6 +10,8 @@ const PROTECTED_PREFIXES = [
   "/profile",
   "/select-plan",
   "/setup-preferences",
+  "/billing",
+  "/checkout",
 ] as const;
 
 function requiresServerSessionRedirect(pathname: string): boolean {

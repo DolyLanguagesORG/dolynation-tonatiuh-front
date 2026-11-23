@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 
 import { FloatingLocaleSelector } from "@/components/layout/floating-locale-selector";
+import { TurnstileField, useTurnstile } from "@/components/security";
 import {
   ActionLink,
   Alert,
@@ -34,6 +35,7 @@ import { evaluatePasswordStrength } from "@/lib/password-strength";
 export function ResetPasswordView() {
   const { locale, t } = useLocale();
   const rp = t.auth.resetPassword;
+  const captcha = useTurnstile("reset_password");
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = useMemo(
@@ -97,7 +99,15 @@ export function ResetPasswordView() {
     setIsSubmitting(true);
 
     try {
-      await authService.resetPassword({ token, password });
+      const captchaToken = await captcha.execute("reset_password");
+      if (captchaToken) {
+        await authService.resetPassword(
+          { token, password },
+          { captchaToken },
+        );
+      } else {
+        await authService.resetPassword({ token, password });
+      }
       setIsSuccess(true);
     } catch (err) {
       if (err instanceof ApiClientError) {
@@ -112,6 +122,7 @@ export function ResetPasswordView() {
         });
       }
     } finally {
+      captcha.reset();
       setIsSubmitting(false);
     }
   };
@@ -257,6 +268,8 @@ export function ResetPasswordView() {
                   if (confirmError) setConfirmError(null);
                 }}
               />
+
+              <TurnstileField containerRef={captcha.containerRef} />
 
               <Button
                 type="submit"

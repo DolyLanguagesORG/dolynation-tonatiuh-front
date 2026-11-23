@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { type FormEvent, useEffect, useState } from "react";
 
+import { useTurnstile } from "@/components/security";
 import { useAuth } from "@/context";
 import { type ToastAction, useToast } from "@/context/toast-context";
 import { formatMessage, useLocale } from "@/i18n";
@@ -88,6 +89,7 @@ export function useStudyParameters(
   const router = useRouter();
   const { locale, t } = useLocale();
   const toast = useToast();
+  const captcha = useTurnstile("reading_generate");
   const {
     user,
     languagesSettings,
@@ -529,7 +531,10 @@ export function useStudyParameters(
       if (onGenerate) {
         onGenerate(finalParams);
       } else {
-        const generated = await studyClient.generateReading(finalParams);
+        const captchaToken = await captcha.execute("reading_generate");
+        const generated = captchaToken
+          ? await studyClient.generateReading(finalParams, { captchaToken })
+          : await studyClient.generateReading(finalParams);
         const readyMsg = formatMessage(t.study.readingGeneratedSuccess, {
           title: generated.title,
         });
@@ -551,6 +556,7 @@ export function useStudyParameters(
         });
       }
     } finally {
+      captcha.reset();
       setIsSubmitting(false);
     }
   };
@@ -558,6 +564,7 @@ export function useStudyParameters(
   return {
     locale,
     t,
+    captchaContainerRef: captcha.containerRef,
     activePlanLanguages,
     isPreferencesBlocked,
     missingLanguagesForGeneration,

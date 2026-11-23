@@ -29,6 +29,32 @@ export type QueryParams = Record<
   string | number | boolean | undefined | null
 >;
 
+/** Cabecera HTTP estándar usada para enviar el token anti-bot de Cloudflare Turnstile. */
+export const CAPTCHA_TOKEN_HEADER = "x-captcha-token";
+
+export type CaptchaProvider = "disabled" | "turnstile";
+export type CaptchaAppearance = "interaction-only" | "always" | "execute";
+export type CaptchaAction =
+  | "register"
+  | "login"
+  | "forgot_password"
+  | "resend_verification"
+  | "reset_password"
+  | "billing_checkout"
+  | "billing_setup_intent"
+  | "subscription_select"
+  | "access_request"
+  | "reading_generate"
+  | "ia_chat"
+  | (string & {});
+
+export interface CaptchaConfigResponse {
+  enabled: boolean;
+  provider: CaptchaProvider;
+  siteKey: string | null;
+  appearance: CaptchaAppearance;
+}
+
 /**
  * Opciones compartidas por el transporte HTTP del navegador (`/api/v1/*`)
  * y el transporte directo para Server Components (`BACKEND_INTERNAL_URL`).
@@ -37,6 +63,7 @@ export interface ApiRequestOptions extends Omit<RequestInit, "body"> {
   query?: QueryParams;
   body?: unknown;
   accessToken?: string | null;
+  captchaToken?: string | null;
   skipAuth?: boolean;
   _isRetryAfterRefresh?: boolean;
   timeoutMs?: number;
@@ -217,6 +244,14 @@ export interface StreakResponse {
 // Suscripciones (`/subscriptions`, `/user/subscription`)
 // ============================================================================
 
+export interface SubscriptionPlanPricing {
+  isFree: boolean;
+  checkoutRequired: boolean;
+  amountCents: number | null;
+  currency: string;
+  interval: string | null;
+}
+
 export interface SubscriptionPlanItem {
   id: SubscriptionTier;
   name: string;
@@ -226,6 +261,7 @@ export interface SubscriptionPlanItem {
   allowedLanguages: TargetLanguageCode[];
   dailyReadingsLimit: number | null;
   dailyQuestionsLimit: number | null;
+  pricing?: SubscriptionPlanPricing;
 }
 
 export interface SubscriptionUsage {
@@ -241,15 +277,138 @@ export interface SubscriptionUsage {
   questionsRemainingToday: number | null;
 }
 
+export type BillingProvider = "manual" | "stripe";
+export type BillingUiMode = "custom" | "hosted";
+export type PaidSubscriptionTier = "dolly_plus" | "dolly_pro";
+
+export interface UserBillingInfo {
+  provider: BillingProvider;
+  status: string | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+}
+
 export interface UserSubscriptionResponse {
   hasSubscription: boolean;
   tier: SubscriptionTier | null;
   plan: SubscriptionPlanItem | null;
   usage: SubscriptionUsage;
+  billing?: UserBillingInfo | null;
 }
 
 export interface SelectSubscriptionInput {
   tier: SubscriptionTier;
+}
+
+// ============================================================================
+// Facturación y Pagos (`/billing`)
+// ============================================================================
+
+export interface BillingPlanPricing {
+  tier: SubscriptionTier;
+  isFree: boolean;
+  checkoutRequired: boolean;
+  amountCents: number | null;
+  currency: string;
+  interval: string | null;
+}
+
+export interface BillingOneTimePricing {
+  checkoutRequired: boolean;
+  amountCents: number | null;
+  currency: string;
+}
+
+export interface BillingConfigResponse {
+  provider: BillingProvider;
+  publishableKey: string | null;
+  currency: string;
+  uiMode: BillingUiMode;
+  plans: BillingPlanPricing[];
+  languageUnlock: BillingOneTimePricing;
+}
+
+export interface CreateSubscriptionCheckoutInput {
+  tier: PaidSubscriptionTier;
+  uiMode?: BillingUiMode;
+}
+
+export interface CreateLanguageUnlockCheckoutInput {
+  uiMode?: BillingUiMode;
+}
+
+export interface CheckoutSessionResponse {
+  sessionId: string;
+  clientSecret: string | null;
+  url: string | null;
+  publishableKey: string;
+  uiMode: BillingUiMode;
+  tier: PaidSubscriptionTier | null;
+}
+
+export interface SetupIntentResponse {
+  setupIntentId: string;
+  clientSecret: string;
+  publishableKey: string;
+}
+
+export interface SetDefaultPaymentMethodInput {
+  paymentMethodId: string;
+}
+
+export interface ChangeSubscriptionPlanInput {
+  tier: PaidSubscriptionTier;
+}
+
+export interface BillingPaymentMethodSummary {
+  brand: string | null;
+  last4: string | null;
+  expMonth: number | null;
+  expYear: number | null;
+}
+
+export interface BillingSubscriptionSummary {
+  status: string;
+  tier: SubscriptionTier;
+  currentPeriodStart: string | null;
+  currentPeriodEnd: string | null;
+  cancelAtPeriodEnd: boolean;
+  canceledAt: string | null;
+  paymentMethod: BillingPaymentMethodSummary | null;
+}
+
+export interface BillingRecentPayment {
+  id: number;
+  kind: string;
+  tier: SubscriptionTier | null;
+  amountCents: number;
+  currency: string;
+  status: string;
+  fulfilledAt: string | null;
+  createdAt: string;
+}
+
+export interface BillingStatusResponse {
+  provider: BillingProvider;
+  tier: SubscriptionTier | null;
+  subscription: BillingSubscriptionSummary | null;
+  recentPayments: BillingRecentPayment[];
+}
+
+export interface BillingInvoice {
+  id: string;
+  number: string | null;
+  status: string | null;
+  amountPaidCents: number;
+  amountDueCents: number;
+  currency: string;
+  createdAt: string;
+  invoicePdfUrl: string | null;
+  hostedInvoiceUrl: string | null;
+}
+
+export interface BillingPortalResponse {
+  url: string;
 }
 
 // ============================================================================
