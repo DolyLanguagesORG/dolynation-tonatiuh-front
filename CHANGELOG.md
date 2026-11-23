@@ -11,6 +11,13 @@ un PR de release contra `develop` que sube la versión y escribe esta sección; 
 mergearlo se crean el tag anotado y la GitHub Release. Ver
 [`conventions/versioning.md`](https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs/blob/develop/conventions/versioning.md).
 
+## [0.15.0](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.14.1...v0.15.0) (2026-11-23)
+
+
+### Features
+
+* **ui:** integra boton y bff de inicio de sesion con microsoft oauth ([#170](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/170)) ([f7ce91a](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/f7ce91a7e0e4d04655bd5db8da769c1ca00b6c9a))
+
 ## [0.14.1](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.14.0...v0.14.1) (2026-11-23)
 
 
