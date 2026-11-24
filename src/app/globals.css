@@ -232,3 +232,15 @@ body {
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
+
+/* Modal dialog scroll containment and editorial B&W backdrop */
+dialog:modal {
+  overscroll-behavior: contain;
+}
+
+dialog::backdrop {
+  background: rgb(0 0 0 / 0.45);
+  backdrop-filter: blur(1px);
+  overflow: hidden;
+  overscroll-behavior: contain;
+}

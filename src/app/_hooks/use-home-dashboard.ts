@@ -12,10 +12,13 @@ import {
 } from "@/i18n";
 import {
   formatReadingLanguageBadge,
+  friendsService,
+  type FriendStreakDto,
   getDateLocale,
   getDifficultyMeta,
   type ReadingDifficulty,
   type ReadingDto,
+  type ReadingOriginType,
   readingsService,
   subscriptionsService,
   type SubscriptionUsage,
@@ -34,6 +37,7 @@ export interface HomeReadingItem {
   statusLabel: string;
   isCompleted: boolean;
   hasScore: boolean;
+  originType?: ReadingOriginType;
   title: string;
   excerpt: string;
   durationLabel: string;
@@ -98,6 +102,7 @@ export function mapDtoToHomeReading(
         : cardDict.readingCard.statusPendingEvaluation,
     isCompleted,
     hasScore,
+    ...(dto.originType ? { originType: dto.originType } : {}),
     title: dto.title,
     excerpt,
     durationLabel: `${mins} ${cardDict.readingCard.minReadUnit}`,
@@ -140,6 +145,7 @@ export function useHomeDashboard() {
     false,
   ]);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const [friendStreaks, setFriendStreaks] = useState<FriendStreakDto[]>([]);
 
   const shouldLoadLive = isAuthenticated && accessPhase === "ready";
   const fetchKey = shouldLoadLive ? `${user?.id ?? "me"}-${locale}` : null;
@@ -158,6 +164,7 @@ export function useHomeDashboard() {
       usersService.getStreak({ days: 7 }),
       subscriptionsService.getCurrentSubscription(),
       usersService.getProfile(),
+      friendsService.listStreaks(),
     ])
       .then(
         ([
@@ -166,6 +173,7 @@ export function useHomeDashboard() {
           streakRes,
           subscriptionRes,
           profileRes,
+          friendStreaksRes,
         ]) => {
           if (cancelled) return;
 
@@ -219,6 +227,15 @@ export function useHomeDashboard() {
           ) {
             setSubscriptionUsage(subscriptionRes.value.data.usage);
           }
+
+          if (
+            friendStreaksRes.status === "fulfilled" &&
+            Array.isArray(friendStreaksRes.value.data)
+          ) {
+            setFriendStreaks(friendStreaksRes.value.data);
+          } else {
+            setFriendStreaks([]);
+          }
         },
       )
       .finally(() => {
@@ -259,6 +276,16 @@ export function useHomeDashboard() {
     );
   });
 
+  const pendingFriendStreaks = friendStreaks.filter((item) => {
+    const todayReadingId =
+      item.todayReadingId ?? item.today?.myReadingId ?? null;
+    return (
+      item.status === "active" &&
+      !item.myCompletedToday &&
+      todayReadingId !== null
+    );
+  });
+
   return {
     locale,
     t,
@@ -269,6 +296,7 @@ export function useHomeDashboard() {
     streakDaysCount,
     weeklyActiveDays,
     subscriptionUsage,
+    pendingFriendStreaks,
     isLoadingData,
     searchQuery,
     setSearchQuery,

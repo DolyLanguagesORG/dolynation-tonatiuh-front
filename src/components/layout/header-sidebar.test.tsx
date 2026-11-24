@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "@jest/globals";
 import type { ReactNode } from "react";
@@ -342,10 +342,15 @@ describe("Header & Sidebar layout", () => {
     expect(drawer).toHaveTextContent("sebastian rodriguez");
     expect(drawer).toHaveTextContent("sebastianrdzc04@gmail.com");
 
-    const profileLink = screen.getByRole("link", {
+    const profileLink = within(drawer).getByRole("link", {
       name: /Perfil y Progreso/i,
     });
     expect(profileLink).toHaveAttribute("href", "/profile");
+
+    const friendsLink = within(drawer).getByRole("link", {
+      name: /Amigos/i,
+    });
+    expect(friendsLink).toHaveAttribute("href", "/friends");
 
     const closeBtn = screen.getByRole("button", { name: /Cerrar menú/i });
     await user.click(closeBtn);
@@ -391,6 +396,7 @@ describe("Header & Sidebar layout", () => {
     expect(screen.queryByRole("link", { name: /Inicio/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Mis Lecturas/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Glosario/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Amigos/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /NUEVA LECTURA/i })).not.toBeInTheDocument();
     expect(screen.queryByText(/días/i)).not.toBeInTheDocument();
   });

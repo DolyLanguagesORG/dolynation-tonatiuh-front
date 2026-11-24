@@ -129,6 +129,16 @@ export function RecentReadingsSection({
                     <Badge variant={reading.difficultyVariant}>
                       {reading.difficultyLabel}
                     </Badge>
+                    {reading.originType === "friend_copy" && (
+                      <Badge variant="outline">
+                        {t.readings.originFriendCopyBadge}
+                      </Badge>
+                    )}
+                    {reading.originType === "friend_streak" && (
+                      <Badge variant="outline">
+                        {t.readings.originFriendStreakBadge}
+                      </Badge>
+                    )}
                     <span className="text-xs text-muted">
                       • {reading.timestampLabel}
                     </span>
