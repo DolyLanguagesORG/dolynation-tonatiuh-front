@@ -314,6 +314,79 @@ describe("StudyParametersForm", () => {
     ).toHaveAttribute("href", "/readings");
   });
 
+  it("on a generation timeout says nothing was created and retries with the same parameters", async () => {
+    const user = userEvent.setup();
+    const langSettings = {
+      catalog: [],
+      selected: ["en" as const],
+      active: ["en" as const],
+      maxLanguages: 1,
+      canChangeFree: false,
+      nextFreeChangeAt: null,
+      lastLanguageChangeAt: null,
+      languageChangeCredits: 0,
+    };
+
+    mockAuthValue = {
+      user: { id: 1, email: "u@test.com", subscriptionTier: "dolly" },
+      categoriesSettings: {
+        catalog: [],
+        selected: ["technology", "history", "education"],
+      },
+      languagesSettings: langSettings,
+      onboarding: {
+        emailVerified: true,
+        hasSelectedPlan: true,
+        subscriptionPlan: "dolly",
+        selectedLanguages: ["en"],
+        selectedCategories: ["technology", "history", "education"],
+        hasConfiguredLanguages: true,
+        hasConfiguredCategories: true,
+        canGenerateReadings: true,
+        isOnboardingComplete: true,
+      },
+      refreshPreferences: mockRefreshPreferences,
+    };
+    jest.spyOn(settingsService, "getLanguages").mockResolvedValue({
+      message: "OK",
+      data: langSettings,
+    });
+    const generateSpy = jest
+      .spyOn(readingsService, "generate")
+      .mockRejectedValueOnce(
+        new ApiClientError({
+          code: ErrorCode.AI_GENERATION_TIMEOUT,
+          status: 504,
+        }),
+      )
+      .mockResolvedValueOnce({ message: "Created", data: makeReadingDto(77) });
+
+    render(<StudyParametersForm variant="standalone" />, { wrapper: Wrapper });
+    const submitBtn = await screen.findByRole("button", {
+      name: dictionaries.es.study.generateButton,
+    });
+    await waitFor(() => expect(submitBtn).toBeEnabled());
+
+    await user.click(submitBtn);
+    expect(
+      await screen.findByText(
+        resolveErrorMessage(ErrorCode.AI_GENERATION_TIMEOUT, "es"),
+      ),
+    ).toBeInTheDocument();
+    // Ya no manda a "lecturas pendientes": la lectura no se creó.
+    expect(
+      screen.queryByRole("link", { name: /Ver lecturas pendientes/i }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: dictionaries.es.study.retryGeneration }),
+    );
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith("/readings/77"));
+    expect(generateSpy).toHaveBeenCalledTimes(2);
+    expect(generateSpy.mock.calls[1]?.[0]).toEqual(generateSpy.mock.calls[0]?.[0]);
+  });
+
   it("surfaces READING_DAILY_LIMIT_REACHED (T5) and CATEGORY_DAILY_LIMIT_REACHED (T9) cleanly", async () => {
     const user = userEvent.setup();
     const dollyLangSettings = {

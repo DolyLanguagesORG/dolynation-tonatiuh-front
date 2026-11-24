@@ -423,6 +423,9 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
       body: outboundBody,
       redirect: "manual",
       cache: "no-store",
+      // Si el navegador se desconecta, el backend se entera y cancela el trabajo en curso
+      // (por ejemplo, no guarda una lectura que el usuario ya no está esperando).
+      signal: request.signal,
     });
   } catch {
     return apiError(
@@ -464,6 +467,7 @@ async function proxy(request: NextRequest, path: string[]): Promise<Response> {
           body: outboundBody,
           redirect: "manual",
           cache: "no-store",
+          signal: request.signal,
         });
       } catch {
         return apiError(

@@ -149,4 +149,72 @@ test.describe("Cloudflare Turnstile invisible anti-bot UI integration", () => {
     expect(loginSuccessReqs).toHaveLength(1);
     expect(loginSuccessReqs[0]?.captchaToken).toBe("cf-e2e-token-login-1");
   });
+
+  test("sends X-Captcha-Token for billing_checkout on /select-plan with Stripe and skips /auth/me polling on focus", async ({
+    page,
+    context,
+    baseURL,
+  }) => {
+    const backend = await attachMockBackend(page, context, baseURL!, {
+      initialAuthenticated: true,
+      initialUser: {
+        subscriptionTier: null,
+        emailVerifiedAt: "2026-11-13T00:00:00.000Z",
+      },
+      billingProvider: "stripe",
+      accessRequestsEnabled: false,
+      captchaConfig: {
+        enabled: true,
+        provider: "turnstile",
+        siteKey: "1x00000000000000000000AA",
+        appearance: "interaction-only",
+      },
+    });
+
+    await page.route(
+      "https://challenges.cloudflare.com/turnstile/v0/api.js*",
+      async (route) => {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/javascript; charset=utf-8",
+          body: TURNSTILE_STUB_SCRIPT,
+        });
+      },
+    );
+
+    await page.goto("/select-plan");
+    const continueButton = page.getByRole("button", {
+      name: /Confirmar plan y configurar preferencias/i,
+    });
+    await expect(continueButton).toBeVisible();
+
+    const meCallsBeforeFocus = backend.state.requests.filter(
+      (r) => r.method === "GET" && r.path === "/auth/me",
+    ).length;
+
+    await page.evaluate(() => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    await page.waitForTimeout(150);
+
+    const meCallsAfterFocus = backend.state.requests.filter(
+      (r) => r.method === "GET" && r.path === "/auth/me",
+    ).length;
+    expect(meCallsAfterFocus).toBe(meCallsBeforeFocus);
+
+    await continueButton.click();
+
+    await expect
+      .poll(() =>
+        backend.state.requests.find(
+          (r) =>
+            r.method === "POST" && r.path === "/billing/checkout/subscription",
+        ),
+      )
+      .toMatchObject({
+        method: "POST",
+        path: "/billing/checkout/subscription",
+        captchaToken: "cf-e2e-token-billing_checkout-0",
+      });
+  });
 });

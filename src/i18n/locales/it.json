@@ -571,6 +571,7 @@
     "generationBlockedBoth": "Devi selezionare almeno una lingua target e registrare 3 categorie preferite prima di generare nuove letture.",
     "missingParameterTitle": "Parametro mancante",
     "viewPendingReadings": "Vedi letture in sospeso",
+    "retryGeneration": "Riprova la generazione",
     "viewPlanAndUsage": "Vedi piano e consumo",
     "wordsUnit": "parole",
     "couldNotSaveTitle": "Impossibile salvare",

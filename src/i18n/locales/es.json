@@ -571,6 +571,7 @@
     "generationBlockedBoth": "Debes seleccionar al menos un idioma meta de estudio y registrar 3 categorías favoritas en tu cuenta antes de generar nuevas lecturas.",
     "missingParameterTitle": "Parámetro incompleto",
     "viewPendingReadings": "Ver lecturas pendientes",
+    "retryGeneration": "Reintentar generación",
     "viewPlanAndUsage": "Ver plan y consumo",
     "wordsUnit": "palabras",
     "couldNotSaveTitle": "No se pudo guardar",
