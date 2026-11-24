@@ -63,6 +63,9 @@ export interface MockReading {
   language: TargetLanguageCode;
   wordCount: number;
   status: "pending" | "completed";
+  originType?: "personal" | "friend_copy" | "friend_streak";
+  sourceReadingId?: number | null;
+  friendStreakDayId?: number | null;
   score: number | null;
   feedback: string | null;
   userResponse: string | null;
@@ -70,6 +73,87 @@ export interface MockReading {
   createdAt: string;
   updatedAt: string | null;
   deletedAt: string | null;
+}
+
+export interface MockFriend {
+  userId: number;
+  friendshipId: number;
+  fullName: string | null;
+  email?: string | null;
+  since: string;
+}
+
+export interface MockFriendRequest {
+  id: number;
+  status: "pending" | "accepted" | "rejected" | "cancelled";
+  origin: "email" | "invite_link";
+  requesterId: number;
+  addresseeId: number;
+  requesterName: string | null;
+  requesterEmail?: string | null;
+  addresseeName: string | null;
+  addresseeEmail?: string | null;
+  createdAt: string;
+  respondedAt: string | null;
+}
+
+export interface MockFriendInviteLink {
+  id: number;
+  token: string;
+  inviterUserId: number;
+  inviterName: string;
+  maxUses: number | null;
+  usesCount: number;
+  expiresAt: string;
+  revokedAt: string | null;
+  createdAt: string;
+}
+
+export interface MockBlockedUser {
+  userId: number;
+  fullName: string | null;
+  email?: string | null;
+  blockedAt: string;
+}
+
+export interface MockFriendReading {
+  id: number;
+  title: string;
+  description: string;
+  content: string;
+  category: string | null;
+  difficulty: "easy" | "medium" | "hard" | null;
+  language: TargetLanguageCode;
+  wordCount: number | null;
+  createdAt: string;
+}
+
+export interface MockFriendStreak {
+  id: number;
+  friendshipId: number;
+  partnerUserId: number;
+  partnerName: string | null;
+  initiatedByUserId: number;
+  isInitiator?: boolean;
+  awaitingMyAcceptance?: boolean;
+  status: "pending_partner" | "active" | "paused" | "ended";
+  myCategories: string[];
+  partnerCategories: string[];
+  categoryPool: string[];
+  language: TargetLanguageCode;
+  difficulty: "easy" | "medium" | "hard";
+  size: "short" | "medium" | "long";
+  currentStreak: number;
+  longestStreak: number;
+  lastCompletedDate: string | null;
+  startedAt: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  myCompletedToday: boolean;
+  partnerCompletedToday: boolean;
+  todayReadingId: number | null;
+  todayCategory?: string | null;
+  todayStatus?: "pending" | "completed" | "missed" | "generation_failed" | null;
 }
 
 export interface MockGlossaryEntry {
@@ -121,6 +205,14 @@ export interface MockBackendConfig {
   initialAdminUsers?: MockAdminUser[];
   initialReadingsCreatedToday?: number;
   initialCategoriesEvaluatedToday?: string[];
+  initialFriends?: MockFriend[];
+  initialIncomingFriendRequests?: MockFriendRequest[];
+  initialOutgoingFriendRequests?: MockFriendRequest[];
+  initialFriendInviteLinks?: MockFriendInviteLink[];
+  initialBlockedUsers?: MockBlockedUser[];
+  initialFriendReadingsByUserId?: Record<number, MockFriendReading[]>;
+  initialFriendCategoriesByUserId?: Record<number, string[]>;
+  initialFriendStreaks?: MockFriendStreak[];
   oauthProviders?: Array<{
     provider: "google" | "microsoft";
     enabled: boolean;
@@ -235,6 +327,14 @@ export interface MockBackendHandle {
     explanations: MockGlossaryEntry[];
     accessRequests: MockAccessRequest[];
     adminUsers: MockAdminUser[];
+    friends: MockFriend[];
+    incomingFriendRequests: MockFriendRequest[];
+    outgoingFriendRequests: MockFriendRequest[];
+    friendInviteLinks: MockFriendInviteLink[];
+    blockedUsers: MockBlockedUser[];
+    friendReadingsByUserId: Record<number, MockFriendReading[]>;
+    friendCategoriesByUserId: Record<number, string[]>;
+    friendStreaks: MockFriendStreak[];
     requests: {
       method: string;
       path: string;
@@ -282,6 +382,7 @@ export async function attachMockBackend(
   let nextExplanationId = 500;
   let nextAccessRequestId =
     Math.max(10, ...(config.initialAccessRequests ?? []).map((r) => r.id)) + 1;
+  let nextFriendEntityId = 900;
 
   const seededAdminUsers: MockAdminUser[] =
     config.initialAdminUsers ??
@@ -320,6 +421,16 @@ export async function attachMockBackend(
     explanations: [...(config.initialExplanations ?? [])],
     accessRequests: [...(config.initialAccessRequests ?? [])],
     adminUsers: seededAdminUsers,
+    friends: [...(config.initialFriends ?? [])],
+    incomingFriendRequests: [...(config.initialIncomingFriendRequests ?? [])],
+    outgoingFriendRequests: [...(config.initialOutgoingFriendRequests ?? [])],
+    friendInviteLinks: [...(config.initialFriendInviteLinks ?? [])],
+    blockedUsers: [...(config.initialBlockedUsers ?? [])],
+    friendReadingsByUserId: { ...(config.initialFriendReadingsByUserId ?? {}) },
+    friendCategoriesByUserId: {
+      ...(config.initialFriendCategoriesByUserId ?? {}),
+    },
+    friendStreaks: [...(config.initialFriendStreaks ?? [])],
     requests: [],
   };
 
@@ -625,6 +736,66 @@ export async function attachMockBackend(
     if (apiPath === "/auth/logout-all" && method === "POST") {
       await setSessionCookie(false);
       return okResponse(route, null);
+    }
+
+    const publicInvitePreviewMatch = /^\/friends\/invite-links\/([^/]+)$/.exec(
+      apiPath,
+    );
+    if (publicInvitePreviewMatch && method === "GET") {
+      const token = decodeURIComponent(publicInvitePreviewMatch[1]);
+      const link = state.friendInviteLinks.find((item) => item.token === token);
+      if (!link) {
+        return okResponse(route, {
+          inviterName: "",
+          valid: false,
+          expiresAt: null,
+          alreadyFriends: false,
+          reason: "not_found",
+        });
+      }
+      if (link.revokedAt) {
+        return okResponse(route, {
+          inviterName: link.inviterName,
+          valid: false,
+          expiresAt: link.expiresAt,
+          alreadyFriends: false,
+          reason: "revoked",
+        });
+      }
+      if (link.maxUses !== null && link.usesCount >= link.maxUses) {
+        return okResponse(route, {
+          inviterName: link.inviterName,
+          valid: false,
+          expiresAt: link.expiresAt,
+          alreadyFriends: false,
+          reason: "exhausted",
+        });
+      }
+      if (new Date(link.expiresAt).getTime() <= Date.now()) {
+        return okResponse(route, {
+          inviterName: link.inviterName,
+          valid: false,
+          expiresAt: link.expiresAt,
+          alreadyFriends: false,
+          reason: "expired",
+        });
+      }
+      const isOwnLink =
+        state.sessionActive && state.user
+          ? link.inviterUserId === state.user.id
+          : false;
+      const alreadyFriends =
+        state.sessionActive && state.user
+          ? state.friends.some((f) => f.userId === link.inviterUserId)
+          : false;
+      return okResponse(route, {
+        inviterName: link.inviterName,
+        valid: true,
+        expiresAt: link.expiresAt,
+        alreadyFriends,
+        isOwnLink,
+        reason: null,
+      });
     }
 
     if (!state.sessionActive || !state.user) {
@@ -1334,6 +1505,19 @@ export async function attachMockBackend(
       reading.feedback = "Excelente comprensión estructural del texto.";
       reading.userResponse = body.userResponse ?? "";
       reading.updatedAt = new Date().toISOString();
+      for (const streak of state.friendStreaks) {
+        if (streak.todayReadingId === reading.id) {
+          streak.myCompletedToday = true;
+          if (streak.partnerCompletedToday) {
+            streak.currentStreak += 1;
+            streak.longestStreak = Math.max(
+              streak.longestStreak,
+              streak.currentStreak,
+            );
+            streak.todayStatus = "completed";
+          }
+        }
+      }
       return okResponse(route, {
         score: reading.score,
         passed: true,
@@ -1387,6 +1571,586 @@ export async function attachMockBackend(
       return okResponse(route, {
         text: "Respuesta académica simulada del tutor DolyNation.",
       });
+    }
+
+    if (apiPath.startsWith("/friends")) {
+      if ((state.user.role ?? "student") === "admin") {
+        return errorResponse(
+          route,
+          403,
+          "RESOURCE_FORBIDDEN",
+          "Friends module is only available for students.",
+        );
+      }
+
+      if (apiPath === "/friends" && method === "GET") {
+        const search = (reqUrl.searchParams.get("search") ?? "")
+          .trim()
+          .toLowerCase();
+        const page = Math.max(1, Number(reqUrl.searchParams.get("page") ?? "1"));
+        const limit = Math.max(
+          1,
+          Number(reqUrl.searchParams.get("limit") ?? "12"),
+        );
+        const filtered = state.friends.filter((friend) =>
+          search
+            ? (friend.fullName ?? "").toLowerCase().includes(search) ||
+              (friend.email ?? "").toLowerCase().includes(search)
+            : true,
+        );
+        const start = (page - 1) * limit;
+        const items = filtered.slice(start, start + limit).map((friend) => {
+          const streak = state.friendStreaks.find(
+            (s) => s.partnerUserId === friend.userId && s.status === "active",
+          );
+          return {
+            ...friend,
+            activeStreak: streak
+              ? {
+                  id: streak.id,
+                  status: streak.status,
+                  currentStreak: streak.currentStreak,
+                  longestStreak: streak.longestStreak,
+                  language: streak.language,
+                  myCompletedToday: streak.myCompletedToday,
+                  partnerCompletedToday: streak.partnerCompletedToday,
+                  todayReadingId: streak.todayReadingId,
+                }
+              : null,
+          };
+        });
+        return okResponse(route, {
+          items,
+          total: filtered.length,
+          page,
+          limit,
+          totalPages: Math.max(1, Math.ceil(filtered.length / limit)),
+        });
+      }
+
+      if (apiPath === "/friends/requests/by-email" && method === "POST") {
+        const body = (parsedBody ?? {}) as { email?: string };
+        const email = body.email?.trim() ?? "";
+        if (!email || !email.includes("@")) {
+          return errorResponse(
+            route,
+            400,
+            "VALIDATION_ERROR",
+            "Valid email required.",
+          );
+        }
+        if (email.toLowerCase() === state.user.email.toLowerCase()) {
+          return errorResponse(
+            route,
+            400,
+            "FRIENDSHIP_SELF_ACTION_NOT_ALLOWED",
+            "Cannot friend yourself.",
+          );
+        }
+        const created: MockFriendRequest = {
+          id: ++nextFriendEntityId,
+          status: "pending",
+          origin: "email",
+          requesterId: state.user.id,
+          addresseeId: nextFriendEntityId + 50,
+          requesterName: state.user.fullName,
+          requesterEmail: state.user.email,
+          addresseeName: email.split("@")[0],
+          addresseeEmail: email,
+          createdAt: new Date().toISOString(),
+          respondedAt: null,
+        };
+        state.outgoingFriendRequests.unshift(created);
+        return okResponse(route, created, 201);
+      }
+
+      if (apiPath === "/friends/requests/incoming" && method === "GET") {
+        return okResponse(
+          route,
+          state.incomingFriendRequests.filter((r) => r.status === "pending"),
+        );
+      }
+
+      if (apiPath === "/friends/requests/outgoing" && method === "GET") {
+        return okResponse(
+          route,
+          state.outgoingFriendRequests.filter((r) => r.status === "pending"),
+        );
+      }
+
+      const acceptReqMatch = /^\/friends\/requests\/(\d+)\/accept$/.exec(
+        apiPath,
+      );
+      if (acceptReqMatch && method === "POST") {
+        const reqId = Number(acceptReqMatch[1]);
+        const target = state.incomingFriendRequests.find((r) => r.id === reqId);
+        if (!target) {
+          return errorResponse(route, 404, "FRIENDSHIP_NOT_FOUND", "Not found");
+        }
+        target.status = "accepted";
+        target.respondedAt = new Date().toISOString();
+        if (!state.friends.some((f) => f.userId === target.requesterId)) {
+          state.friends.unshift({
+            userId: target.requesterId,
+            friendshipId: target.id,
+            fullName: target.requesterName,
+            email: target.requesterEmail,
+            since: target.respondedAt,
+          });
+        }
+        return okResponse(route, target);
+      }
+
+      const rejectReqMatch = /^\/friends\/requests\/(\d+)\/reject$/.exec(
+        apiPath,
+      );
+      if (rejectReqMatch && method === "POST") {
+        const reqId = Number(rejectReqMatch[1]);
+        const target = state.incomingFriendRequests.find((r) => r.id === reqId);
+        if (!target) {
+          return errorResponse(route, 404, "FRIENDSHIP_NOT_FOUND", "Not found");
+        }
+        target.status = "rejected";
+        target.respondedAt = new Date().toISOString();
+        return okResponse(route, target);
+      }
+
+      const cancelReqMatch = /^\/friends\/requests\/(\d+)$/.exec(apiPath);
+      if (cancelReqMatch && method === "DELETE") {
+        const reqId = Number(cancelReqMatch[1]);
+        state.outgoingFriendRequests = state.outgoingFriendRequests.filter(
+          (r) => r.id !== reqId,
+        );
+        return okResponse(route, null);
+      }
+
+      if (apiPath === "/friends/invite-links" && method === "GET") {
+        return okResponse(
+          route,
+          state.friendInviteLinks
+            .filter((link) => link.inviterUserId === state.user!.id)
+            .map((link) => ({
+              ...link,
+              url: `${urlObj.origin}/friends/invite/${link.token}`,
+            })),
+        );
+      }
+
+      if (apiPath === "/friends/invite-links" && method === "POST") {
+        const body = (parsedBody ?? {}) as { maxUses?: number | null };
+        const id = ++nextFriendEntityId;
+        const token = `invite-${id}`;
+        const link: MockFriendInviteLink = {
+          id,
+          token,
+          inviterUserId: state.user.id,
+          inviterName: state.user.fullName ?? state.user.email,
+          maxUses: body.maxUses === 1 ? 1 : null,
+          usesCount: 0,
+          expiresAt: new Date(
+            Date.now() + 7 * 24 * 60 * 60 * 1000,
+          ).toISOString(),
+          revokedAt: null,
+          createdAt: new Date().toISOString(),
+        };
+        state.friendInviteLinks.unshift(link);
+        return okResponse(
+          route,
+          { ...link, url: `${urlObj.origin}/friends/invite/${link.token}` },
+          201,
+        );
+      }
+
+      const revokeLinkMatch = /^\/friends\/invite-links\/(\d+)$/.exec(apiPath);
+      if (revokeLinkMatch && method === "DELETE") {
+        const linkId = Number(revokeLinkMatch[1]);
+        const link = state.friendInviteLinks.find((l) => l.id === linkId);
+        if (link) {
+          link.revokedAt = new Date().toISOString();
+        }
+        return okResponse(route, null);
+      }
+
+      const acceptInviteMatch =
+        /^\/friends\/invite-links\/([^/]+)\/accept$/.exec(apiPath);
+      if (acceptInviteMatch && method === "POST") {
+        const token = decodeURIComponent(acceptInviteMatch[1]);
+        const link = state.friendInviteLinks.find((l) => l.token === token);
+        if (!link || link.revokedAt) {
+          return errorResponse(
+            route,
+            400,
+            "FRIENDSHIP_INVITE_LINK_INVALID",
+            "Invalid invite link.",
+          );
+        }
+        link.usesCount += 1;
+        const friendshipId = ++nextFriendEntityId;
+        if (!state.friends.some((f) => f.userId === link.inviterUserId)) {
+          state.friends.unshift({
+            userId: link.inviterUserId,
+            friendshipId,
+            fullName: link.inviterName,
+            since: new Date().toISOString(),
+          });
+        }
+        return okResponse(route, {
+          friendshipId,
+          friendUserId: link.inviterUserId,
+          friendName: link.inviterName,
+          status: "accepted",
+        });
+      }
+
+      const declineInviteMatch =
+        /^\/friends\/invite-links\/([^/]+)\/decline$/.exec(apiPath);
+      if (declineInviteMatch && method === "POST") {
+        return okResponse(route, null);
+      }
+
+      if (apiPath === "/friends/blocks" && method === "GET") {
+        return okResponse(route, [...state.blockedUsers]);
+      }
+
+      const blockUserMatch = /^\/friends\/blocks\/(\d+)$/.exec(apiPath);
+      if (blockUserMatch) {
+        const targetId = Number(blockUserMatch[1]);
+        if (method === "POST") {
+          const removedFriend = state.friends.find((f) => f.userId === targetId);
+          state.friends = state.friends.filter((f) => f.userId !== targetId);
+          state.friendStreaks = state.friendStreaks.filter(
+            (s) => s.partnerUserId !== targetId,
+          );
+          if (!state.blockedUsers.some((u) => u.userId === targetId)) {
+            state.blockedUsers.unshift({
+              userId: targetId,
+              fullName: removedFriend?.fullName ?? `Usuario ${targetId}`,
+              blockedAt: new Date().toISOString(),
+            });
+          }
+          return okResponse(route, null);
+        }
+        if (method === "DELETE") {
+          state.blockedUsers = state.blockedUsers.filter(
+            (u) => u.userId !== targetId,
+          );
+          return okResponse(route, null);
+        }
+      }
+
+      if (apiPath === "/friends/streaks" && method === "GET") {
+        return okResponse(
+          route,
+          state.friendStreaks.filter((s) => s.status !== "ended"),
+        );
+      }
+
+      const streakAcceptMatch = /^\/friends\/streaks\/(\d+)\/accept$/.exec(
+        apiPath,
+      );
+      if (streakAcceptMatch && method === "POST") {
+        const streakId = Number(streakAcceptMatch[1]);
+        const body = (parsedBody ?? {}) as { categories?: string[] };
+        const categories = (body.categories ?? []).filter(Boolean);
+        if (categories.length !== 2) {
+          return errorResponse(
+            route,
+            400,
+            "FRIEND_STREAK_CATEGORIES_INVALID",
+            "Select exactly 2 categories.",
+          );
+        }
+        const streak = state.friendStreaks.find((s) => s.id === streakId);
+        if (!streak) {
+          return errorResponse(route, 404, "FRIENDSHIP_NOT_FOUND", "Not found");
+        }
+        streak.status = "active";
+        streak.myCategories = categories;
+        streak.categoryPool = Array.from(
+          new Set([...categories, ...streak.partnerCategories]),
+        );
+        streak.awaitingMyAcceptance = false;
+        streak.startedAt = streak.startedAt ?? new Date().toISOString();
+        const todayId = ++nextReadingId;
+        streak.todayReadingId = todayId;
+        streak.todayCategory = streak.categoryPool[0] ?? categories[0];
+        streak.todayStatus = "pending";
+        state.readings.unshift({
+          id: todayId,
+          userId: state.user.id,
+          title: `Shared Daily Reading (${streak.partnerName ?? "Friend"})`,
+          description: "Daily shared streak reading",
+          content:
+            "Daily streak content prepared for private reflection and evaluation.",
+          category: streak.todayCategory,
+          difficulty: streak.difficulty,
+          language: streak.language,
+          wordCount: 240,
+          status: "pending",
+          originType: "friend_streak",
+          score: null,
+          feedback: null,
+          userResponse: null,
+          passed: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: null,
+          deletedAt: null,
+        });
+        return okResponse(route, { ...streak });
+      }
+
+      const streakRejectMatch = /^\/friends\/streaks\/(\d+)\/reject$/.exec(
+        apiPath,
+      );
+      if (streakRejectMatch && method === "POST") {
+        const streakId = Number(streakRejectMatch[1]);
+        state.friendStreaks = state.friendStreaks.filter(
+          (s) => s.id !== streakId,
+        );
+        return okResponse(route, null);
+      }
+
+      const streakCatsMatch = /^\/friends\/streaks\/(\d+)\/categories$/.exec(
+        apiPath,
+      );
+      if (streakCatsMatch && method === "PATCH") {
+        const streakId = Number(streakCatsMatch[1]);
+        const body = (parsedBody ?? {}) as { categories?: string[] };
+        const categories = (body.categories ?? []).filter(Boolean);
+        const streak = state.friendStreaks.find((s) => s.id === streakId);
+        if (!streak || categories.length !== 2) {
+          return errorResponse(
+            route,
+            400,
+            "FRIEND_STREAK_CATEGORIES_INVALID",
+            "Invalid streak categories.",
+          );
+        }
+        streak.myCategories = categories;
+        streak.categoryPool = Array.from(
+          new Set([...categories, ...streak.partnerCategories]),
+        );
+        return okResponse(route, { ...streak });
+      }
+
+      const streakIdMatch = /^\/friends\/streaks\/(\d+)$/.exec(apiPath);
+      if (streakIdMatch) {
+        const streakId = Number(streakIdMatch[1]);
+        if (method === "GET") {
+          const streak = state.friendStreaks.find((s) => s.id === streakId);
+          return streak
+            ? okResponse(route, streak)
+            : errorResponse(route, 404, "FRIENDSHIP_NOT_FOUND", "Not found");
+        }
+        if (method === "DELETE") {
+          state.friendStreaks = state.friendStreaks.filter(
+            (s) => s.id !== streakId,
+          );
+          return okResponse(route, null);
+        }
+      }
+
+      const friendReadingsMatch = /^\/friends\/(\d+)\/readings$/.exec(apiPath);
+      if (friendReadingsMatch && method === "GET") {
+        const friendId = Number(friendReadingsMatch[1]);
+        const list = state.friendReadingsByUserId[friendId] ?? [];
+        const safeItems = list.map((item) => ({
+          id: item.id,
+          title: item.title,
+          description: item.description,
+          category: item.category,
+          difficulty: item.difficulty,
+          language: item.language,
+          wordCount: item.wordCount,
+          createdAt: item.createdAt,
+        }));
+        return okResponse(route, {
+          items: safeItems,
+          total: safeItems.length,
+          page: 1,
+          limit: 12,
+          totalPages: 1,
+        });
+      }
+
+      const friendReadingStartMatch =
+        /^\/friends\/(\d+)\/readings\/(\d+)\/start$/.exec(apiPath);
+      if (friendReadingStartMatch && method === "POST") {
+        const friendId = Number(friendReadingStartMatch[1]);
+        const sourceId = Number(friendReadingStartMatch[2]);
+        const source = (state.friendReadingsByUserId[friendId] ?? []).find(
+          (r) => r.id === sourceId,
+        );
+        if (!source) {
+          return errorResponse(route, 404, "RESOURCE_NOT_FOUND", "Not found");
+        }
+        const existing = state.readings.find(
+          (r) =>
+            !r.deletedAt &&
+            r.originType === "friend_copy" &&
+            r.sourceReadingId === sourceId,
+        );
+        if (existing) {
+          return okResponse(route, {
+            readingId: existing.id,
+            reading: existing,
+            alreadyExisted: true,
+          });
+        }
+        const copyId = ++nextReadingId;
+        const created: MockReading = {
+          id: copyId,
+          userId: state.user.id,
+          title: source.title,
+          description: source.description,
+          content: source.content,
+          category: source.category ?? "General",
+          difficulty: source.difficulty ?? "medium",
+          language: source.language,
+          wordCount: source.wordCount ?? 200,
+          status: "pending",
+          originType: "friend_copy",
+          sourceReadingId: sourceId,
+          score: null,
+          feedback: null,
+          userResponse: null,
+          passed: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: null,
+          deletedAt: null,
+        };
+        state.readings.unshift(created);
+        return okResponse(
+          route,
+          { readingId: copyId, reading: created, alreadyExisted: false },
+          201,
+        );
+      }
+
+      const friendReadingDetailMatch =
+        /^\/friends\/(\d+)\/readings\/(\d+)$/.exec(apiPath);
+      if (friendReadingDetailMatch && method === "GET") {
+        const friendId = Number(friendReadingDetailMatch[1]);
+        const readingId = Number(friendReadingDetailMatch[2]);
+        const source = (state.friendReadingsByUserId[friendId] ?? []).find(
+          (r) => r.id === readingId,
+        );
+        if (!source) {
+          return errorResponse(route, 404, "RESOURCE_NOT_FOUND", "Not found");
+        }
+        return okResponse(route, {
+          id: source.id,
+          title: source.title,
+          description: source.description,
+          category: source.category,
+          difficulty: source.difficulty,
+          language: source.language,
+          wordCount: source.wordCount,
+          createdAt: source.createdAt,
+          content: source.content,
+        });
+      }
+
+      const friendCatsCopyMatch =
+        /^\/friends\/(\d+)\/categories\/copy$/.exec(apiPath);
+      if (friendCatsCopyMatch && method === "POST") {
+        const body = (parsedBody ?? {}) as { categories?: string[] };
+        const incoming = body.categories ?? [];
+        const maxCats = activePlan.maxCategories ?? 999;
+        const activated: string[] = [];
+        const savedOnly: string[] = [];
+        const skipped: string[] = [];
+
+        for (const cat of incoming) {
+          const alreadyHave = state.selectedCategories.some(
+            (c) => c.toLowerCase() === cat.toLowerCase(),
+          );
+          if (alreadyHave) {
+            skipped.push(cat);
+          } else if (state.selectedCategories.length < maxCats) {
+            state.selectedCategories.push(cat);
+            activated.push(cat);
+          } else {
+            savedOnly.push(cat);
+          }
+        }
+
+        return okResponse(route, {
+          copied: [...activated, ...savedOnly],
+          activated,
+          savedOnly,
+          skipped,
+        });
+      }
+
+      const friendCatsMatch = /^\/friends\/(\d+)\/categories$/.exec(apiPath);
+      if (friendCatsMatch && method === "GET") {
+        const friendId = Number(friendCatsMatch[1]);
+        const friend = state.friends.find((f) => f.userId === friendId);
+        return okResponse(route, {
+          friendUserId: friendId,
+          friendName: friend?.fullName ?? null,
+          categories: state.friendCategoriesByUserId[friendId] ?? [],
+        });
+      }
+
+      const proposeStreakMatch = /^\/friends\/(\d+)\/streak$/.exec(apiPath);
+      if (proposeStreakMatch && method === "POST") {
+        const friendId = Number(proposeStreakMatch[1]);
+        const friend = state.friends.find((f) => f.userId === friendId);
+        const body = (parsedBody ?? {}) as {
+          categories?: string[];
+          language?: TargetLanguageCode;
+          difficulty?: "easy" | "medium" | "hard";
+          size?: "short" | "medium" | "long";
+        };
+        const categories = (body.categories ?? []).filter(Boolean);
+        if (categories.length !== 2) {
+          return errorResponse(
+            route,
+            400,
+            "FRIEND_STREAK_CATEGORIES_INVALID",
+            "Select 2 categories.",
+          );
+        }
+        const created: MockFriendStreak = {
+          id: ++nextFriendEntityId,
+          friendshipId: friend?.friendshipId ?? nextFriendEntityId,
+          partnerUserId: friendId,
+          partnerName: friend?.fullName ?? "Friend",
+          initiatedByUserId: state.user.id,
+          isInitiator: true,
+          awaitingMyAcceptance: false,
+          status: "pending_partner",
+          myCategories: categories,
+          partnerCategories: [],
+          categoryPool: categories,
+          language: body.language ?? "en",
+          difficulty: body.difficulty ?? "medium",
+          size: body.size ?? "medium",
+          currentStreak: 0,
+          longestStreak: 0,
+          lastCompletedDate: null,
+          startedAt: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: null,
+          myCompletedToday: false,
+          partnerCompletedToday: false,
+          todayReadingId: null,
+        };
+        state.friendStreaks.unshift(created);
+        return okResponse(route, created, 201);
+      }
+
+      const friendRemoveMatch = /^\/friends\/(\d+)$/.exec(apiPath);
+      if (friendRemoveMatch && method === "DELETE") {
+        const friendId = Number(friendRemoveMatch[1]);
+        state.friends = state.friends.filter((f) => f.userId !== friendId);
+        state.friendStreaks = state.friendStreaks.filter(
+          (s) => s.partnerUserId !== friendId,
+        );
+        return okResponse(route, null);
+      }
     }
 
     return errorResponse(
