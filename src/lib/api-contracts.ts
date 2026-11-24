@@ -481,6 +481,8 @@ export interface ReadingOptionsResponse {
   cefrLevels: CefrLevel[];
 }
 
+export type ReadingOriginType = "personal" | "friend_copy" | "friend_streak";
+
 export interface ReadingDto {
   id: number;
   userId: number;
@@ -496,6 +498,9 @@ export interface ReadingDto {
   feedback: string | null;
   userResponse: string | null;
   passed: boolean | null;
+  originType?: ReadingOriginType;
+  sourceReadingId?: number | null;
+  friendStreakDayId?: number | null;
   createdAt: string;
   updatedAt: string | null;
   deletedAt: string | null;
@@ -772,6 +777,229 @@ export interface ReviewAccessRequestResponse {
 export interface AdminUserDetail {
   user: AdminUserRow;
   requests: AdminAccessRequest[];
+}
+
+// ============================================================================
+// Amistades, Invitaciones, Lecturas/Categorías de Amigos y Rachas (`/friends`)
+// ============================================================================
+
+export type FriendshipStatus =
+  | "pending"
+  | "accepted"
+  | "rejected"
+  | "cancelled";
+
+export type FriendshipOrigin = "email" | "invite_link";
+
+export type FriendStreakStatus =
+  | "pending_partner"
+  | "active"
+  | "paused"
+  | "ended";
+
+export type FriendStreakDayStatus =
+  | "pending"
+  | "completed"
+  | "missed"
+  | "generation_failed";
+
+export interface FriendActiveStreakBadgeDto {
+  id: number;
+  status: FriendStreakStatus;
+  currentStreak: number;
+  longestStreak: number;
+  language: TargetLanguageCode;
+  myCompletedToday?: boolean;
+  partnerCompletedToday?: boolean;
+  todayReadingId?: number | null;
+}
+
+export interface FriendSummaryDto {
+  userId: number;
+  friendshipId: number;
+  fullName: string | null;
+  email?: string | null;
+  since: string;
+  activeStreak?: FriendActiveStreakBadgeDto | null;
+}
+
+export interface FriendsPaginationQuery extends QueryParams {
+  page?: number;
+  limit?: number;
+  search?: string;
+}
+
+export interface FriendsListResponseDto {
+  items: FriendSummaryDto[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface FriendRequestDto {
+  id: number;
+  status: FriendshipStatus;
+  origin: FriendshipOrigin;
+  direction?: "incoming" | "outgoing";
+  requesterId: number;
+  addresseeId: number;
+  requesterName: string | null;
+  requesterEmail?: string | null;
+  addresseeName: string | null;
+  addresseeEmail?: string | null;
+  createdAt: string;
+  respondedAt: string | null;
+}
+
+export interface CreateFriendRequestByEmailInput {
+  email: string;
+}
+
+export interface FriendInviteLinkDto {
+  id: number;
+  token?: string;
+  url?: string;
+  maxUses: number | null;
+  usesCount: number;
+  expiresAt: string;
+  revokedAt: string | null;
+  createdAt: string;
+}
+
+export interface CreateFriendInviteLinkInput {
+  maxUses?: number | null;
+  expiresInDays?: number;
+}
+
+export interface FriendInviteLinkPreviewDto {
+  inviterName: string;
+  valid: boolean;
+  expiresAt: string | null;
+  alreadyFriends: boolean;
+  isOwnLink?: boolean;
+  reason?: "expired" | "revoked" | "exhausted" | "not_found" | null;
+}
+
+export interface AcceptFriendInviteLinkResponseDto {
+  friendshipId: number;
+  friendUserId: number;
+  friendName: string | null;
+  status: FriendshipStatus;
+}
+
+export interface BlockedUserDto {
+  userId: number;
+  fullName: string | null;
+  email?: string | null;
+  blockedAt: string;
+}
+
+/**
+ * Vista privada de lectura de un amigo: nunca expone estado, calificación, respuesta ni feedback.
+ */
+export interface FriendReadingListItemDto {
+  id: number;
+  title: string;
+  description: string;
+  category: string | null;
+  difficulty: ReadingDifficulty | null;
+  language: TargetLanguageCode;
+  wordCount: number | null;
+  createdAt: string;
+}
+
+export interface FriendReadingDetailDto extends FriendReadingListItemDto {
+  content: string;
+}
+
+export interface FriendReadingsListResponseDto {
+  items: FriendReadingListItemDto[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+export interface StartFriendReadingResponseDto {
+  readingId?: number;
+  id?: number;
+  reading?: ReadingDto;
+  alreadyExisted?: boolean;
+}
+
+export interface FriendCategoriesDto {
+  friendUserId: number;
+  friendName: string | null;
+  categories: string[];
+  activeCategories?: string[];
+  savedCategories?: string[];
+}
+
+export interface CopyFriendCategoriesInput {
+  categories: string[];
+}
+
+export interface CopyFriendCategoriesResponseDto {
+  copied: string[];
+  activated: string[];
+  savedOnly: string[];
+  skipped: string[];
+}
+
+export interface FriendStreakDayDto {
+  id: number;
+  streakId: number;
+  streakDate: string;
+  category: string;
+  status: FriendStreakDayStatus;
+  myReadingId: number | null;
+  myCompletedToday: boolean;
+  partnerCompletedToday: boolean;
+}
+
+export interface FriendStreakDto {
+  id: number;
+  friendshipId: number;
+  partnerUserId: number;
+  partnerName: string | null;
+  initiatedByUserId: number;
+  isInitiator?: boolean;
+  awaitingMyAcceptance?: boolean;
+  status: FriendStreakStatus;
+  myCategories: string[];
+  partnerCategories: string[];
+  categoryPool: string[];
+  language: TargetLanguageCode;
+  difficulty: ReadingDifficulty;
+  size: ReadingSize;
+  currentStreak: number;
+  longestStreak: number;
+  lastCompletedDate: string | null;
+  startedAt: string | null;
+  createdAt: string;
+  updatedAt: string | null;
+  myCompletedToday: boolean;
+  partnerCompletedToday: boolean;
+  todayReadingId: number | null;
+  todayCategory?: string | null;
+  todayStatus?: FriendStreakDayStatus | null;
+  today?: FriendStreakDayDto | null;
+}
+
+export interface ProposeFriendStreakInput {
+  categories: string[];
+  language: TargetLanguageCode;
+  difficulty: ReadingDifficulty;
+  size: ReadingSize;
+}
+
+export interface AcceptFriendStreakInput {
+  categories: string[];
+}
+
+export interface UpdateFriendStreakCategoriesInput {
+  categories: string[];
 }
 
 // ============================================================================

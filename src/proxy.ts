@@ -7,6 +7,7 @@ const PROTECTED_PREFIXES = [
   "/readings",
   "/history",
   "/glossary",
+  "/friends",
   "/profile",
   "/select-plan",
   "/setup-preferences",
@@ -15,6 +16,9 @@ const PROTECTED_PREFIXES = [
 ] as const;
 
 function requiresServerSessionRedirect(pathname: string): boolean {
+  if (pathname === "/friends/invite" || pathname.startsWith("/friends/invite/")) {
+    return false;
+  }
   if (pathname === "/") {
     return true;
   }

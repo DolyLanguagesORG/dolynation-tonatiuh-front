@@ -6,7 +6,12 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 import { useTurnstile } from "@/components/security";
 import { sanitizeRedirectPath, useAuth } from "@/context";
 import { useLocale } from "@/i18n";
-import { ApiClientError, ErrorCode, resolveErrorMessage } from "@/lib";
+import {
+  ApiClientError,
+  ErrorCode,
+  resolveErrorMessage,
+  savePendingInviteRedirect,
+} from "@/lib";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -86,6 +91,12 @@ export function useRegisterFlow() {
   } | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (redirectTarget.startsWith("/friends/invite/")) {
+      savePendingInviteRedirect(redirectTarget);
+    }
+  }, [redirectTarget]);
 
   const oauthErrorParam = searchParams.get("oauthError");
   useEffect(() => {

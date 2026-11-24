@@ -202,6 +202,62 @@ describe("RouteAccessGuard & RequireAuth", () => {
     expect(screen.getByText("Admin Panel")).toBeInTheDocument();
   });
 
+  it("consumes pending invite redirect for already authenticated ready users on auth pages", () => {
+    window.sessionStorage.setItem(
+      "doly.pending_invite_redirect",
+      "/friends/invite/tok-123",
+    );
+    mockAuthState = {
+      isLoading: false,
+      isAuthenticated: true,
+      accessPhase: "ready",
+      onboarding: {
+        hasSelectedPlan: true,
+        canGenerateReadings: true,
+      },
+    };
+    mockPathname = "/login";
+
+    render(
+      <RouteAccessGuard>
+        <div>Login</div>
+      </RouteAccessGuard>,
+    );
+
+    expect(mockReplace).toHaveBeenCalledWith("/friends/invite/tok-123");
+    expect(
+      window.sessionStorage.getItem("doly.pending_invite_redirect"),
+    ).toBeNull();
+  });
+
+  it("allows unauthenticated and onboarded users to view public /friends/invite/[token] links without forced redirect", () => {
+    mockPathname = "/friends/invite/public-token-1";
+
+    for (const phase of [
+      "unauthenticated",
+      "unverified_email",
+      "plan_required",
+      "ready",
+      "admin",
+    ] as const) {
+      mockReplace.mockClear();
+      mockAuthState = {
+        isLoading: false,
+        isAuthenticated: phase !== "unauthenticated",
+        accessPhase: phase,
+      };
+      const { unmount } = render(
+        <RouteAccessGuard>
+          <div>Invite Preview</div>
+        </RouteAccessGuard>,
+      );
+
+      expect(mockReplace).not.toHaveBeenCalled();
+      expect(screen.getByText("Invite Preview")).toBeInTheDocument();
+      unmount();
+    }
+  });
+
   it("blocks ready student users from RequireAdmin and redirects to /", () => {
     mockAuthState = {
       isLoading: false,

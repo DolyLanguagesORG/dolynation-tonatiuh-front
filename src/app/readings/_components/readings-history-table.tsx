@@ -35,6 +35,7 @@ import {
   formatReadingLanguageBadge,
   getDifficultyMeta,
   type ReadingDto,
+  type ReadingOriginType,
 } from "@/lib";
 
 export interface ReadingsHistoryTableProps {
@@ -51,9 +52,23 @@ export interface ReadingsHistoryTableProps {
   onDeleteReading: (readingId: number) => Promise<boolean>;
 }
 
+function resolveOriginBadgeLabel(
+  originType: ReadingOriginType | undefined,
+  t: Dictionary,
+): string | null {
+  if (originType === "friend_copy") {
+    return t.readings.originFriendCopyBadge;
+  }
+  if (originType === "friend_streak") {
+    return t.readings.originFriendStreakBadge;
+  }
+  return null;
+}
+
 function buildReadingRowPresentation(
   reading: ReadingDto,
   fallbackLocale: Locale,
+  t: Dictionary,
 ) {
   const cardLanguage = resolveReadingLanguage(reading.language, fallbackLocale);
   const cardDict = getReadingFlowDictionary(cardLanguage);
@@ -63,6 +78,7 @@ function buildReadingRowPresentation(
   const categoryLabel = (
     reading.category ?? cardDict.readingCard.defaultCategory
   ).toUpperCase();
+  const originBadge = resolveOriginBadgeLabel(reading.originType, t);
 
   return {
     cardLanguage,
@@ -71,6 +87,7 @@ function buildReadingRowPresentation(
     estMinutes,
     isEvaluated,
     categoryLabel,
+    originBadge,
   };
 }
 
@@ -253,7 +270,8 @@ export function ReadingsHistoryTable({
                   estMinutes,
                   isEvaluated,
                   categoryLabel,
-                } = buildReadingRowPresentation(reading, locale);
+                  originBadge,
+                } = buildReadingRowPresentation(reading, locale, t);
 
                 return (
                   <DataTableRow key={reading.id} lang={cardLanguage}>
@@ -268,6 +286,11 @@ export function ReadingsHistoryTable({
                         {categoryLabel} • {estMinutes}{" "}
                         {cardDict.readings.estimatedReadUnit}
                       </p>
+                      {originBadge && (
+                        <div className="mt-1">
+                          <Badge variant="outline">{originBadge}</Badge>
+                        </div>
+                      )}
                     </DataTableCell>
 
                     <DataTableCell>
@@ -327,7 +350,8 @@ export function ReadingsHistoryTable({
             diffMeta,
             isEvaluated,
             categoryLabel,
-          } = buildReadingRowPresentation(reading, locale);
+            originBadge,
+          } = buildReadingRowPresentation(reading, locale, t);
 
           return (
             <Card
@@ -345,6 +369,7 @@ export function ReadingsHistoryTable({
                   <Badge variant={diffMeta.badgeVariant}>
                     {diffMeta.label}
                   </Badge>
+                  {originBadge && <Badge variant="outline">{originBadge}</Badge>}
                 </div>
 
                 {isEvaluated ? (

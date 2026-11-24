@@ -53,7 +53,13 @@ export const ROUTE_SELECT_PLAN = "/select-plan";
 export const ROUTE_SETUP_PREFERENCES = "/setup-preferences";
 export const ROUTE_BILLING_RETURN = "/billing/return";
 export const ROUTE_CHECKOUT = "/checkout";
+export const ROUTE_FRIENDS = "/friends";
+export const ROUTE_FRIENDS_INVITE = "/friends/invite";
 export const ROUTE_ADMIN = "/admin";
+
+export const FRIENDS_INVITE_ROUTES: readonly RoutePolicyEntry[] = [
+  { path: ROUTE_FRIENDS_INVITE, match: "prefix" },
+];
 
 /**
  * Únicas rutas operativas accesibles para cuentas con rol `admin`.
@@ -94,6 +100,7 @@ export const PUBLIC_ROUTES: readonly RoutePolicyEntry[] = [
   { path: "/privacy", match: "exact" },
   { path: "/support", match: "exact" },
   { path: "/design-system", match: "exact" },
+  ...FRIENDS_INVITE_ROUTES,
 ];
 
 /**
@@ -115,6 +122,7 @@ export const LOADING_PASS_THROUGH_ROUTES: readonly RoutePolicyEntry[] = [
   { path: ROUTE_VERIFY_EMAIL, match: "exact" },
   { path: "/forgot-password", match: "exact" },
   { path: "/reset-password", match: "exact" },
+  ...FRIENDS_INVITE_ROUTES,
   ...INFORMATIONAL_ROUTES,
 ];
 
@@ -141,6 +149,7 @@ export const MINIMAL_SHELL_ROUTES: readonly RoutePolicyEntry[] = [
   { path: ROUTE_SETUP_PREFERENCES, match: "exact" },
   { path: ROUTE_BILLING_RETURN, match: "exact" },
   { path: ROUTE_CHECKOUT, match: "exact" },
+  ...FRIENDS_INVITE_ROUTES,
   ...INFORMATIONAL_ROUTES,
 ];
 
@@ -229,6 +238,7 @@ export function createRouteAccessPolicy(config: RouteAccessPolicyConfig = {}) {
         { path: "/setup-preferences", match: "exact" },
         { path: ROUTE_BILLING_RETURN, match: "exact" },
         { path: ROUTE_CHECKOUT, match: "exact" },
+        ...FRIENDS_INVITE_ROUTES,
       ]);
     },
 
@@ -244,11 +254,13 @@ export function createRouteAccessPolicy(config: RouteAccessPolicyConfig = {}) {
     evaluate(context: RouteAccessContext): RouteAccessDecision {
       const normalized = normalizeRoutePath(context.pathname);
 
-      // El enlace firmado enviado al correo debe poder abrirse desde cualquier pestaña.
+      // El enlace firmado enviado al correo, las rutas informativas y los links
+      // públicos de invitación de amistad deben poder abrirse sin expulsión automática.
       if (
         (context.hasVerifyToken && normalized === ROUTE_VERIFY_EMAIL) ||
         normalized === "/reset-password" ||
-        matchesRoutePolicy(normalized, INFORMATIONAL_ROUTES)
+        matchesRoutePolicy(normalized, INFORMATIONAL_ROUTES) ||
+        matchesRoutePolicy(normalized, FRIENDS_INVITE_ROUTES)
       ) {
         return { allowed: true, redirectTo: null, reason: "allowed" };
       }

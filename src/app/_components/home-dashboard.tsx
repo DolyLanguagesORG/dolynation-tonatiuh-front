@@ -1,5 +1,6 @@
 "use client";
 
+import { FriendStreaksBanner } from "@/app/_components/friend-streaks-banner";
 import { OnboardingGateBanner } from "@/app/_components/onboarding-gate-banner";
 import { QuickGenerateCard } from "@/app/_components/quick-generate-card";
 import { RecentReadingsSection } from "@/app/_components/recent-readings-section";
@@ -66,6 +67,8 @@ export function HomeDashboard() {
         weeklyActiveDays={home.weeklyActiveDays}
         isAuthenticated={isAuthenticated}
       />
+
+      <FriendStreaksBanner t={t} streaks={home.pendingFriendStreaks} />
 
       <QuickGenerateCard
         t={t}

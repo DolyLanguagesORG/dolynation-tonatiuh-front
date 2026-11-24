@@ -17,6 +17,10 @@ import {
   evaluationService,
 } from "@/lib/services/evaluation-service";
 import {
+  createFriendsService,
+  friendsService,
+} from "@/lib/services/friends-service";
+import {
   createHistoryService,
   historyService,
 } from "@/lib/services/history-service";
@@ -49,6 +53,7 @@ export * from "@/lib/services/auth-service";
 export * from "@/lib/services/billing-service";
 export * from "@/lib/services/content-service";
 export * from "@/lib/services/evaluation-service";
+export * from "@/lib/services/friends-service";
 export * from "@/lib/services/history-service";
 export * from "@/lib/services/ia-service";
 export * from "@/lib/services/readings-service";
@@ -71,6 +76,7 @@ export const apiServices = {
   readings: readingsService,
   content: contentService,
   evaluation: evaluationService,
+  friends: friendsService,
   history: historyService,
   ia: iaService,
   admin: adminService,
@@ -88,6 +94,7 @@ export const serviceFactories = {
   createReadingsService,
   createContentService,
   createEvaluationService,
+  createFriendsService,
   createHistoryService,
   createIaService,
   createAdminService,

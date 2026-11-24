@@ -24,6 +24,7 @@ import { formatMessage, useLocale } from "@/i18n";
 import {
   ApiClientError,
   type CatalogItem,
+  consumePendingInviteRedirect,
   DEFAULT_LANGUAGES,
   MIN_USER_CATEGORIES,
   type TargetLanguageCode,
@@ -245,7 +246,7 @@ export function SetupPreferencesView() {
         categories: effectiveCategories,
       });
       toast.success(sp.preferencesSavedSuccess);
-      router.replace("/");
+      router.replace(consumePendingInviteRedirect() ?? "/");
     } catch (error) {
       const msg =
         error instanceof ApiClientError
@@ -446,7 +447,7 @@ export function SetupPreferencesView() {
               variant="outline"
               size="md"
               disabled={isSaving}
-              onClick={() => router.replace("/")}
+              onClick={() => router.replace(consumePendingInviteRedirect() ?? "/")}
             >
               {sp.cancelButton}
             </Button>

@@ -224,4 +224,63 @@ describe("ReadingsHistoryTable per-row & per-card immersion", () => {
     expect(within(rowsIt[0]).getByText("PENDING")).toBeTruthy();
     expect(within(rowsIt[1]).getByRole("link", { name: "DÉTAIL" })).toBeTruthy();
   });
+
+  it("renders friend origin badges only when originType is friend_copy or friend_streak", () => {
+    const friendReadings: ReadingDto[] = [
+      {
+        ...MIXED_READINGS[0],
+        id: 101,
+        title: "Copied Reading",
+        originType: "friend_copy",
+      },
+      {
+        ...MIXED_READINGS[1],
+        id: 102,
+        title: "Shared Streak Reading",
+        originType: "friend_streak",
+      },
+      {
+        ...MIXED_READINGS[2],
+        id: 103,
+        title: "Personal Reading",
+        originType: "personal",
+      },
+    ];
+
+    render(
+      <ReadingsHistoryTable
+        t={dictionaries.es}
+        locale="es"
+        readings={friendReadings}
+        totalFilteredCount={3}
+        currentPage={1}
+        totalPages={1}
+        hasActiveFilters={false}
+        deletingId={null}
+        onPageChange={() => {}}
+        onResetFilters={() => {}}
+        onDeleteReading={async () => true}
+      />,
+    );
+
+    const rows = screen.getAllByRole("row").slice(1);
+    expect(
+      within(rows[0]).getByText(dictionaries.es.readings.originFriendCopyBadge),
+    ).toBeTruthy();
+    expect(
+      within(rows[1]).getByText(
+        dictionaries.es.readings.originFriendStreakBadge,
+      ),
+    ).toBeTruthy();
+    expect(
+      within(rows[2]).queryByText(
+        dictionaries.es.readings.originFriendCopyBadge,
+      ),
+    ).toBeNull();
+    expect(
+      within(rows[2]).queryByText(
+        dictionaries.es.readings.originFriendStreakBadge,
+      ),
+    ).toBeNull();
+  });
 });

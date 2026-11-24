@@ -19,6 +19,7 @@ import {
 } from "@/components/ui";
 import { useAuth } from "@/context";
 import { useLocale } from "@/i18n";
+import { friendsService } from "@/lib";
 
 export interface SidebarProps {
   isOpen: boolean;
@@ -33,14 +34,61 @@ interface NavItem {
   href: string;
   isActive: boolean;
   icon: IconName;
+  badgeCount?: number;
 }
 
 function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
   const pathname = usePathname();
   const { t } = useLocale();
-  const { accessPhase, user } = useAuth();
+  const { accessPhase, isAuthenticated, user } = useAuth();
   const isAdminSession =
     accessPhase === "admin" || user?.role === "admin";
+  const [pendingFriendsCount, setPendingFriendsCount] = useState(0);
+
+  useEffect(() => {
+    if (!isAuthenticated || isAdminSession || accessPhase !== "ready") {
+      return;
+    }
+
+    let cancelled = false;
+    Promise.allSettled([
+      friendsService.listIncomingRequests(),
+      friendsService.listStreaks(),
+    ])
+      .then(([requestsRes, streaksRes]) => {
+        if (cancelled) return;
+        const incomingCount =
+          requestsRes.status === "fulfilled" &&
+          Array.isArray(requestsRes.value.data)
+            ? requestsRes.value.data.filter((item) => item.status === "pending")
+                .length
+            : 0;
+        const pendingStreaksCount =
+          streaksRes.status === "fulfilled" &&
+          Array.isArray(streaksRes.value.data)
+            ? streaksRes.value.data.filter(
+                (item) =>
+                  item.status === "active" &&
+                  !item.myCompletedToday &&
+                  Boolean(item.todayReadingId),
+              ).length
+            : 0;
+        const total = incomingCount + pendingStreaksCount;
+        if (total > 0) {
+          setPendingFriendsCount(total);
+        }
+      })
+      .catch(() => undefined);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [accessPhase, isAdminSession, isAuthenticated, pathname]);
+
+  const visibleFriendsBadge =
+    isAuthenticated && !isAdminSession && accessPhase === "ready"
+      ? pendingFriendsCount
+      : 0;
 
   const navItems: NavItem[] = isAdminSession
     ? [
@@ -74,6 +122,14 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
           href: "/glossary",
           isActive: pathname.startsWith("/glossary"),
           icon: "bookmark",
+        },
+        {
+          id: "friends",
+          label: t.nav.friends,
+          href: "/friends",
+          isActive: pathname.startsWith("/friends"),
+          icon: "users",
+          badgeCount: visibleFriendsBadge,
         },
       ];
 
@@ -117,7 +173,15 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
                   ].join(" ")}
                 >
                   <Icon name={item.icon} size="sm" />
-                  <span>{item.label}</span>
+                  <span className="flex-1 truncate">{item.label}</span>
+                  {typeof item.badgeCount === "number" && item.badgeCount > 0 && (
+                    <span
+                      aria-label={t.friends.sidebarPendingAria}
+                      className="inline-flex min-w-5 items-center justify-center rounded-xs border border-default-strong bg-surface px-1 py-0.5 font-mono text-[10px] font-bold leading-none text-heading tabular-nums"
+                    >
+                      {item.badgeCount}
+                    </span>
+                  )}
                 </Link>
               </li>
             ))}
