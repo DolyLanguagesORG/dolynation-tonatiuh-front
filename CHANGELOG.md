@@ -11,6 +11,18 @@ un PR de release contra `develop` que sube la versión y escribe esta sección; 
 mergearlo se crean el tag anotado y la GitHub Release. Ver
 [`conventions/versioning.md`](https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs/blob/develop/conventions/versioning.md).
 
+## [0.16.0](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.15.0...v0.16.0) (2026-11-24)
+
+
+### Features
+
+* **ui:** configura favicons de Doly, SEO, Open Graph y manifiesto ([#175](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/175)) ([0d01005](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/0d01005db0078c43a6a3d69fee31200cd76eb95e))
+
+
+### Bug Fixes
+
+* **ui:** calcula los dias de la racha con la hora de Mexico ([#178](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/178)) ([b6d55d3](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/b6d55d3f50b80d99cc145b365a2001d3e23461c4)), closes [#176](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/176)
+
 ## [0.15.0](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.14.1...v0.15.0) (2026-11-23)
 
 
