@@ -11,6 +11,13 @@ un PR de release contra `develop` que sube la versión y escribe esta sección; 
 mergearlo se crean el tag anotado y la GitHub Release. Ver
 [`conventions/versioning.md`](https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs/blob/develop/conventions/versioning.md).
 
+## [0.16.1](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.16.0...v0.16.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* **ci:** construye imagenes amd64 y arm64 en runners nativos sin QEMU ([#182](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/182)) ([b6ed9d6](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/b6ed9d6df18cd64c5b3a65b30fa788609fcec649))
+
 ## [0.16.0](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.15.0...v0.16.0) (2026-11-24)
 
 
