@@ -63,7 +63,11 @@ export function useProfileData() {
     isLoading: isLoadingPlans,
     error: plansError,
   } = useSubscriptionPlans(locale);
-  const { config: billingConfig, isStripeActive } = useBillingConfig();
+  const {
+    config: billingConfig,
+    isStripeActive,
+    ensureConfig: ensureBillingConfig,
+  } = useBillingConfig();
   const effectiveAccessRequestsEnabled =
     accessRequestsEnabled && !isStripeActive;
   const captcha = useTurnstile(
@@ -535,10 +539,13 @@ export function useProfileData() {
 
     setIsUnlockingLanguage(true);
     try {
-      if (isStripeActive) {
+      // Se decide con la configuración real: si no carga, no se cae al desbloqueo manual.
+      const activeBilling = await ensureBillingConfig();
+      const stripeActive = activeBilling.provider === "stripe";
+      if (stripeActive) {
         const idemKey = createBillingIdempotencyKey("lang_unlock");
         const sessionRes = await billingService.createLanguageUnlockCheckout(
-          { uiMode: billingConfig.uiMode },
+          { uiMode: activeBilling.uiMode },
           idemKey,
         );
         if (sessionRes.data.uiMode === "hosted" && sessionRes.data.url) {
@@ -552,7 +559,7 @@ export function useProfileData() {
         return true;
       }
 
-      if (effectiveAccessRequestsEnabled) {
+      if (accessRequestsEnabled) {
         const captchaToken = await captcha.execute("access_request");
         const trimmed = message?.trim();
         const requestPayload = {
@@ -590,7 +597,9 @@ export function useProfileData() {
 
     setIsSavingPlan(true);
     try {
-      if (isStripeActive && (tier === "dolly_plus" || tier === "dolly_pro")) {
+      const activeBilling = await ensureBillingConfig();
+      const stripeActive = activeBilling.provider === "stripe";
+      if (stripeActive && (tier === "dolly_plus" || tier === "dolly_pro")) {
         const hasActiveStripe = Boolean(
           billingStatus?.subscription &&
             billingStatus.subscription.status !== "canceled",
@@ -601,7 +610,7 @@ export function useProfileData() {
 
         const idemKey = createBillingIdempotencyKey(`sub_${tier}`);
         const sessionRes = await billingService.createSubscriptionCheckout(
-          { tier, uiMode: billingConfig.uiMode },
+          { tier, uiMode: activeBilling.uiMode },
           idemKey,
         );
         if (sessionRes.data.uiMode === "hosted" && sessionRes.data.url) {
@@ -615,7 +624,7 @@ export function useProfileData() {
         return true;
       }
 
-      if (effectiveAccessRequestsEnabled) {
+      if (accessRequestsEnabled && !stripeActive) {
         const captchaToken = await captcha.execute("access_request");
         const trimmed = message?.trim();
         const requestPayload = {
