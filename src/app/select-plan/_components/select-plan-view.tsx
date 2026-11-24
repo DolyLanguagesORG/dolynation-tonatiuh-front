@@ -148,6 +148,7 @@ export function SelectPlanView() {
         stripeActive &&
         (effectivePlan === "dolly_plus" || effectivePlan === "dolly_pro")
       ) {
+        const captchaToken = await captcha.execute("billing_checkout");
         const idemKey = createBillingIdempotencyKey(`sub_${effectivePlan}`);
         const res = await billingService.createSubscriptionCheckout(
           {
@@ -155,6 +156,7 @@ export function SelectPlanView() {
             uiMode: activeBilling.uiMode,
           },
           idemKey,
+          captchaToken ? { captchaToken } : undefined,
         );
         if (res.data.uiMode === "hosted" && res.data.url) {
           if (typeof window !== "undefined") {

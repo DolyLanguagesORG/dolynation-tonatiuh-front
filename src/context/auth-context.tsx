@@ -870,14 +870,18 @@ export function AuthProvider({
       }
       lastVisibilitySyncRef.current = now;
 
+      const hasPendingRequest = Boolean(
+        accessRequestsState?.pendingSubscriptionRequest ||
+          accessRequestsState?.pendingLanguageUnlockRequest,
+      );
+      const isWaitlistEnabled = Boolean(accessRequestsState?.enabled);
+
       if (
-        subscriptionRequired ||
-        !user?.subscriptionTier ||
-        Boolean(accessRequestsState?.pendingSubscriptionRequest) ||
-        Boolean(accessRequestsState?.pendingLanguageUnlockRequest)
+        hasPendingRequest ||
+        (isWaitlistEnabled && (subscriptionRequired || !user?.subscriptionTier))
       ) {
         void reloadAccountState();
-      } else {
+      } else if (isWaitlistEnabled) {
         void refreshAccessRequests();
       }
     };
@@ -889,6 +893,7 @@ export function AuthProvider({
       document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
     };
   }, [
+    accessRequestsState?.enabled,
     accessRequestsState?.pendingLanguageUnlockRequest,
     accessRequestsState?.pendingSubscriptionRequest,
     refreshAccessRequests,

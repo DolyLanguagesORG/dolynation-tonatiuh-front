@@ -543,10 +543,12 @@ export function useProfileData() {
       const activeBilling = await ensureBillingConfig();
       const stripeActive = activeBilling.provider === "stripe";
       if (stripeActive) {
+        const captchaToken = await captcha.execute("billing_checkout");
         const idemKey = createBillingIdempotencyKey("lang_unlock");
         const sessionRes = await billingService.createLanguageUnlockCheckout(
           { uiMode: activeBilling.uiMode },
           idemKey,
+          captchaToken ? { captchaToken } : undefined,
         );
         if (sessionRes.data.uiMode === "hosted" && sessionRes.data.url) {
           if (typeof window !== "undefined") {
@@ -608,10 +610,12 @@ export function useProfileData() {
           return await handleChangePaidPlan(tier);
         }
 
+        const captchaToken = await captcha.execute("billing_checkout");
         const idemKey = createBillingIdempotencyKey(`sub_${tier}`);
         const sessionRes = await billingService.createSubscriptionCheckout(
           { tier, uiMode: activeBilling.uiMode },
           idemKey,
+          captchaToken ? { captchaToken } : undefined,
         );
         if (sessionRes.data.uiMode === "hosted" && sessionRes.data.url) {
           if (typeof window !== "undefined") {
@@ -756,12 +760,17 @@ export function useProfileData() {
     if (isManagingBilling) return;
     setIsManagingBilling(true);
     try {
+      const captchaToken = await captcha.execute("billing_setup_intent");
       const idemKey = createBillingIdempotencyKey("setup_intent");
-      const res = await billingService.createSetupIntent(idemKey);
+      const res = await billingService.createSetupIntent(
+        idemKey,
+        captchaToken ? { captchaToken } : undefined,
+      );
       setSetupIntentSession(res.data);
     } catch (err) {
       reportError(err, t.billing.checkout.errorTitle);
     } finally {
+      captcha.reset();
       setIsManagingBilling(false);
     }
   };
