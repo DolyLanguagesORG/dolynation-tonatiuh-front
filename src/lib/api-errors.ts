@@ -62,6 +62,20 @@ export const ErrorCode = {
   BILLING_NOT_CONFIGURED: "BILLING_NOT_CONFIGURED",
   BILLING_RATE_LIMITED: "BILLING_RATE_LIMITED",
 
+  // Amistades, enlaces de invitación y rachas compartidas (4xx)
+  FRIENDSHIP_SELF_ACTION_NOT_ALLOWED: "FRIENDSHIP_SELF_ACTION_NOT_ALLOWED",
+  FRIENDSHIP_ALREADY_EXISTS: "FRIENDSHIP_ALREADY_EXISTS",
+  FRIENDSHIP_REQUEST_ALREADY_PENDING: "FRIENDSHIP_REQUEST_ALREADY_PENDING",
+  FRIENDSHIP_REQUEST_NOT_PENDING: "FRIENDSHIP_REQUEST_NOT_PENDING",
+  FRIENDSHIP_NOT_FOUND: "FRIENDSHIP_NOT_FOUND",
+  FRIENDSHIP_USER_BLOCKED: "FRIENDSHIP_USER_BLOCKED",
+  FRIENDSHIP_INVITE_LINK_INVALID: "FRIENDSHIP_INVITE_LINK_INVALID",
+  FRIENDSHIP_LIMIT_REACHED: "FRIENDSHIP_LIMIT_REACHED",
+  FRIEND_STREAK_ALREADY_EXISTS: "FRIEND_STREAK_ALREADY_EXISTS",
+  FRIEND_STREAK_INVALID_STATE: "FRIEND_STREAK_INVALID_STATE",
+  FRIEND_STREAK_CATEGORIES_INVALID: "FRIEND_STREAK_CATEGORIES_INVALID",
+  FRIEND_STREAK_LANGUAGE_INCOMPATIBLE: "FRIEND_STREAK_LANGUAGE_INCOMPATIBLE",
+
   // Validación (4xx)
   VALIDATION_ERROR: "VALIDATION_ERROR",
 
@@ -191,6 +205,30 @@ const ERROR_MESSAGES_ES: Record<KnownErrorCode, string> = {
     "La pasarela de pagos en línea no está disponible en este entorno.",
   BILLING_RATE_LIMITED:
     "Realizaste demasiados intentos de pago seguidos. Espera un momento antes de volver a intentarlo.",
+  FRIENDSHIP_SELF_ACTION_NOT_ALLOWED:
+    "No puedes enviarte una solicitud, invitarte o bloquearte a ti mismo.",
+  FRIENDSHIP_ALREADY_EXISTS:
+    "Esta persona ya forma parte de tu lista de amigos.",
+  FRIENDSHIP_REQUEST_ALREADY_PENDING:
+    "Ya existe una solicitud de amistad pendiente entre tú y esta persona.",
+  FRIENDSHIP_REQUEST_NOT_PENDING:
+    "Esta solicitud de amistad ya fue respondida o cancelada anteriormente.",
+  FRIENDSHIP_NOT_FOUND:
+    "No se encontró la amistad, solicitud o racha solicitada.",
+  FRIENDSHIP_USER_BLOCKED:
+    "No es posible completar esta acción debido a un bloqueo entre cuentas.",
+  FRIENDSHIP_INVITE_LINK_INVALID:
+    "Este enlace de invitación no es válido, fue revocado, expiró o alcanzó su límite de usos.",
+  FRIENDSHIP_LIMIT_REACHED:
+    "Alcanzaste el límite permitido de solicitudes pendientes o amistades activas.",
+  FRIEND_STREAK_ALREADY_EXISTS:
+    "Ya existe una racha compartida activa, en pausa o pendiente con este amigo.",
+  FRIEND_STREAK_INVALID_STATE:
+    "La racha compartida ya cambió de estado y no admite esta operación.",
+  FRIEND_STREAK_CATEGORIES_INVALID:
+    "Debes elegir exactamente 2 categorías aprobadas y válidas de tu biblioteca para la racha.",
+  FRIEND_STREAK_LANGUAGE_INCOMPATIBLE:
+    "El idioma elegido no está disponible simultáneamente en los planes activos de ambos amigos.",
   VALIDATION_ERROR:
     "Algunos campos del formulario contienen errores. Revisa los datos marcados.",
   CAPTCHA_REQUIRED:
@@ -298,6 +336,29 @@ const ERROR_MESSAGES_EN: Record<KnownErrorCode, string> = {
     "Online payments are not available in this environment.",
   BILLING_RATE_LIMITED:
     "Too many payment attempts in a short period. Please wait a moment before trying again.",
+  FRIENDSHIP_SELF_ACTION_NOT_ALLOWED:
+    "You cannot send a friend request, accept your own invite link, or block yourself.",
+  FRIENDSHIP_ALREADY_EXISTS: "You are already friends with this user.",
+  FRIENDSHIP_REQUEST_ALREADY_PENDING:
+    "There is already a pending friend request between you and this user.",
+  FRIENDSHIP_REQUEST_NOT_PENDING:
+    "This friend request has already been answered or cancelled.",
+  FRIENDSHIP_NOT_FOUND:
+    "The requested friendship, request, or streak could not be found.",
+  FRIENDSHIP_USER_BLOCKED:
+    "This action cannot be completed because one of the accounts is blocked.",
+  FRIENDSHIP_INVITE_LINK_INVALID:
+    "This invite link is invalid, revoked, expired, or has reached its maximum uses.",
+  FRIENDSHIP_LIMIT_REACHED:
+    "You have reached the maximum allowed number of pending requests or active friends.",
+  FRIEND_STREAK_ALREADY_EXISTS:
+    "You already have an active, paused, or pending shared streak with this friend.",
+  FRIEND_STREAK_INVALID_STATE:
+    "This shared streak is no longer in a valid state for this operation.",
+  FRIEND_STREAK_CATEGORIES_INVALID:
+    "You must select exactly 2 valid approved categories from your library for this streak.",
+  FRIEND_STREAK_LANGUAGE_INCOMPATIBLE:
+    "The selected language is not currently enabled on both friends' active subscription plans.",
   VALIDATION_ERROR:
     "Some form fields contain validation errors. Please check the highlighted inputs.",
   CAPTCHA_REQUIRED:
@@ -406,6 +467,30 @@ const ERROR_MESSAGES_FR: Record<KnownErrorCode, string> = {
     "Les paiements en ligne ne sont pas disponibles dans cet environnement.",
   BILLING_RATE_LIMITED:
     "Trop de tentatives de paiement rapprochées. Veuillez patienter un instant avant de réessayer.",
+  FRIENDSHIP_SELF_ACTION_NOT_ALLOWED:
+    "Vous ne pouvez pas vous envoyer une demande d'ami, utiliser votre propre lien ou vous bloquer.",
+  FRIENDSHIP_ALREADY_EXISTS:
+    "Cette personne fait déjà partie de votre liste d'amis.",
+  FRIENDSHIP_REQUEST_ALREADY_PENDING:
+    "Une demande d'ami est déjà en attente entre vous et cet utilisateur.",
+  FRIENDSHIP_REQUEST_NOT_PENDING:
+    "Cette demande d'ami a déjà reçu une réponse ou a été annulée.",
+  FRIENDSHIP_NOT_FOUND:
+    "L'amitié, la demande ou la série partagée demandée est introuvable.",
+  FRIENDSHIP_USER_BLOCKED:
+    "Impossible d'effectuer cette action en raison d'un blocage entre les comptes.",
+  FRIENDSHIP_INVITE_LINK_INVALID:
+    "Ce lien d'invitation est invalide, révoqué, expiré ou a atteint sa limite d'utilisations.",
+  FRIENDSHIP_LIMIT_REACHED:
+    "Vous avez atteint le nombre maximal de demandes en attente ou d'amis actifs.",
+  FRIEND_STREAK_ALREADY_EXISTS:
+    "Une série partagée active, en pause ou en attente existe déjà avec cet ami.",
+  FRIEND_STREAK_INVALID_STATE:
+    "Cette série partagée n'est plus dans un état compatible avec cette opération.",
+  FRIEND_STREAK_CATEGORIES_INVALID:
+    "Vous devez sélectionner exactement 2 catégories approuvées de votre bibliothèque pour cette série.",
+  FRIEND_STREAK_LANGUAGE_INCOMPATIBLE:
+    "La langue choisie n'est pas activée simultanément sur les abonnements actifs des deux amis.",
   VALIDATION_ERROR:
     "Certains champs du formulaire contiennent des erreurs. Vérifiez les données saisies.",
   CAPTCHA_REQUIRED:
@@ -516,6 +601,30 @@ const ERROR_MESSAGES_IT: Record<KnownErrorCode, string> = {
     "I pagamenti online non sono disponibili in questo ambiente.",
   BILLING_RATE_LIMITED:
     "Troppi tentativi di pagamento ravvicinati. Attendi qualche istante prima di riprovare.",
+  FRIENDSHIP_SELF_ACTION_NOT_ALLOWED:
+    "Non puoi inviare una richiesta a te stesso, accettare il tuo link o bloccarti.",
+  FRIENDSHIP_ALREADY_EXISTS:
+    "Questo utente fa già parte della tua lista di amici.",
+  FRIENDSHIP_REQUEST_ALREADY_PENDING:
+    "Esiste già una richiesta di amicizia in sospeso tra te e questo utente.",
+  FRIENDSHIP_REQUEST_NOT_PENDING:
+    "Questa richiesta di amicizia ha già ricevuto risposta o è stata annullata.",
+  FRIENDSHIP_NOT_FOUND:
+    "L'amicizia, la richiesta o la serie condivisa richiesta non è stata trovata.",
+  FRIENDSHIP_USER_BLOCKED:
+    "Impossibile completare l'azione a causa di un blocco tra gli account.",
+  FRIENDSHIP_INVITE_LINK_INVALID:
+    "Questo link di invito non è valido, è stato revocato, è scaduto o ha raggiunto il limite di utilizzi.",
+  FRIENDSHIP_LIMIT_REACHED:
+    "Hai raggiunto il limite consentito di richieste in sospeso o amici attivi.",
+  FRIEND_STREAK_ALREADY_EXISTS:
+    "Esiste già una serie condivisa attiva, in pausa o in sospeso con questo amico.",
+  FRIEND_STREAK_INVALID_STATE:
+    "Questa serie condivisa non si trova più in uno stato valido per questa operazione.",
+  FRIEND_STREAK_CATEGORIES_INVALID:
+    "Devi selezionare esattamente 2 categorie approvate dalla tua libreria per questa serie.",
+  FRIEND_STREAK_LANGUAGE_INCOMPATIBLE:
+    "La lingua selezionata non è abilitata contemporaneamente nei piani attivi di entrambi gli amici.",
   VALIDATION_ERROR:
     "Alcuni campi del modulo contengono errori. Controlla i dati evidenziati.",
   CAPTCHA_REQUIRED:
