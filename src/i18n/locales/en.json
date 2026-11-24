@@ -545,6 +545,7 @@
     "generationBlockedBoth": "Select at least one target study language and 3 favorite categories before generating new readings.",
     "missingParameterTitle": "Missing parameter",
     "viewPendingReadings": "View pending readings",
+    "retryGeneration": "Retry generation",
     "viewPlanAndUsage": "View plan & usage",
     "wordsUnit": "words",
     "couldNotSaveTitle": "Could not save",
