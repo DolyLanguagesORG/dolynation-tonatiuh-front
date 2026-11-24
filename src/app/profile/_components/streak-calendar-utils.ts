@@ -27,6 +27,32 @@ export interface YearMonth {
 }
 
 /**
+ * Zona horaria del día de negocio. El backend calcula la racha con este mismo día
+ * (`TIMEZONE_RESET` en `dolynation-atl-back`).
+ */
+export const BUSINESS_TIME_ZONE = "America/Mexico_City";
+
+/**
+ * Devuelve un `Date` cuyos campos locales (año, mes y día) son la fecha calendario de
+ * `instant` en {@link BUSINESS_TIME_ZONE}. Así el servidor (SSR) y el navegador obtienen
+ * el mismo día aunque corran en zonas horarias distintas, y la hidratación coincide.
+ */
+export function toBusinessCalendarDate(
+  instant: Date = new Date(),
+  timeZone: string = BUSINESS_TIME_ZONE,
+): Date {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(instant);
+  const read = (type: Intl.DateTimeFormatPartTypes): number =>
+    Number(parts.find((part) => part.type === type)?.value);
+  return new Date(read("year"), read("month") - 1, read("day"));
+}
+
+/**
  * Formatea una fecha local a clave `YYYY-MM-DD`.
  */
 export function formatCalendarDateKey(
@@ -53,7 +79,7 @@ export function toLocalDayStart(date: Date): Date {
  */
 export function buildStreakActivityMap(
   streakDays: readonly boolean[],
-  referenceDate: Date = new Date(),
+  referenceDate: Date = toBusinessCalendarDate(),
 ): Map<string, boolean> {
   const map = new Map<string, boolean>();
   const len = streakDays.length;
@@ -89,7 +115,7 @@ export function buildMonthCalendarGrid(params: {
   referenceDate?: Date;
 }): MonthCalendarGrid {
   const { year, monthIndex, activityMap } = params;
-  const today = toLocalDayStart(params.referenceDate ?? new Date());
+  const today = toLocalDayStart(params.referenceDate ?? toBusinessCalendarDate());
   const todayKey = formatCalendarDateKey(
     today.getFullYear(),
     today.getMonth(),
@@ -159,11 +185,12 @@ export function shiftYearMonth(ym: YearMonth, deltaMonths: number): YearMonth {
 
 /**
  * Ordena las etiquetas de los últimos 7 días reales terminando en `referenceDate`
- * (índice 6 = hoy) usando el arreglo lunes..domingo (`weekDays`).
+ * (índice 6 = hoy) usando el arreglo lunes..domingo (`weekDays`). Por defecto, "hoy"
+ * es el día de negocio en {@link BUSINESS_TIME_ZONE}, no el del reloj local.
  */
 export function resolveRecentWeekDayLabels(
   weekDays: readonly string[],
-  referenceDate: Date = new Date(),
+  referenceDate: Date = toBusinessCalendarDate(),
 ): string[] {
   if (weekDays.length !== 7) {
     return [...weekDays];
