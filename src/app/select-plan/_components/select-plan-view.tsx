@@ -25,6 +25,7 @@ import {
   ApiClientError,
   billingService,
   type CheckoutSessionResponse,
+  consumePendingInviteRedirect,
   createBillingIdempotencyKey,
   ErrorCode,
   subscriptionsService,
@@ -86,7 +87,9 @@ export function SelectPlanView() {
   useEffect(() => {
     if (accessPhase === "ready" && user?.subscriptionTier) {
       router.replace(
-        onboarding.canGenerateReadings ? "/" : "/setup-preferences",
+        onboarding.canGenerateReadings
+          ? (consumePendingInviteRedirect() ?? "/")
+          : "/setup-preferences",
       );
     }
   }, [accessPhase, onboarding.canGenerateReadings, router, user?.subscriptionTier]);

@@ -14,7 +14,11 @@ import { useTurnstile } from "@/components/security";
 import { Badge, Container, SkeletonCard } from "@/components/ui";
 import { useAuth } from "@/context";
 import { useLocale } from "@/i18n";
-import { ApiClientError, type VerifyEmailResponse } from "@/lib";
+import {
+  ApiClientError,
+  consumePendingInviteRedirect,
+  type VerifyEmailResponse,
+} from "@/lib";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -82,7 +86,7 @@ export function VerifyEmailView() {
           payload.user.role === "admin"
             ? "/admin"
             : payload.user.subscriptionTier !== null
-              ? "/"
+              ? (consumePendingInviteRedirect() ?? "/")
               : "/select-plan";
         setTokenOutcome({
           token: tokenParam,

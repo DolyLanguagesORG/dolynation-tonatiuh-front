@@ -12,7 +12,9 @@ import { useAuth } from "@/context";
 import { useLocale } from "@/i18n";
 import {
   type AccountAccessPhase,
+  consumePendingInviteRedirect,
   normalizeRoutePath,
+  peekPendingInviteRedirect,
   ROUTE_SELECT_PLAN,
   ROUTE_SETUP_PREFERENCES,
   ROUTE_VERIFY_EMAIL,
@@ -55,7 +57,10 @@ function InnerRouteAccessGuard({
               normalized === ROUTE_SELECT_PLAN &&
               !canGenerateReadings
             ? ROUTE_SETUP_PREFERENCES
-            : decision.redirectTo;
+            : decision.reason === "already_authenticated" &&
+                peekPendingInviteRedirect()
+              ? (consumePendingInviteRedirect() ?? decision.redirectTo)
+              : decision.redirectTo;
       router.replace(target);
     }
   }, [
