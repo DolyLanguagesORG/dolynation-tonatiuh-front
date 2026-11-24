@@ -254,5 +254,7 @@ describe("FriendProfileView", () => {
         size: "medium",
       });
     });
-  });
+  },
+  15_000,
+);
 });

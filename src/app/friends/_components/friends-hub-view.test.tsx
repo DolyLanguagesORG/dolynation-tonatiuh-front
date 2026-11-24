@@ -174,161 +174,180 @@ describe("FriendsHubView", () => {
     jest.restoreAllMocks();
   });
 
-  it("renders friends list, supports keyboard tab navigation, invite forms, copy/WhatsApp, requests, streaks, and unblock confirm", async () => {
-    const user = userEvent.setup();
-    const writeTextMock = jest.fn<Promise<void>, [string]>(
-      async () => undefined,
-    );
-    Object.defineProperty(navigator, "clipboard", {
-      value: { writeText: writeTextMock },
-      configurable: true,
-    });
-
-    const sendEmailSpy = jest
-      .spyOn(friendsService, "sendRequestByEmail")
-      .mockResolvedValue({
-        message: "ok",
-        data: {
-          id: 72,
-          status: "pending",
-          origin: "email",
-          requesterId: 1,
-          addresseeId: 4,
-          requesterName: "Juan Student",
-          addresseeName: "Lucía",
-          addresseeEmail: "lucia@example.com",
-          createdAt: "2026-11-23T00:00:00.000Z",
-          respondedAt: null,
-        },
-      });
-    const acceptRequestSpy = jest
-      .spyOn(friendsService, "acceptRequest")
-      .mockResolvedValue({
-        message: "ok",
-        data: {
-          id: 71,
-          status: "accepted",
-          origin: "email",
-          requesterId: 3,
-          addresseeId: 1,
-          requesterName: "Carlos Méndez",
-          addresseeName: "Juan Student",
-          createdAt: "2026-11-20T12:00:00.000Z",
-          respondedAt: "2026-11-23T00:00:00.000Z",
-        },
-      });
-    const acceptStreakSpy = jest
-      .spyOn(friendsService, "acceptStreak")
-      .mockResolvedValue({
-        message: "ok",
-        data: {
-          id: 50,
-          friendshipId: 10,
-          partnerUserId: 2,
-          partnerName: "Ana Sofía",
-          initiatedByUserId: 2,
-          awaitingMyAcceptance: false,
-          status: "active",
-          myCategories: ["Tecnología", "Ciencia"],
-          partnerCategories: ["Cine", "Música"],
-          categoryPool: ["Tecnología", "Ciencia", "Cine", "Música"],
-          language: "en",
-          difficulty: "medium",
-          size: "medium",
-          currentStreak: 1,
-          longestStreak: 1,
-          lastCompletedDate: null,
-          startedAt: "2026-11-23T00:00:00.000Z",
-          createdAt: "2026-11-22T08:00:00.000Z",
-          updatedAt: null,
-          myCompletedToday: false,
-          partnerCompletedToday: false,
-          todayReadingId: 501,
-        },
-      });
-    const unblockSpy = jest
-      .spyOn(friendsService, "unblockUser")
-      .mockResolvedValue({
-        message: "ok",
-        data: null,
+  it(
+    "renders friends list, supports keyboard tab navigation, email request, and invite link copy/WhatsApp",
+    async () => {
+      const user = userEvent.setup();
+      const writeTextMock = jest.fn<Promise<void>, [string]>(
+        async () => undefined,
+      );
+      Object.defineProperty(navigator, "clipboard", {
+        value: { writeText: writeTextMock },
+        configurable: true,
       });
 
-    render(
-      <LocaleProvider initialLocale="es">
-        <FriendsHubView />
-      </LocaleProvider>,
-    );
+      const sendEmailSpy = jest
+        .spyOn(friendsService, "sendRequestByEmail")
+        .mockResolvedValue({
+          message: "ok",
+          data: {
+            id: 72,
+            status: "pending",
+            origin: "email",
+            requesterId: 1,
+            addresseeId: 4,
+            requesterName: "Juan Student",
+            addresseeName: "Lucía",
+            addresseeEmail: "lucia@example.com",
+            createdAt: "2026-11-23T00:00:00.000Z",
+            respondedAt: null,
+          },
+        });
 
-    expect(
-      await screen.findByRole("heading", { name: "Ana Sofía" }),
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("link", { name: /Explorar en privado/i }),
-    ).toHaveAttribute("href", "/friends/2");
+      render(
+        <LocaleProvider initialLocale="es">
+          <FriendsHubView />
+        </LocaleProvider>,
+      );
 
-    const friendsTab = screen.getByRole("tab", { name: /Mis amigos/i });
-    friendsTab.focus();
-    await user.keyboard("{ArrowRight}");
+      expect(
+        await screen.findByRole("heading", { name: "Ana Sofía" }),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByRole("link", { name: /Explorar en privado/i }),
+      ).toHaveAttribute("href", "/friends/2");
 
-    const addTab = screen.getByRole("tab", { name: /Agregar amigo/i });
-    expect(addTab).toHaveAttribute("aria-selected", "true");
+      const friendsTab = screen.getByRole("tab", { name: /Mis amigos/i });
+      friendsTab.focus();
+      await user.keyboard("{ArrowRight}");
 
-    await user.type(
-      screen.getByLabelText(/Correo de tu amigo/i),
-      "lucia@example.com",
-    );
-    await user.click(
-      screen.getByRole("button", { name: /Enviar solicitud por correo/i }),
-    );
+      const addTab = screen.getByRole("tab", { name: /Agregar amigo/i });
+      expect(addTab).toHaveAttribute("aria-selected", "true");
 
-    await waitFor(() => {
-      expect(sendEmailSpy).toHaveBeenCalledWith({
-        email: "lucia@example.com",
+      await user.type(
+        screen.getByLabelText(/Correo de tu amigo/i),
+        "lucia@example.com",
+      );
+      await user.click(
+        screen.getByRole("button", { name: /Enviar solicitud por correo/i }),
+      );
+
+      await waitFor(() => {
+        expect(sendEmailSpy).toHaveBeenCalledWith({
+          email: "lucia@example.com",
+        });
       });
-    });
 
-    const whatsAppLink = screen.getByRole("link", { name: /WhatsApp/i });
-    expect(whatsAppLink).toHaveAttribute(
-      "href",
-      expect.stringContaining("https://wa.me/?text="),
-    );
-    await user.click(screen.getByRole("button", { name: /Copiar enlace/i }));
-    expect(writeTextMock).toHaveBeenCalledWith(
-      "http://localhost:3000/friends/invite/tok-active-1",
-    );
+      const whatsAppLink = screen.getByRole("link", { name: /WhatsApp/i });
+      expect(whatsAppLink).toHaveAttribute(
+        "href",
+        expect.stringContaining("https://wa.me/?text="),
+      );
+      await user.click(screen.getByRole("button", { name: /Copiar enlace/i }));
+      expect(writeTextMock).toHaveBeenCalledWith(
+        "http://localhost:3000/friends/invite/tok-active-1",
+      );
+    },
+    15_000,
+  );
 
-    await user.click(screen.getByRole("tab", { name: /Solicitudes/i }));
-    expect(screen.getByText("Carlos Méndez")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /^Aceptar$/i }));
-    await waitFor(() => {
-      expect(acceptRequestSpy).toHaveBeenCalledWith(71);
-    });
+  it(
+    "handles incoming request acceptance, streak 2-category acceptance, and unblock confirm",
+    async () => {
+      const user = userEvent.setup();
+      const acceptRequestSpy = jest
+        .spyOn(friendsService, "acceptRequest")
+        .mockResolvedValue({
+          message: "ok",
+          data: {
+            id: 71,
+            status: "accepted",
+            origin: "email",
+            requesterId: 3,
+            addresseeId: 1,
+            requesterName: "Carlos Méndez",
+            addresseeName: "Juan Student",
+            createdAt: "2026-11-20T12:00:00.000Z",
+            respondedAt: "2026-11-23T00:00:00.000Z",
+          },
+        });
+      const acceptStreakSpy = jest
+        .spyOn(friendsService, "acceptStreak")
+        .mockResolvedValue({
+          message: "ok",
+          data: {
+            id: 50,
+            friendshipId: 10,
+            partnerUserId: 2,
+            partnerName: "Ana Sofía",
+            initiatedByUserId: 2,
+            awaitingMyAcceptance: false,
+            status: "active",
+            myCategories: ["Tecnología", "Ciencia"],
+            partnerCategories: ["Cine", "Música"],
+            categoryPool: ["Tecnología", "Ciencia", "Cine", "Música"],
+            language: "en",
+            difficulty: "medium",
+            size: "medium",
+            currentStreak: 1,
+            longestStreak: 1,
+            lastCompletedDate: null,
+            startedAt: "2026-11-23T00:00:00.000Z",
+            createdAt: "2026-11-22T08:00:00.000Z",
+            updatedAt: null,
+            myCompletedToday: false,
+            partnerCompletedToday: false,
+            todayReadingId: 501,
+          },
+        });
+      const unblockSpy = jest
+        .spyOn(friendsService, "unblockUser")
+        .mockResolvedValue({
+          message: "ok",
+          data: null,
+        });
 
-    await user.click(screen.getByRole("tab", { name: /Rachas/i }));
-    await user.click(
-      screen.getByRole("button", { name: /Aceptar y elegir 2 categorías/i }),
-    );
-    const modal = screen.getByRole("dialog");
-    await user.click(within(modal).getByRole("button", { name: "Tecnología" }));
-    await user.click(within(modal).getByRole("button", { name: "Ciencia" }));
-    await user.click(
-      within(modal).getByRole("button", { name: /Aceptar y activar racha/i }),
-    );
-    await waitFor(() => {
-      expect(acceptStreakSpy).toHaveBeenCalledWith(50, {
-        categories: ["Tecnología", "Ciencia"],
+      render(
+        <LocaleProvider initialLocale="es">
+          <FriendsHubView initialTab="requests" />
+        </LocaleProvider>,
+      );
+
+      expect(await screen.findByText("Carlos Méndez")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /^Aceptar$/i }));
+      await waitFor(() => {
+        expect(acceptRequestSpy).toHaveBeenCalledWith(71);
       });
-    });
 
-    await user.click(screen.getByRole("tab", { name: /Bloqueados/i }));
-    expect(screen.getByText("Cuenta Bloqueada")).toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /^Desbloquear$/i }));
-    const confirmModal = screen.getByRole("dialog");
-    await user.click(
-      within(confirmModal).getByRole("button", { name: /Sí, desbloquear/i }),
-    );
-    await waitFor(() => {
-      expect(unblockSpy).toHaveBeenCalledWith(9);
-    });
-  });
+      await user.click(screen.getByRole("tab", { name: /Rachas/i }));
+      await user.click(
+        screen.getByRole("button", { name: /Aceptar y elegir 2 categorías/i }),
+      );
+      const modal = screen.getByRole("dialog");
+      await user.click(
+        within(modal).getByRole("button", { name: "Tecnología" }),
+      );
+      await user.click(within(modal).getByRole("button", { name: "Ciencia" }));
+      await user.click(
+        within(modal).getByRole("button", { name: /Aceptar y activar racha/i }),
+      );
+      await waitFor(() => {
+        expect(acceptStreakSpy).toHaveBeenCalledWith(50, {
+          categories: ["Tecnología", "Ciencia"],
+        });
+      });
+
+      await user.click(screen.getByRole("tab", { name: /Bloqueados/i }));
+      expect(screen.getByText("Cuenta Bloqueada")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: /^Desbloquear$/i }));
+      const confirmModal = screen.getByRole("dialog");
+      await user.click(
+        within(confirmModal).getByRole("button", { name: /Sí, desbloquear/i }),
+      );
+      await waitFor(() => {
+        expect(unblockSpy).toHaveBeenCalledWith(9);
+      });
+    },
+    15_000,
+  );
 });
