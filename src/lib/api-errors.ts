@@ -15,10 +15,12 @@ export const ErrorCode = {
   AUTH_UNAUTHORIZED: "AUTH_UNAUTHORIZED",
   AUTH_EMAIL_NOT_VERIFIED: "AUTH_EMAIL_NOT_VERIFIED",
   AUTH_EMAIL_TOKEN_INVALID: "AUTH_EMAIL_TOKEN_INVALID",
+  AUTH_PASSWORD_LOGIN_NOT_ALLOWED: "AUTH_PASSWORD_LOGIN_NOT_ALLOWED",
   AUTH_OAUTH_NOT_CONFIGURED: "AUTH_OAUTH_NOT_CONFIGURED",
   AUTH_OAUTH_UNSUPPORTED_PROVIDER: "AUTH_OAUTH_UNSUPPORTED_PROVIDER",
   AUTH_OAUTH_INVALID_CODE: "AUTH_OAUTH_INVALID_CODE",
   AUTH_OAUTH_EMAIL_UNVERIFIED: "AUTH_OAUTH_EMAIL_UNVERIFIED",
+  AUTH_OAUTH_ACCOUNT_LINK_REQUIRED: "AUTH_OAUTH_ACCOUNT_LINK_REQUIRED",
   AUTH_OAUTH_ADMIN_FORBIDDEN: "AUTH_OAUTH_ADMIN_FORBIDDEN",
   AUTH_OAUTH_PROVIDER_ERROR: "AUTH_OAUTH_PROVIDER_ERROR",
   AUTH_OAUTH_STATE_INVALID: "AUTH_OAUTH_STATE_INVALID",
@@ -139,6 +141,8 @@ const ERROR_MESSAGES_ES: Record<KnownErrorCode, string> = {
     "Debes confirmar tu correo electrónico antes de poder continuar.",
   AUTH_EMAIL_TOKEN_INVALID:
     "Este enlace no es válido, ya fue utilizado o expiró. Solicita uno nuevo.",
+  AUTH_PASSWORD_LOGIN_NOT_ALLOWED:
+    "Esta cuenta se creó con un proveedor externo (Google o Microsoft) y no usa contraseña. Continúa con ese proveedor para iniciar sesión.",
   AUTH_OAUTH_NOT_CONFIGURED:
     "Este inicio de sesión con proveedor externo no está habilitado en este entorno.",
   AUTH_OAUTH_UNSUPPORTED_PROVIDER:
@@ -147,6 +151,8 @@ const ERROR_MESSAGES_ES: Record<KnownErrorCode, string> = {
     "La autorización del proveedor externo expiró o no es válida. Intenta iniciar sesión nuevamente.",
   AUTH_OAUTH_EMAIL_UNVERIFIED:
     "Tu cuenta externa no tiene un correo electrónico verificado.",
+  AUTH_OAUTH_ACCOUNT_LINK_REQUIRED:
+    "Ya existe una cuenta registrada con este correo electrónico. Inicia sesión con tu correo y contraseña.",
   AUTH_OAUTH_ADMIN_FORBIDDEN:
     "Las cuentas de administrador deben iniciar sesión con correo y contraseña.",
   AUTH_OAUTH_PROVIDER_ERROR:
@@ -274,6 +280,8 @@ const ERROR_MESSAGES_EN: Record<KnownErrorCode, string> = {
     "Please confirm your email address before continuing.",
   AUTH_EMAIL_TOKEN_INVALID:
     "This link is invalid, has already been used, or has expired. Please request a new one.",
+  AUTH_PASSWORD_LOGIN_NOT_ALLOWED:
+    "This account was created with an external provider (Google or Microsoft) and does not use a password. Continue with that provider to sign in.",
   AUTH_OAUTH_NOT_CONFIGURED:
     "This external OAuth sign-in provider is not configured in this environment.",
   AUTH_OAUTH_UNSUPPORTED_PROVIDER:
@@ -282,6 +290,8 @@ const ERROR_MESSAGES_EN: Record<KnownErrorCode, string> = {
     "The authorization code is invalid or expired. Please try signing in again.",
   AUTH_OAUTH_EMAIL_UNVERIFIED:
     "Your external account does not have a verified email address.",
+  AUTH_OAUTH_ACCOUNT_LINK_REQUIRED:
+    "An account with this email address already exists. Sign in with your email and password.",
   AUTH_OAUTH_ADMIN_FORBIDDEN:
     "Administrator accounts must sign in using email and password.",
   AUTH_OAUTH_PROVIDER_ERROR:
@@ -404,6 +414,8 @@ const ERROR_MESSAGES_FR: Record<KnownErrorCode, string> = {
     "Veuillez confirmer votre adresse e-mail avant de continuer.",
   AUTH_EMAIL_TOKEN_INVALID:
     "Ce lien n'est pas valide, a déjà été utilisé ou a expiré. Demandez-en un nouveau.",
+  AUTH_PASSWORD_LOGIN_NOT_ALLOWED:
+    "Ce compte a été créé avec un fournisseur externe (Google ou Microsoft) et n'utilise pas de mot de passe. Continuez avec ce fournisseur pour vous connecter.",
   AUTH_OAUTH_NOT_CONFIGURED:
     "Ce fournisseur de connexion externe n'est pas configuré dans cet environnement.",
   AUTH_OAUTH_UNSUPPORTED_PROVIDER:
@@ -412,6 +424,8 @@ const ERROR_MESSAGES_FR: Record<KnownErrorCode, string> = {
     "Le code d'autorisation est invalide ou a expiré. Veuillez réessayer.",
   AUTH_OAUTH_EMAIL_UNVERIFIED:
     "Votre compte externe ne possède pas d'adresse e-mail vérifiée.",
+  AUTH_OAUTH_ACCOUNT_LINK_REQUIRED:
+    "Un compte existe déjà avec cette adresse e-mail. Connectez-vous avec votre e-mail et votre mot de passe.",
   AUTH_OAUTH_ADMIN_FORBIDDEN:
     "Les comptes administrateur doivent se connecter avec leur e-mail et mot de passe.",
   AUTH_OAUTH_PROVIDER_ERROR:
@@ -540,6 +554,8 @@ const ERROR_MESSAGES_IT: Record<KnownErrorCode, string> = {
     "Conferma il tuo indirizzo e-mail prima di continuare.",
   AUTH_EMAIL_TOKEN_INVALID:
     "Questo link non è valido, è già stato utilizzato o è scaduto. Richiedine uno nuovo.",
+  AUTH_PASSWORD_LOGIN_NOT_ALLOWED:
+    "Questo account è stato creato con un provider esterno (Google o Microsoft) e non utilizza una password. Continua con quel provider per accedere.",
   AUTH_OAUTH_NOT_CONFIGURED:
     "Questo accesso tramite provider esterno non è configurato in questo ambiente.",
   AUTH_OAUTH_UNSUPPORTED_PROVIDER:
@@ -548,6 +564,8 @@ const ERROR_MESSAGES_IT: Record<KnownErrorCode, string> = {
     "Il codice di autorizzazione non è valido o è scaduto. Riprova ad accedere.",
   AUTH_OAUTH_EMAIL_UNVERIFIED:
     "Il tuo account esterno non dispone di un indirizzo email verificato.",
+  AUTH_OAUTH_ACCOUNT_LINK_REQUIRED:
+    "Esiste già un account associato a questa email. Accedi con la tua email e la tua password.",
   AUTH_OAUTH_ADMIN_FORBIDDEN:
     "Gli account amministratore devono accedere con email e password.",
   AUTH_OAUTH_PROVIDER_ERROR:
