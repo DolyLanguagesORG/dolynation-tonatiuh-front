@@ -57,10 +57,6 @@ export function ReadingCompletionFooter({
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
-          <ActionLink href="/generate" variant="secondary" size="sm">
-            {t.readings.backToConfigButton}
-          </ActionLink>
-
           <ActionLink
             href="/"
             variant="ghost"

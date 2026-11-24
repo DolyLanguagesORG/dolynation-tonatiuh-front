@@ -276,4 +276,64 @@ describe("SubscriptionPlanCard with Stripe billing", () => {
       expect(onResumeSubscription).toHaveBeenCalledTimes(1);
     });
   });
+
+  it("renders a compact pending request notice without refresh button and cancels on confirmation", async () => {
+    const user = userEvent.setup();
+    const onCancelAccessRequest = jest.fn(async (requestId: number) => {
+      void requestId;
+      return true;
+    });
+
+    render(
+      <SubscriptionPlanCard
+        t={dictionaries.es}
+        locale="es"
+        currentSubscription={null}
+        plans={PLANS}
+        isLoadingPlans={false}
+        plansError={null}
+        isSavingPlan={false}
+        isLoggingOutAll={false}
+        accessRequestsEnabled
+        pendingSubscriptionRequest={{
+          id: 42,
+          userId: 7,
+          requestType: "subscription",
+          requestedTier: "dolly_plus",
+          currentTier: "dolly_pro",
+          userMessage: "Mensaje privado del usuario",
+          status: "pending",
+          rejectionReason: null,
+          reviewedByUserId: null,
+          reviewedAt: null,
+          createdAt: "2026-11-19T00:00:00.000Z",
+          updatedAt: "2026-11-19T00:00:00.000Z",
+        }}
+        onSelectPlan={jest.fn(async () => true)}
+        onCancelAccessRequest={onCancelAccessRequest}
+        onLogoutAll={jest.fn(async () => {})}
+      />,
+    );
+
+    expect(
+      screen.getByText("Hay una solicitud pendiente para cambiar a Dolly Plus."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: /Actualizar estado/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Mensaje privado del usuario/i),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: /Cancelar solicitud/i }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: /Confirmar cancelación/i }),
+    );
+
+    await waitFor(() => {
+      expect(onCancelAccessRequest).toHaveBeenCalledWith(42);
+    });
+  });
 });

@@ -110,7 +110,9 @@ test.describe("Auth Session Revocation (T6), Password Reset & Q1 Core Loop", () 
     await expect(page.getByText("RETOUR AUX LECTURES")).toBeVisible();
     await expect(page.getByText("[FR] FRANÇAIS")).toBeVisible();
     await expect(page.getByText("CONTINUER L'ÉVALUATION")).toBeVisible();
-    await expect(page.getByText("Revenir à la configuration")).toBeVisible();
+    await expect(page.getByText("Revenir à la configuration")).toHaveCount(0);
+    await expect(page.getByText("Aller à l'accueil")).toBeVisible();
+    await expect(page.getByText("Aller aux lectures")).toBeVisible();
 
     // Select word in article and open the right-side contextual AI glossary drawer in French
     const targetWord = page.getByText("Comprehension", { exact: true }).first();
