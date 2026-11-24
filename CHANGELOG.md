@@ -11,6 +11,13 @@ un PR de release contra `develop` que sube la versión y escribe esta sección; 
 mergearlo se crean el tag anotado y la GitHub Release. Ver
 [`conventions/versioning.md`](https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs/blob/develop/conventions/versioning.md).
 
+## [0.16.2](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.16.1...v0.16.2) (2026-11-24)
+
+
+### Bug Fixes
+
+* **billing:** envia token turnstile en checkout stripe y evita sondeo de /auth/me ([#187](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/187)) ([dda2bf6](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/dda2bf63701994d7813c04ae2d1b8d58170d1b2a))
+
 ## [0.16.1](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.16.0...v0.16.1) (2026-11-24)
 
 
