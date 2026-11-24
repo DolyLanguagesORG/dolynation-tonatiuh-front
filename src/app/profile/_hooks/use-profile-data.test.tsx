@@ -375,4 +375,104 @@ describe("useProfileData toast notifications", () => {
     expect(result.current.checkoutKind).toBe("language_unlock");
     expect(result.current.checkoutSession?.sessionId).toBe("cs_test_unlock_1");
   });
+
+  it("does not fall back to the free manual unlock when /billing/config cannot be loaded", async () => {
+    resetBillingConfigCacheForTests();
+    jest
+      .spyOn(billingService, "getConfig")
+      .mockRejectedValue(
+        new ApiClientError({ code: ErrorCode.NETWORK_ERROR, status: 0 }),
+      );
+    const freeUnlockSpy = jest.spyOn(settingsService, "unlockLanguageChange");
+    const checkoutSpy = jest.spyOn(
+      billingService,
+      "createLanguageUnlockCheckout",
+    );
+
+    const { result } = renderHook(() => useProfileData(), { wrapper: Wrapper });
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    let ok = true;
+    await act(async () => {
+      ok = await result.current.handleUnlockLanguageChange();
+    });
+
+    expect(ok).toBe(false);
+    expect(freeUnlockSpy).not.toHaveBeenCalled();
+    expect(checkoutSpy).not.toHaveBeenCalled();
+    expect(mockToastError).toHaveBeenCalled();
+  });
+
+  it("reloads the billing config on click and opens Stripe checkout once it loads", async () => {
+    resetBillingConfigCacheForTests();
+    jest
+      .spyOn(billingService, "getConfig")
+      .mockRejectedValueOnce(
+        new ApiClientError({ code: ErrorCode.NETWORK_ERROR, status: 0 }),
+      )
+      .mockResolvedValue({
+        message: "OK",
+        data: {
+          provider: "stripe",
+          publishableKey: "pk_test_123",
+          currency: "mxn",
+          uiMode: "custom",
+          plans: [],
+          languageUnlock: {
+            checkoutRequired: true,
+            amountCents: 4900,
+            currency: "mxn",
+          },
+        },
+      });
+    jest.spyOn(billingService, "getStatus").mockResolvedValue({
+      message: "OK",
+      data: {
+        provider: "stripe",
+        tier: "dolly_plus",
+        subscription: null,
+        recentPayments: [],
+      },
+    });
+    jest.spyOn(billingService, "listInvoices").mockResolvedValue({
+      message: "OK",
+      data: [],
+    });
+    const freeUnlockSpy = jest.spyOn(settingsService, "unlockLanguageChange");
+    const checkoutSpy = jest
+      .spyOn(billingService, "createLanguageUnlockCheckout")
+      .mockResolvedValueOnce({
+        message: "OK",
+        data: {
+          sessionId: "cs_test_unlock_retry",
+          clientSecret: "cs_test_secret_retry",
+          url: null,
+          publishableKey: "pk_test_123",
+          uiMode: "custom",
+          tier: null,
+        },
+      });
+
+    const { result } = renderHook(() => useProfileData(), { wrapper: Wrapper });
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      const ok = await result.current.handleUnlockLanguageChange();
+      expect(ok).toBe(true);
+    });
+
+    expect(freeUnlockSpy).not.toHaveBeenCalled();
+    expect(checkoutSpy).toHaveBeenCalledTimes(1);
+    expect(result.current.checkoutSession?.sessionId).toBe(
+      "cs_test_unlock_retry",
+    );
+  });
 });

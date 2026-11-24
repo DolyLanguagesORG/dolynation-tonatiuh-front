@@ -3,8 +3,10 @@
 import { useCallback, useEffect, useState } from "react";
 
 import {
+  ApiClientError,
   type BillingConfigResponse,
   billingService,
+  ErrorCode,
 } from "@/lib";
 
 export const FALLBACK_MANUAL_BILLING_CONFIG: BillingConfigResponse = {
@@ -51,7 +53,16 @@ let cachedConfig: {
   data: BillingConfigResponse;
   fetchedAt: number;
 } | null = null;
-let inFlightPromise: Promise<BillingConfigResponse> | null = null;
+/**
+ * `available` es `false` cuando no se pudo leer la configuración real del backend y
+ * `config` es solo un valor de respaldo para pintar la UI.
+ */
+interface BillingConfigFetchOutcome {
+  config: BillingConfigResponse;
+  available: boolean;
+}
+
+let inFlightPromise: Promise<BillingConfigFetchOutcome> | null = null;
 
 export function resetBillingConfigCacheForTests(): void {
   cachedConfig = null;
@@ -60,14 +71,14 @@ export function resetBillingConfigCacheForTests(): void {
 
 async function fetchBillingConfigCached(
   force = false,
-): Promise<BillingConfigResponse> {
+): Promise<BillingConfigFetchOutcome> {
   const now = Date.now();
   if (
     !force &&
     cachedConfig &&
     now - cachedConfig.fetchedAt < BILLING_CONFIG_CACHE_TTL_MS
   ) {
-    return cachedConfig.data;
+    return { config: cachedConfig.data, available: true };
   }
 
   if (!force && inFlightPromise) {
@@ -76,16 +87,18 @@ async function fetchBillingConfigCached(
 
   inFlightPromise = billingService
     .getConfig()
-    .then((res) => {
+    .then((res): BillingConfigFetchOutcome => {
       const nextConfig = res.data ?? FALLBACK_MANUAL_BILLING_CONFIG;
       cachedConfig = {
         data: nextConfig,
         fetchedAt: Date.now(),
       };
-      return nextConfig;
+      return { config: nextConfig, available: true };
     })
-    .catch(() => {
-      return cachedConfig?.data ?? FALLBACK_MANUAL_BILLING_CONFIG;
+    .catch((): BillingConfigFetchOutcome => {
+      return cachedConfig
+        ? { config: cachedConfig.data, available: true }
+        : { config: FALLBACK_MANUAL_BILLING_CONFIG, available: false };
     })
     .finally(() => {
       inFlightPromise = null;
@@ -98,26 +111,37 @@ export interface UseBillingConfigResult {
   config: BillingConfigResponse;
   isStripeActive: boolean;
   isLoading: boolean;
+  /** `true` si no se pudo cargar la configuración: `config` es solo un respaldo visual. */
+  isUnavailable: boolean;
   reload: () => Promise<BillingConfigResponse>;
+  /**
+   * Devuelve la configuración real del backend (usando la caché si está fresca) para
+   * decidir un cobro. Lanza `SERVICE_UNAVAILABLE` si no se puede cargar, en lugar de
+   * suponer el modo manual.
+   */
+  ensureConfig: () => Promise<BillingConfigResponse>;
 }
 
 /**
  * Consulta y cachea `GET /api/v1/billing/config` en el navegador (TTL 5 min).
- * Si el endpoint no está configurado o falla, degrada de forma segura a `provider: 'manual'`.
+ * Si el endpoint falla, `config` muestra un respaldo `manual` solo para pintar la UI y
+ * `isUnavailable` queda en `true`; para decidir un cobro usa `ensureConfig()`.
  */
 export function useBillingConfig(): UseBillingConfigResult {
   const [config, setConfig] = useState<BillingConfigResponse>(
     () => cachedConfig?.data ?? FALLBACK_MANUAL_BILLING_CONFIG,
   );
   const [isLoading, setIsLoading] = useState<boolean>(() => !cachedConfig);
+  const [isUnavailable, setIsUnavailable] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     fetchBillingConfigCached(false)
-      .then((nextConfig) => {
+      .then((outcome) => {
         if (!cancelled) {
-          setConfig(nextConfig);
+          setConfig(outcome.config);
+          setIsUnavailable(!outcome.available);
         }
       })
       .finally(() => {
@@ -134,18 +158,35 @@ export function useBillingConfig(): UseBillingConfigResult {
   const reload = useCallback(async (): Promise<BillingConfigResponse> => {
     setIsLoading(true);
     try {
-      const nextConfig = await fetchBillingConfigCached(true);
-      setConfig(nextConfig);
-      return nextConfig;
+      const outcome = await fetchBillingConfigCached(true);
+      setConfig(outcome.config);
+      setIsUnavailable(!outcome.available);
+      return outcome.config;
     } finally {
       setIsLoading(false);
     }
+  }, []);
+
+  const ensureConfig = useCallback(async (): Promise<BillingConfigResponse> => {
+    const outcome = await fetchBillingConfigCached(false);
+    setConfig(outcome.config);
+    setIsUnavailable(!outcome.available);
+    setIsLoading(false);
+    if (!outcome.available) {
+      throw new ApiClientError({
+        code: ErrorCode.SERVICE_UNAVAILABLE,
+        status: 503,
+      });
+    }
+    return outcome.config;
   }, []);
 
   return {
     config,
     isStripeActive: config.provider === "stripe",
     isLoading,
+    isUnavailable,
     reload,
+    ensureConfig,
   };
 }
