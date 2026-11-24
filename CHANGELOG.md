@@ -11,6 +11,13 @@ un PR de release contra `develop` que sube la versión y escribe esta sección; 
 mergearlo se crean el tag anotado y la GitHub Release. Ver
 [`conventions/versioning.md`](https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs/blob/develop/conventions/versioning.md).
 
+## [0.17.0](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.16.3...v0.17.0) (2026-11-24)
+
+
+### Features
+
+* **ui:** implementa modulo de amistades, invitaciones y rachas diarias ([#184](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/184)) ([22b5d4c](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/22b5d4c762e55895b28cea2314fd3915ea32b46f))
+
 ## [0.16.3](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.16.2...v0.16.3) (2026-11-24)
 
 
