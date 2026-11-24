@@ -1,5 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
-import { beforeEach, describe, expect, it } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
 import type { ReactNode } from "react";
 
 const mockToastSuccess = jest.fn();
@@ -54,12 +54,18 @@ jest.mock("@/lib/hooks/use-subscription-plans", () => ({
 }));
 
 import { useProfileData } from "@/app/profile/_hooks/use-profile-data";
+import {
+  resetTurnstileLoaderForTests,
+  type TurnstileRenderOptions,
+} from "@/components/security";
 import { LocaleProvider } from "@/i18n";
 import {
   ApiClientError,
   billingService,
   ErrorCode,
   historyService,
+  resetCaptchaConfigCache,
+  securityService,
   settingsService,
   subscriptionsService,
   usersService,
@@ -72,8 +78,21 @@ function Wrapper({ children }: { children: ReactNode }) {
 
 describe("useProfileData toast notifications", () => {
   beforeEach(() => {
+    jest.restoreAllMocks();
     jest.clearAllMocks();
     resetBillingConfigCacheForTests();
+    resetCaptchaConfigCache();
+    resetTurnstileLoaderForTests();
+    delete window.turnstile;
+    jest.spyOn(securityService, "getCaptchaConfig").mockResolvedValue({
+      message: "OK",
+      data: {
+        enabled: false,
+        provider: "disabled",
+        siteKey: null,
+        appearance: "interaction-only",
+      },
+    });
     jest.spyOn(billingService, "getConfig").mockResolvedValue({
       message: "OK",
       data: {
@@ -374,5 +393,371 @@ describe("useProfileData toast notifications", () => {
     expect(createUnlockSpy).toHaveBeenCalledTimes(1);
     expect(result.current.checkoutKind).toBe("language_unlock");
     expect(result.current.checkoutSession?.sessionId).toBe("cs_test_unlock_1");
+  });
+
+  it("does not fall back to the free manual unlock when /billing/config cannot be loaded", async () => {
+    resetBillingConfigCacheForTests();
+    jest
+      .spyOn(billingService, "getConfig")
+      .mockRejectedValue(
+        new ApiClientError({ code: ErrorCode.NETWORK_ERROR, status: 0 }),
+      );
+    const freeUnlockSpy = jest.spyOn(settingsService, "unlockLanguageChange");
+    const checkoutSpy = jest.spyOn(
+      billingService,
+      "createLanguageUnlockCheckout",
+    );
+
+    const { result } = renderHook(() => useProfileData(), { wrapper: Wrapper });
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    let ok = true;
+    await act(async () => {
+      ok = await result.current.handleUnlockLanguageChange();
+    });
+
+    expect(ok).toBe(false);
+    expect(freeUnlockSpy).not.toHaveBeenCalled();
+    expect(checkoutSpy).not.toHaveBeenCalled();
+    expect(mockToastError).toHaveBeenCalled();
+  });
+
+  it("reloads the billing config on click and opens Stripe checkout once it loads", async () => {
+    resetBillingConfigCacheForTests();
+    jest
+      .spyOn(billingService, "getConfig")
+      .mockRejectedValueOnce(
+        new ApiClientError({ code: ErrorCode.NETWORK_ERROR, status: 0 }),
+      )
+      .mockResolvedValue({
+        message: "OK",
+        data: {
+          provider: "stripe",
+          publishableKey: "pk_test_123",
+          currency: "mxn",
+          uiMode: "custom",
+          plans: [],
+          languageUnlock: {
+            checkoutRequired: true,
+            amountCents: 4900,
+            currency: "mxn",
+          },
+        },
+      });
+    jest.spyOn(billingService, "getStatus").mockResolvedValue({
+      message: "OK",
+      data: {
+        provider: "stripe",
+        tier: "dolly_plus",
+        subscription: null,
+        recentPayments: [],
+      },
+    });
+    jest.spyOn(billingService, "listInvoices").mockResolvedValue({
+      message: "OK",
+      data: [],
+    });
+    const freeUnlockSpy = jest.spyOn(settingsService, "unlockLanguageChange");
+    const checkoutSpy = jest
+      .spyOn(billingService, "createLanguageUnlockCheckout")
+      .mockResolvedValueOnce({
+        message: "OK",
+        data: {
+          sessionId: "cs_test_unlock_retry",
+          clientSecret: "cs_test_secret_retry",
+          url: null,
+          publishableKey: "pk_test_123",
+          uiMode: "custom",
+          tier: null,
+        },
+      });
+
+    const { result } = renderHook(() => useProfileData(), { wrapper: Wrapper });
+
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      const ok = await result.current.handleUnlockLanguageChange();
+      expect(ok).toBe(true);
+    });
+
+    expect(freeUnlockSpy).not.toHaveBeenCalled();
+    expect(checkoutSpy).toHaveBeenCalledTimes(1);
+    expect(result.current.checkoutSession?.sessionId).toBe(
+      "cs_test_unlock_retry",
+    );
+  });
+});
+
+describe("useProfileData Turnstile integration on Stripe endpoints", () => {
+  let renderedOptions: TurnstileRenderOptions | null = null;
+  let resetMock: jest.Mock<void, [widgetId?: string]>;
+
+  beforeEach(() => {
+    jest.restoreAllMocks();
+    jest.clearAllMocks();
+    resetBillingConfigCacheForTests();
+    resetCaptchaConfigCache();
+    resetTurnstileLoaderForTests();
+    renderedOptions = null;
+
+    jest.spyOn(securityService, "getCaptchaConfig").mockResolvedValue({
+      message: "OK",
+      data: {
+        enabled: true,
+        provider: "turnstile",
+        siteKey: "1x00000000000000000000AA",
+        appearance: "interaction-only",
+      },
+    });
+
+    resetMock = jest.fn<void, [widgetId?: string]>();
+    window.turnstile = {
+      render: jest.fn((_container: HTMLElement | string, options: TurnstileRenderOptions) => {
+        renderedOptions = options;
+        return "widget-profile-1";
+      }),
+      execute: jest.fn(() => {
+        renderedOptions?.callback?.(
+          `cf-test-token-${renderedOptions?.action ?? "unknown"}`,
+        );
+      }),
+      reset: resetMock,
+      remove: jest.fn(),
+      getResponse: jest.fn(() => undefined),
+    };
+
+    jest.spyOn(billingService, "getConfig").mockResolvedValue({
+      message: "OK",
+      data: {
+        provider: "stripe",
+        publishableKey: "pk_test_123",
+        currency: "mxn",
+        uiMode: "custom",
+        plans: [
+          {
+            tier: "dolly_plus",
+            isFree: false,
+            checkoutRequired: true,
+            amountCents: 9900,
+            currency: "mxn",
+            interval: "month",
+          },
+          {
+            tier: "dolly_pro",
+            isFree: false,
+            checkoutRequired: true,
+            amountCents: 19900,
+            currency: "mxn",
+            interval: "month",
+          },
+        ],
+        languageUnlock: {
+          checkoutRequired: true,
+          amountCents: 4900,
+          currency: "mxn",
+        },
+      },
+    });
+    jest.spyOn(billingService, "getStatus").mockResolvedValue({
+      message: "OK",
+      data: {
+        provider: "stripe",
+        tier: "dolly_plus",
+        subscription: null,
+        recentPayments: [],
+      },
+    });
+    jest.spyOn(billingService, "listInvoices").mockResolvedValue({
+      message: "OK",
+      data: [],
+    });
+    jest.spyOn(usersService, "getProfile").mockResolvedValue({
+      message: "OK",
+      data: {
+        id: 1,
+        email: "student@example.com",
+        fullName: "Ada Lovelace",
+        subscriptionTier: "dolly_plus",
+        currentStreak: 0,
+        lastStreakDate: null,
+        emailVerifiedAt: "2026-11-10T00:00:00.000Z",
+        locale: "es",
+        createdAt: "2026-11-10T00:00:00.000Z",
+        selectedLanguages: ["en"],
+      },
+    });
+    jest.spyOn(usersService, "getStreak").mockResolvedValue({
+      message: "OK",
+      data: { days: [], count: 0 },
+    });
+    jest.spyOn(historyService, "getSummary").mockResolvedValue({
+      message: "OK",
+      data: {
+        readings: {
+          total: 0,
+          pending: 0,
+          completed: 0,
+          passed: 0,
+          averageScore: null,
+        },
+        recentScores: [],
+        wordsLookedUp: 0,
+      },
+    });
+    jest.spyOn(settingsService, "getLanguages").mockResolvedValue({
+      message: "OK",
+      data: {
+        catalog: [],
+        selected: ["en"],
+        active: ["en"],
+        maxLanguages: 2,
+        canChangeFree: true,
+        nextFreeChangeAt: null,
+        lastLanguageChangeAt: null,
+        languageChangeCredits: 0,
+      },
+    });
+    jest.spyOn(settingsService, "getCategories").mockResolvedValue({
+      message: "OK",
+      data: {
+        catalog: [],
+        selected: ["technology", "history", "science"],
+      },
+    });
+    jest.spyOn(subscriptionsService, "getCurrentSubscription").mockResolvedValue({
+      message: "OK",
+      data: {
+        hasSubscription: true,
+        tier: "dolly_plus",
+        plan: null,
+        usage: {
+          categoriesCount: 3,
+          categoriesLimit: 15,
+          languagesCount: 1,
+          languagesLimit: 2,
+          readingsCreatedToday: 0,
+          readingsLimit: 10,
+          readingsRemainingToday: 10,
+          questionsAskedToday: 0,
+          questionsLimit: 10,
+          questionsRemainingToday: 10,
+        },
+      },
+    });
+  });
+
+  afterEach(() => {
+    delete window.turnstile;
+    document
+      .querySelectorAll("[data-turnstile-fallback], [data-turnstile-loader]")
+      .forEach((el) => el.remove());
+  });
+
+  it("sends billing_checkout Turnstile token on createLanguageUnlockCheckout", async () => {
+    const unlockSpy = jest
+      .spyOn(billingService, "createLanguageUnlockCheckout")
+      .mockResolvedValueOnce({
+        message: "OK",
+        data: {
+          sessionId: "cs_test_unlock_captcha",
+          clientSecret: "cs_test_secret",
+          url: null,
+          publishableKey: "pk_test_123",
+          uiMode: "custom",
+          tier: null,
+        },
+      });
+
+    const { result } = renderHook(() => useProfileData(), { wrapper: Wrapper });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      const ok = await result.current.handleUnlockLanguageChange();
+      expect(ok).toBe(true);
+    });
+
+    expect(unlockSpy).toHaveBeenCalledWith(
+      { uiMode: "custom" },
+      expect.stringMatching(/^lang_unlock:/),
+      { captchaToken: "cf-test-token-billing_checkout" },
+    );
+    expect(resetMock).toHaveBeenCalled();
+  });
+
+  it("sends billing_checkout Turnstile token on createSubscriptionCheckout", async () => {
+    const subCheckoutSpy = jest
+      .spyOn(billingService, "createSubscriptionCheckout")
+      .mockResolvedValueOnce({
+        message: "OK",
+        data: {
+          sessionId: "cs_test_sub_captcha",
+          clientSecret: "cs_test_secret",
+          url: null,
+          publishableKey: "pk_test_123",
+          uiMode: "custom",
+          tier: "dolly_pro",
+        },
+      });
+
+    const { result } = renderHook(() => useProfileData(), { wrapper: Wrapper });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      const ok = await result.current.handleSelectPlan("dolly_pro");
+      expect(ok).toBe(true);
+    });
+
+    expect(subCheckoutSpy).toHaveBeenCalledWith(
+      { tier: "dolly_pro", uiMode: "custom" },
+      expect.stringMatching(/^sub_dolly_pro:/),
+      { captchaToken: "cf-test-token-billing_checkout" },
+    );
+    expect(resetMock).toHaveBeenCalled();
+  });
+
+  it("sends billing_setup_intent Turnstile token and resets widget on createSetupIntent", async () => {
+    const setupIntentSpy = jest
+      .spyOn(billingService, "createSetupIntent")
+      .mockResolvedValueOnce({
+        message: "OK",
+        data: {
+          setupIntentId: "seti_test_1",
+          clientSecret: "seti_secret_1",
+          publishableKey: "pk_test_123",
+        },
+      });
+
+    const { result } = renderHook(() => useProfileData(), { wrapper: Wrapper });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      await result.current.handleOpenUpdateCard();
+    });
+
+    expect(setupIntentSpy).toHaveBeenCalledWith(
+      expect.stringMatching(/^setup_intent:/),
+      { captchaToken: "cf-test-token-billing_setup_intent" },
+    );
+    expect(result.current.setupIntentSession?.setupIntentId).toBe(
+      "seti_test_1",
+    );
+    expect(resetMock).toHaveBeenCalled();
   });
 });

@@ -109,7 +109,6 @@ function ProfileContent() {
             onOpenUpdateCard={data.handleOpenUpdateCard}
             onOpenBillingPortal={data.handleOpenBillingPortal}
             onCancelAccessRequest={data.handleCancelAccessRequest}
-            onRefreshAccessRequests={data.handleRefreshAccessRequests}
             onLogoutAll={data.handleLogoutAll}
             captchaContainerRef={data.captchaContainerRef}
           />

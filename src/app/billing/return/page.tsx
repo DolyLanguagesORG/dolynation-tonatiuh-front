@@ -5,6 +5,7 @@ import { BillingReturnView } from "@/app/billing/return/_components/billing-retu
 import { Container, LocalizedSkeletonCard } from "@/components/ui";
 import { getDictionary } from "@/i18n";
 import { getServerLocale } from "@/i18n/server-locale";
+import { NOINDEX_ROBOTS } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getServerLocale();
@@ -12,6 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: t.billing.returnPage.syncingTitle,
     description: t.billing.returnPage.syncingSubtitle,
+    robots: NOINDEX_ROBOTS,
   };
 }
 

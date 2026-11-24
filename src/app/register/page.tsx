@@ -5,14 +5,18 @@ import { RegisterFlow } from "@/app/register/_components/register-flow";
 import { Container, LocalizedSkeletonCard } from "@/components/ui";
 import { getDictionary } from "@/i18n";
 import { getServerLocale } from "@/i18n/server-locale";
+import { buildPublicPageMetadata } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getServerLocale();
   const t = getDictionary(locale);
-  return {
+  return buildPublicPageMetadata({
+    dict: t,
+    locale,
+    path: "/register",
     title: t.auth.topCreateAccount,
     description: t.auth.register.subtitle,
-  };
+  });
 }
 
 /**

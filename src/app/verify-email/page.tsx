@@ -5,6 +5,7 @@ import { VerifyEmailView } from "@/app/verify-email/_components/verify-email-vie
 import { Container, LocalizedSkeletonCard } from "@/components/ui";
 import { getDictionary } from "@/i18n";
 import { getServerLocale } from "@/i18n/server-locale";
+import { NOINDEX_ROBOTS } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getServerLocale();
@@ -12,6 +13,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: t.auth.stepper.step2VerifyEmail.title,
     description: t.auth.stepper.step2VerifyEmail.instruction,
+    robots: NOINDEX_ROBOTS,
   };
 }
 

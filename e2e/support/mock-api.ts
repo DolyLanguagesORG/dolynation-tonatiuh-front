@@ -5,10 +5,7 @@ export type TargetLanguageCode = "es" | "en" | "fr" | "it";
 export type UserRole = "student" | "admin";
 export type AccessRequestType = "subscription" | "language_unlock";
 export type AccessRequestStatus =
-  | "pending"
-  | "approved"
-  | "rejected"
-  | "cancelled";
+  "pending" | "approved" | "rejected" | "cancelled";
 
 export interface MockUserState {
   id: number;
@@ -95,7 +92,11 @@ export interface MockGlossaryEntry {
     literalDefinition: string;
   }[];
   otherWaysToSay: { expression: string; note: string }[];
-  otherContexts: { contextLabel: string; explanation: string; example: string }[];
+  otherContexts: {
+    contextLabel: string;
+    explanation: string;
+    example: string;
+  }[];
   isSaved: boolean;
   savedAt: string | null;
   createdAt: string;
@@ -105,6 +106,7 @@ export interface MockGlossaryEntry {
 export interface MockBackendConfig {
   emailVerificationRequired?: boolean;
   accessRequestsEnabled?: boolean;
+  billingProvider?: "manual" | "stripe";
   validVerificationToken?: string;
   validResetToken?: string;
   categoryDailyLimit?: number;
@@ -313,7 +315,9 @@ export async function attachMockBackend(
     languageChangeCredits: config.initialLanguageChangeCredits ?? 0,
     readings: [...(config.initialReadings ?? [])],
     readingsCreatedToday: config.initialReadingsCreatedToday ?? 0,
-    categoriesEvaluatedToday: [...(config.initialCategoriesEvaluatedToday ?? [])],
+    categoriesEvaluatedToday: [
+      ...(config.initialCategoriesEvaluatedToday ?? []),
+    ],
     explanations: [...(config.initialExplanations ?? [])],
     accessRequests: [...(config.initialAccessRequests ?? [])],
     adminUsers: seededAdminUsers,
@@ -445,9 +449,10 @@ export async function attachMockBackend(
     }
 
     if (apiPath === "/billing/config" && method === "GET") {
+      const isStripe = config.billingProvider === "stripe";
       return okResponse(route, {
-        provider: "manual",
-        publishableKey: null,
+        provider: isStripe ? "stripe" : "manual",
+        publishableKey: isStripe ? "pk_test_123" : null,
         currency: "mxn",
         uiMode: "custom",
         plans: [
@@ -462,32 +467,68 @@ export async function attachMockBackend(
           {
             tier: "dolly_plus",
             isFree: false,
-            checkoutRequired: false,
-            amountCents: null,
+            checkoutRequired: isStripe,
+            amountCents: isStripe ? 9900 : null,
             currency: "mxn",
             interval: "month",
           },
           {
             tier: "dolly_pro",
             isFree: false,
-            checkoutRequired: false,
-            amountCents: null,
+            checkoutRequired: isStripe,
+            amountCents: isStripe ? 19900 : null,
             currency: "mxn",
             interval: "month",
           },
         ],
         languageUnlock: {
-          checkoutRequired: false,
-          amountCents: null,
+          checkoutRequired: isStripe,
+          amountCents: isStripe ? 4900 : null,
           currency: "mxn",
         },
       });
+    }
+
+    if (apiPath === "/billing/checkout/subscription" && method === "POST") {
+      if (!state.sessionActive || !state.user) {
+        return errorResponse(
+          route,
+          401,
+          "AUTH_UNAUTHORIZED",
+          "Authentication required",
+        );
+      }
+      if (config.captchaConfig?.enabled && !req.headers()["x-captcha-token"]) {
+        return errorResponse(
+          route,
+          400,
+          "CAPTCHA_REQUIRED",
+          "Captcha token required",
+        );
+      }
+      const body = (parsedBody ?? {}) as {
+        tier?: "dolly_plus" | "dolly_pro";
+        uiMode?: "custom" | "hosted";
+      };
+      return okResponse(
+        route,
+        {
+          sessionId: "cs_test_e2e_1",
+          clientSecret: "cs_test_secret_1",
+          url: null,
+          publishableKey: "pk_test_123",
+          uiMode: body.uiMode ?? "custom",
+          tier: body.tier ?? "dolly_plus",
+        },
+        201,
+      );
     }
 
     if (apiPath === "/auth/oauth/providers" && method === "GET") {
       return okResponse(route, {
         providers: config.oauthProviders ?? [
           { provider: "google", enabled: false },
+          { provider: "microsoft", enabled: false },
         ],
       });
     }
@@ -845,7 +886,8 @@ export async function attachMockBackend(
         userEmailVerifiedAt: state.user.emailVerifiedAt,
         userCurrentTier: state.user.subscriptionTier,
         requestType: reqType,
-        requestedTier: reqType === "subscription" ? (body.tier ?? "dolly") : null,
+        requestedTier:
+          reqType === "subscription" ? (body.tier ?? "dolly") : null,
         currentTier: state.user.subscriptionTier,
         userMessage: body.message?.trim() || null,
         status: "pending",
@@ -1062,7 +1104,9 @@ export async function attachMockBackend(
 
     if (apiPath === "/settings/categories" && method === "PUT") {
       const body = (parsedBody ?? {}) as { categories?: string[] };
-      const requested = (body.categories ?? []).map((c) => c.trim()).filter(Boolean);
+      const requested = (body.categories ?? [])
+        .map((c) => c.trim())
+        .filter(Boolean);
       if (requested.length < 3) {
         return errorResponse(
           route,
@@ -1144,7 +1188,10 @@ export async function attachMockBackend(
       };
 
       const langsDto = buildLanguagesDto();
-      if (activePlan.id !== "dolly_pro" && state.selectedLanguages.length === 0) {
+      if (
+        activePlan.id !== "dolly_pro" &&
+        state.selectedLanguages.length === 0
+      ) {
         return errorResponse(
           route,
           403,
@@ -1247,7 +1294,9 @@ export async function attachMockBackend(
       return okResponse(route, state.explanations.map(withReadingAvailability));
     }
 
-    const readingExplainMatch = /^\/readings\/(\d+)\/explanations$/.exec(apiPath);
+    const readingExplainMatch = /^\/readings\/(\d+)\/explanations$/.exec(
+      apiPath,
+    );
     if (readingExplainMatch) {
       const readingId = Number(readingExplainMatch[1]);
       if (method === "GET") {

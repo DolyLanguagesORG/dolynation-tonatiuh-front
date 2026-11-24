@@ -11,6 +11,39 @@ un PR de release contra `develop` que sube la versión y escribe esta sección; 
 mergearlo se crean el tag anotado y la GitHub Release. Ver
 [`conventions/versioning.md`](https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs/blob/develop/conventions/versioning.md).
 
+## [0.16.2](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.16.1...v0.16.2) (2026-11-24)
+
+
+### Bug Fixes
+
+* **billing:** envia token turnstile en checkout stripe y evita sondeo de /auth/me ([#187](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/187)) ([dda2bf6](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/dda2bf63701994d7813c04ae2d1b8d58170d1b2a))
+
+## [0.16.1](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.16.0...v0.16.1) (2026-11-24)
+
+
+### Bug Fixes
+
+* **ci:** construye imagenes amd64 y arm64 en runners nativos sin QEMU ([#182](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/182)) ([b6ed9d6](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/b6ed9d6df18cd64c5b3a65b30fa788609fcec649))
+
+## [0.16.0](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.15.0...v0.16.0) (2026-11-24)
+
+
+### Features
+
+* **ui:** configura favicons de Doly, SEO, Open Graph y manifiesto ([#175](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/175)) ([0d01005](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/0d01005db0078c43a6a3d69fee31200cd76eb95e))
+
+
+### Bug Fixes
+
+* **ui:** calcula los dias de la racha con la hora de Mexico ([#178](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/178)) ([b6d55d3](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/b6d55d3f50b80d99cc145b365a2001d3e23461c4)), closes [#176](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/176)
+
+## [0.15.0](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.14.1...v0.15.0) (2026-11-23)
+
+
+### Features
+
+* **ui:** integra boton y bff de inicio de sesion con microsoft oauth ([#170](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/170)) ([f7ce91a](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/f7ce91a7e0e4d04655bd5db8da769c1ca00b6c9a))
+
 ## [0.14.1](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.14.0...v0.14.1) (2026-11-23)
 
 

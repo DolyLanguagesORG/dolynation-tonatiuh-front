@@ -63,7 +63,11 @@ export function useProfileData() {
     isLoading: isLoadingPlans,
     error: plansError,
   } = useSubscriptionPlans(locale);
-  const { config: billingConfig, isStripeActive } = useBillingConfig();
+  const {
+    config: billingConfig,
+    isStripeActive,
+    ensureConfig: ensureBillingConfig,
+  } = useBillingConfig();
   const effectiveAccessRequestsEnabled =
     accessRequestsEnabled && !isStripeActive;
   const captcha = useTurnstile(
@@ -535,11 +539,16 @@ export function useProfileData() {
 
     setIsUnlockingLanguage(true);
     try {
-      if (isStripeActive) {
+      // Se decide con la configuración real: si no carga, no se cae al desbloqueo manual.
+      const activeBilling = await ensureBillingConfig();
+      const stripeActive = activeBilling.provider === "stripe";
+      if (stripeActive) {
+        const captchaToken = await captcha.execute("billing_checkout");
         const idemKey = createBillingIdempotencyKey("lang_unlock");
         const sessionRes = await billingService.createLanguageUnlockCheckout(
-          { uiMode: billingConfig.uiMode },
+          { uiMode: activeBilling.uiMode },
           idemKey,
+          captchaToken ? { captchaToken } : undefined,
         );
         if (sessionRes.data.uiMode === "hosted" && sessionRes.data.url) {
           if (typeof window !== "undefined") {
@@ -552,7 +561,7 @@ export function useProfileData() {
         return true;
       }
 
-      if (effectiveAccessRequestsEnabled) {
+      if (accessRequestsEnabled) {
         const captchaToken = await captcha.execute("access_request");
         const trimmed = message?.trim();
         const requestPayload = {
@@ -590,7 +599,9 @@ export function useProfileData() {
 
     setIsSavingPlan(true);
     try {
-      if (isStripeActive && (tier === "dolly_plus" || tier === "dolly_pro")) {
+      const activeBilling = await ensureBillingConfig();
+      const stripeActive = activeBilling.provider === "stripe";
+      if (stripeActive && (tier === "dolly_plus" || tier === "dolly_pro")) {
         const hasActiveStripe = Boolean(
           billingStatus?.subscription &&
             billingStatus.subscription.status !== "canceled",
@@ -599,10 +610,12 @@ export function useProfileData() {
           return await handleChangePaidPlan(tier);
         }
 
+        const captchaToken = await captcha.execute("billing_checkout");
         const idemKey = createBillingIdempotencyKey(`sub_${tier}`);
         const sessionRes = await billingService.createSubscriptionCheckout(
-          { tier, uiMode: billingConfig.uiMode },
+          { tier, uiMode: activeBilling.uiMode },
           idemKey,
+          captchaToken ? { captchaToken } : undefined,
         );
         if (sessionRes.data.uiMode === "hosted" && sessionRes.data.url) {
           if (typeof window !== "undefined") {
@@ -615,7 +628,7 @@ export function useProfileData() {
         return true;
       }
 
-      if (effectiveAccessRequestsEnabled) {
+      if (accessRequestsEnabled && !stripeActive) {
         const captchaToken = await captcha.execute("access_request");
         const trimmed = message?.trim();
         const requestPayload = {
@@ -747,12 +760,17 @@ export function useProfileData() {
     if (isManagingBilling) return;
     setIsManagingBilling(true);
     try {
+      const captchaToken = await captcha.execute("billing_setup_intent");
       const idemKey = createBillingIdempotencyKey("setup_intent");
-      const res = await billingService.createSetupIntent(idemKey);
+      const res = await billingService.createSetupIntent(
+        idemKey,
+        captchaToken ? { captchaToken } : undefined,
+      );
       setSetupIntentSession(res.data);
     } catch (err) {
       reportError(err, t.billing.checkout.errorTitle);
     } finally {
+      captcha.reset();
       setIsManagingBilling(false);
     }
   };

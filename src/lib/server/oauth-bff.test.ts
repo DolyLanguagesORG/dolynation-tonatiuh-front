@@ -7,6 +7,7 @@ import { NextRequest } from "next/server";
 jest.mock("server-only", () => ({}));
 
 import {
+  SUPPORTED_OAUTH_PROVIDERS,
   generatePkcePair,
   parseOAuthTransaction,
   resolvePublicOrigin,
@@ -17,6 +18,11 @@ import {
 } from "@/lib/server/oauth-bff";
 
 describe("oauth-bff server utilities", () => {
+  it("supports both google and microsoft OAuth providers and rejects unknown ones", () => {
+    expect(SUPPORTED_OAUTH_PROVIDERS.has("google")).toBe(true);
+    expect(SUPPORTED_OAUTH_PROVIDERS.has("microsoft")).toBe(true);
+    expect(SUPPORTED_OAUTH_PROVIDERS.has("github")).toBe(false);
+  });
   it("generates RFC 7636 S256 PKCE verifier and challenge pair", () => {
     const { codeVerifier, codeChallenge } = generatePkcePair();
 
@@ -52,7 +58,7 @@ describe("oauth-bff server utilities", () => {
     const encoded = serializeOAuthTransaction({
       state: "state-1",
       codeVerifier: "v".repeat(43),
-      redirectUri: "https://stagingweb.dolynation.app/api/auth/oauth/google/callback",
+      redirectUri: "https://stagingplay.dolynation.app/api/auth/oauth/google/callback",
       origin: "register",
       redirectTarget: "/select-plan",
       locale: "en",
@@ -61,7 +67,7 @@ describe("oauth-bff server utilities", () => {
     expect(parseOAuthTransaction(encoded)).toEqual({
       state: "state-1",
       codeVerifier: "v".repeat(43),
-      redirectUri: "https://stagingweb.dolynation.app/api/auth/oauth/google/callback",
+      redirectUri: "https://stagingplay.dolynation.app/api/auth/oauth/google/callback",
       origin: "register",
       redirectTarget: "/select-plan",
       locale: "en",
@@ -75,11 +81,11 @@ describe("oauth-bff server utilities", () => {
     const req = new NextRequest("http://0.0.0.0:3000/api/auth/oauth/google", {
       headers: {
         "x-forwarded-proto": "https",
-        "x-forwarded-host": "stagingweb.dolynation.app",
+        "x-forwarded-host": "stagingplay.dolynation.app",
       },
     });
 
-    expect(resolvePublicOrigin(req)).toBe("https://stagingweb.dolynation.app");
+    expect(resolvePublicOrigin(req)).toBe("https://stagingplay.dolynation.app");
     expect(
       resolvePublicOrigin(
         req,

@@ -8,6 +8,7 @@ import {
   compareYearMonth,
   formatCalendarDateKey,
   shiftYearMonth,
+  toBusinessCalendarDate,
   type StreakDayStatus,
   type YearMonth,
 } from "@/app/profile/_components/streak-calendar-utils";
@@ -56,7 +57,7 @@ export function StreakCalendarCard({
   referenceDate,
 }: StreakCalendarCardProps) {
   const today = useMemo(
-    () => referenceDate ?? new Date(),
+    () => referenceDate ?? toBusinessCalendarDate(),
     [referenceDate],
   );
   const currentYearMonth = useMemo<YearMonth>(

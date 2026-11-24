@@ -119,32 +119,30 @@ const ERROR_MESSAGES_ES: Record<KnownErrorCode, string> = {
     "Ya existe una cuenta registrada con este correo electrónico.",
   AUTH_PASSWORD_TOO_WEAK:
     "La contraseña no cumple con los requisitos mínimos de seguridad.",
-  AUTH_UNAUTHORIZED:
-    "Necesitas iniciar sesión para acceder a esta sección.",
+  AUTH_UNAUTHORIZED: "Necesitas iniciar sesión para acceder a esta sección.",
   AUTH_EMAIL_NOT_VERIFIED:
     "Debes confirmar tu correo electrónico antes de poder continuar.",
   AUTH_EMAIL_TOKEN_INVALID:
     "Este enlace no es válido, ya fue utilizado o expiró. Solicita uno nuevo.",
   AUTH_OAUTH_NOT_CONFIGURED:
-    "El inicio de sesión con Google no está habilitado en este entorno.",
+    "Este inicio de sesión con proveedor externo no está habilitado en este entorno.",
   AUTH_OAUTH_UNSUPPORTED_PROVIDER:
     "El proveedor de autenticación externa solicitado no es compatible.",
   AUTH_OAUTH_INVALID_CODE:
-    "La autorización de Google expiró o no es válida. Intenta iniciar sesión nuevamente.",
+    "La autorización del proveedor externo expiró o no es válida. Intenta iniciar sesión nuevamente.",
   AUTH_OAUTH_EMAIL_UNVERIFIED:
-    "Tu cuenta de Google no tiene un correo electrónico verificado.",
+    "Tu cuenta externa no tiene un correo electrónico verificado.",
   AUTH_OAUTH_ADMIN_FORBIDDEN:
     "Las cuentas de administrador deben iniciar sesión con correo y contraseña.",
   AUTH_OAUTH_PROVIDER_ERROR:
-    "No se pudo completar la autenticación con Google. Inténtalo de nuevo en unos momentos.",
+    "No se pudo completar la autenticación con el proveedor externo. Inténtalo de nuevo en unos momentos.",
   AUTH_OAUTH_STATE_INVALID:
     "La sesión temporal de inicio de sesión expiró o es inválida. Inténtalo de nuevo.",
   AUTH_OAUTH_CANCELLED:
-    "Cancelaste el inicio de sesión con Google antes de completarlo.",
+    "Cancelaste el inicio de sesión con el proveedor externo antes de completarlo.",
   RESOURCE_NOT_FOUND:
     "No encontramos el contenido solicitado o ya no está disponible.",
-  RESOURCE_FORBIDDEN:
-    "No tienes permisos para realizar esta acción.",
+  RESOURCE_FORBIDDEN: "No tienes permisos para realizar esta acción.",
   READING_PENDING_LIMIT_REACHED:
     "Alcanzaste el límite de lecturas pendientes. Completa tus evaluaciones activas antes de generar un nuevo texto.",
   READING_ALREADY_EVALUATED:
@@ -230,36 +228,33 @@ const ERROR_MESSAGES_EN: Record<KnownErrorCode, string> = {
     "An account with this email address is already registered.",
   AUTH_PASSWORD_TOO_WEAK:
     "The password does not meet the minimum security requirements.",
-  AUTH_UNAUTHORIZED:
-    "You must be signed in to access this section.",
+  AUTH_UNAUTHORIZED: "You must be signed in to access this section.",
   AUTH_EMAIL_NOT_VERIFIED:
     "Please confirm your email address before continuing.",
   AUTH_EMAIL_TOKEN_INVALID:
     "This link is invalid, has already been used, or has expired. Please request a new one.",
   AUTH_OAUTH_NOT_CONFIGURED:
-    "Google sign-in is not configured in this environment.",
+    "This external OAuth sign-in provider is not configured in this environment.",
   AUTH_OAUTH_UNSUPPORTED_PROVIDER:
     "The requested external authentication provider is not supported.",
   AUTH_OAUTH_INVALID_CODE:
-    "The Google authorization code is invalid or expired. Please try signing in again.",
+    "The authorization code is invalid or expired. Please try signing in again.",
   AUTH_OAUTH_EMAIL_UNVERIFIED:
-    "Your Google account does not have a verified email address.",
+    "Your external account does not have a verified email address.",
   AUTH_OAUTH_ADMIN_FORBIDDEN:
     "Administrator accounts must sign in using email and password.",
   AUTH_OAUTH_PROVIDER_ERROR:
-    "Could not complete authentication with Google. Please try again shortly.",
+    "Could not complete authentication with the external provider. Please try again shortly.",
   AUTH_OAUTH_STATE_INVALID:
     "Your OAuth sign-in session expired or is invalid. Please try again.",
   AUTH_OAUTH_CANCELLED:
-    "You cancelled the Google sign-in flow before completing it.",
+    "You cancelled the external sign-in flow before completing it.",
   RESOURCE_NOT_FOUND:
     "The requested content could not be found or is no longer available.",
-  RESOURCE_FORBIDDEN:
-    "You do not have permission to perform this action.",
+  RESOURCE_FORBIDDEN: "You do not have permission to perform this action.",
   READING_PENDING_LIMIT_REACHED:
     "You have reached the pending readings limit. Complete active evaluations before generating a new text.",
-  READING_ALREADY_EVALUATED:
-    "This reading has already been evaluated.",
+  READING_ALREADY_EVALUATED: "This reading has already been evaluated.",
   READING_DAILY_LIMIT_REACHED:
     "You have reached the daily reading generation limit for your current plan.",
   EXPLANATION_DAILY_LIMIT_REACHED:
@@ -284,8 +279,7 @@ const ERROR_MESSAGES_EN: Record<KnownErrorCode, string> = {
     "Daily limit for adding or evaluating new custom categories has been reached. Try again tomorrow.",
   ACCESS_REQUEST_REQUIRED:
     "Waitlist review is active: submit an access request and wait for admin approval.",
-  ACCESS_REQUESTS_DISABLED:
-    "Access requests are not available at this time.",
+  ACCESS_REQUESTS_DISABLED: "Access requests are not available at this time.",
   ACCESS_REQUEST_ALREADY_PENDING:
     "You already have a pending access request of this type awaiting review.",
   ACCESS_REQUEST_ALREADY_REVIEWED:
@@ -316,16 +310,14 @@ const ERROR_MESSAGES_EN: Record<KnownErrorCode, string> = {
     "Too many attempts in a short time. Please wait a moment and try again.",
   AI_RATE_LIMITED:
     "We are handling a high volume of requests right now. Please try again in a few minutes.",
-  INTERNAL_ERROR:
-    "Something unexpected happened. Please try again shortly.",
+  INTERNAL_ERROR: "Something unexpected happened. Please try again shortly.",
   SERVICE_UNAVAILABLE:
     "The service is temporarily unavailable. Please try again later.",
   NETWORK_ERROR:
     "Could not connect right now. Please check your internet connection and try again.",
   REQUEST_TIMEOUT:
     "This is taking longer than expected. It may have completed anyway: please check before trying again.",
-  CONFIG_ERROR:
-    "The service is currently unavailable. Please try again later.",
+  CONFIG_ERROR: "The service is currently unavailable. Please try again later.",
   UNKNOWN_ERROR:
     "We could not complete your request right now. Please try again.",
 };
@@ -341,28 +333,27 @@ const ERROR_MESSAGES_FR: Record<KnownErrorCode, string> = {
     "Un compte est déjà enregistré avec cette adresse e-mail.",
   AUTH_PASSWORD_TOO_WEAK:
     "Le mot de passe ne respecte pas les exigences minimales de sécurité.",
-  AUTH_UNAUTHORIZED:
-    "Vous devez vous connecter pour accéder à cette section.",
+  AUTH_UNAUTHORIZED: "Vous devez vous connecter pour accéder à cette section.",
   AUTH_EMAIL_NOT_VERIFIED:
     "Veuillez confirmer votre adresse e-mail avant de continuer.",
   AUTH_EMAIL_TOKEN_INVALID:
     "Ce lien n'est pas valide, a déjà été utilisé ou a expiré. Demandez-en un nouveau.",
   AUTH_OAUTH_NOT_CONFIGURED:
-    "La connexion avec Google n'est pas configurée dans cet environnement.",
+    "Ce fournisseur de connexion externe n'est pas configuré dans cet environnement.",
   AUTH_OAUTH_UNSUPPORTED_PROVIDER:
     "Le fournisseur d'authentification externe demandé n'est pas pris en charge.",
   AUTH_OAUTH_INVALID_CODE:
-    "Le code d'autorisation Google est invalide ou a expiré. Veuillez réessayer.",
+    "Le code d'autorisation est invalide ou a expiré. Veuillez réessayer.",
   AUTH_OAUTH_EMAIL_UNVERIFIED:
-    "Votre compte Google ne possède pas d'adresse e-mail vérifiée.",
+    "Votre compte externe ne possède pas d'adresse e-mail vérifiée.",
   AUTH_OAUTH_ADMIN_FORBIDDEN:
     "Les comptes administrateur doivent se connecter avec leur e-mail et mot de passe.",
   AUTH_OAUTH_PROVIDER_ERROR:
-    "Impossible de finaliser l'authentification avec Google. Réessayez dans un instant.",
+    "Impossible de finaliser l'authentification avec le fournisseur externe. Réessayez dans un instant.",
   AUTH_OAUTH_STATE_INVALID:
     "La session temporaire de connexion a expiré ou est invalide. Veuillez réessayer.",
   AUTH_OAUTH_CANCELLED:
-    "Vous avez annulé la connexion avec Google avant de la terminer.",
+    "Vous avez annulé la connexion externe avant de la terminer.",
   RESOURCE_NOT_FOUND:
     "Le contenu demandé est introuvable ou n'est plus disponible.",
   RESOURCE_FORBIDDEN:
@@ -452,28 +443,27 @@ const ERROR_MESSAGES_IT: Record<KnownErrorCode, string> = {
     "Esiste già un account registrato con questo indirizzo e-mail.",
   AUTH_PASSWORD_TOO_WEAK:
     "La password non soddisfa i requisiti minimi di sicurezza.",
-  AUTH_UNAUTHORIZED:
-    "Devi accedere per poter consultare questa sezione.",
+  AUTH_UNAUTHORIZED: "Devi accedere per poter consultare questa sezione.",
   AUTH_EMAIL_NOT_VERIFIED:
     "Conferma il tuo indirizzo e-mail prima di continuare.",
   AUTH_EMAIL_TOKEN_INVALID:
     "Questo link non è valido, è già stato utilizzato o è scaduto. Richiedine uno nuovo.",
   AUTH_OAUTH_NOT_CONFIGURED:
-    "L'accesso con Google non è configurato in questo ambiente.",
+    "Questo accesso tramite provider esterno non è configurato in questo ambiente.",
   AUTH_OAUTH_UNSUPPORTED_PROVIDER:
     "Il provider di autenticazione esterna richiesto non è supportato.",
   AUTH_OAUTH_INVALID_CODE:
-    "Il codice di autorizzazione Google non è valido o è scaduto. Riprova ad accedere.",
+    "Il codice di autorizzazione non è valido o è scaduto. Riprova ad accedere.",
   AUTH_OAUTH_EMAIL_UNVERIFIED:
-    "Il tuo account Google non dispone di un indirizzo email verificato.",
+    "Il tuo account esterno non dispone di un indirizzo email verificato.",
   AUTH_OAUTH_ADMIN_FORBIDDEN:
     "Gli account amministratore devono accedere con email e password.",
   AUTH_OAUTH_PROVIDER_ERROR:
-    "Impossibile completare l'autenticazione con Google. Riprova tra qualche istante.",
+    "Impossibile completare l'autenticazione con il provider esterno. Riprova tra qualche istante.",
   AUTH_OAUTH_STATE_INVALID:
     "La sessione di accesso esterna è scaduta o non è valida. Riprova.",
   AUTH_OAUTH_CANCELLED:
-    "Hai annullato l'accesso con Google prima del completamento.",
+    "Hai annullato l'accesso esterno prima del completamento.",
   RESOURCE_NOT_FOUND:
     "Il contenuto richiesto non è stato trovato o non è più disponibile.",
   RESOURCE_FORBIDDEN:
@@ -546,8 +536,7 @@ const ERROR_MESSAGES_IT: Record<KnownErrorCode, string> = {
     "Impossibile connettersi al momento. Verifica la tua connessione internet e riprova.",
   REQUEST_TIMEOUT:
     "L'operazione sta richiedendo più tempo del previsto. Potrebbe essere già stata completata: controlla prima di riprovare.",
-  CONFIG_ERROR:
-    "Il servizio non è al momento disponibile. Riprova più tardi.",
+  CONFIG_ERROR: "Il servizio non è al momento disponibile. Riprova più tardi.",
   UNKNOWN_ERROR:
     "Non è stato possibile completare la richiesta al momento. Riprova.",
 };

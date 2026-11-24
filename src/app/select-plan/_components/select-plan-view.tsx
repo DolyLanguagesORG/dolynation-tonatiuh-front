@@ -56,6 +56,7 @@ export function SelectPlanView() {
     config: billingConfig,
     isStripeActive,
     isLoading: isLoadingBillingConfig,
+    ensureConfig: ensureBillingConfig,
   } = useBillingConfig();
   const effectiveAccessRequestsEnabled =
     accessRequestsEnabled && !isStripeActive;
@@ -140,17 +141,22 @@ export function SelectPlanView() {
     setRateLimitWaitSeconds(null);
     setIsSubmittingPlan(true);
     try {
+      // Se decide con la configuración real: si no carga, no se asigna el plan sin cobro.
+      const activeBilling = await ensureBillingConfig();
+      const stripeActive = activeBilling.provider === "stripe";
       if (
-        isStripeActive &&
+        stripeActive &&
         (effectivePlan === "dolly_plus" || effectivePlan === "dolly_pro")
       ) {
+        const captchaToken = await captcha.execute("billing_checkout");
         const idemKey = createBillingIdempotencyKey(`sub_${effectivePlan}`);
         const res = await billingService.createSubscriptionCheckout(
           {
             tier: effectivePlan,
-            uiMode: billingConfig.uiMode,
+            uiMode: activeBilling.uiMode,
           },
           idemKey,
+          captchaToken ? { captchaToken } : undefined,
         );
         if (res.data.uiMode === "hosted" && res.data.url) {
           if (typeof window !== "undefined") {
@@ -159,7 +165,7 @@ export function SelectPlanView() {
           return;
         }
         setCheckoutSession(res.data);
-      } else if (effectiveAccessRequestsEnabled) {
+      } else if (accessRequestsEnabled && !stripeActive) {
         const captchaToken = await captcha.execute("access_request");
         const trimmed = requestMessage.trim();
         const requestPayload = {

@@ -1,6 +1,6 @@
 {
   "name": "dolynation-tonatiuh-front",
-  "version": "0.14.1",
+  "version": "0.16.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -19,7 +19,7 @@
     "@stripe/react-stripe-js": "^7.1.0",
     "@stripe/stripe-js": "^10.3.0",
     "flowbite-react": "^0.12.17",
-    "lucide-react": "^1.72.0",
+    "lucide-react": "^1.77.0",
     "next": "16.4.6",
     "react": "19.3.1",
     "react-dom": "19.3.1",

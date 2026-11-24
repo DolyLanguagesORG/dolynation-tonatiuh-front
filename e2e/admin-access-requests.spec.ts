@@ -109,7 +109,7 @@ test.describe("Admin Isolation, Waitlist Plan Requests & Approval Flows", () => 
       .click();
 
     await expect(
-      page.getByText(/Cambio de plan en lista de espera/i),
+      page.getByText(/Hay una solicitud pendiente para cambiar a Dolly Plus\./i),
     ).toBeVisible();
     await expect(
       page.getByText("SOLICITUD PENDIENTE", { exact: true }),
@@ -119,9 +119,9 @@ test.describe("Admin Isolation, Waitlist Plan Requests & Approval Flows", () => 
     ).toBeDisabled();
 
     const subscriptionSection = page.locator("#subscription");
-    await expect(subscriptionSection).toContainText(
-      "Quiero estudiar dos idiomas al mismo tiempo.",
-    );
+    await expect(
+      subscriptionSection.getByRole("button", { name: /Actualizar estado/i }),
+    ).toHaveCount(0);
 
     // User cancels the pending plan-change request directly from the subscription banner
     await subscriptionSection

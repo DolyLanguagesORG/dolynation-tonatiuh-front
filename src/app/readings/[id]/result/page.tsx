@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { EvaluationResultView } from "@/app/readings/[id]/result/_components/evaluation-result-view";
 import { getDictionary } from "@/i18n";
 import { getServerLocale } from "@/i18n/server-locale";
+import { NOINDEX_ROBOTS } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getServerLocale();
@@ -10,6 +11,7 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: t.readings.result.breakdownTitle,
     description: t.readings.result.subtitle,
+    robots: NOINDEX_ROBOTS,
   };
 }
 

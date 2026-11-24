@@ -110,4 +110,41 @@ describe("OAuthProvidersSection", () => {
     fireEvent.click(button);
     expect(onNavigate).not.toHaveBeenCalled();
   });
+
+  it("renders both Google and Microsoft buttons and navigates to Microsoft BFF route on click", async () => {
+    jest.spyOn(authService, "getOAuthProviders").mockResolvedValue({
+      message: "OK",
+      data: {
+        providers: [
+          { provider: "google", enabled: true },
+          { provider: "microsoft", enabled: true },
+        ],
+      },
+      error: null,
+    });
+
+    const onNavigate = jest.fn();
+    render(
+      <LocaleProvider initialLocale="es">
+        <OAuthProvidersSection
+          mode="register"
+          redirectTarget="/generate"
+          onNavigate={onNavigate}
+        />
+      </LocaleProvider>,
+    );
+
+    const msButton = await screen.findByRole("button", {
+      name: "Registrarse con cuenta de Microsoft",
+    });
+    const googleButton = screen.getByRole("button", {
+      name: "Registrarse con cuenta de Google",
+    });
+    expect(googleButton).toBeInTheDocument();
+
+    fireEvent.click(msButton);
+    expect(onNavigate).toHaveBeenCalledWith(
+      "/api/auth/oauth/microsoft?origin=register&locale=es&redirect=%2Fgenerate",
+    );
+  });
 });
