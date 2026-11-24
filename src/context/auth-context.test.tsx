@@ -729,4 +729,99 @@ describe("AuthProvider onboarding & session phase transitions", () => {
       jest.useRealTimers();
     }
   });
+
+  it("does not call /auth/me on window focus in plan_required when waitlist is disabled and no request is pending", async () => {
+    window.sessionStorage.clear();
+    window.localStorage.clear();
+    document.cookie = "doly_session=1; Path=/";
+
+    const meSpy = jest.spyOn(authService, "me");
+    const getMyRequestsSpy = jest.spyOn(accessRequestsService, "getMyRequests");
+
+    renderHook(() => useAuth(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <AuthProvider
+          initialAuth={{
+            status: "authenticated",
+            user: null,
+            subscription: null,
+            languagesSettings: null,
+            categoriesSettings: null,
+            accessRequests: {
+              enabled: false,
+              requests: [],
+              pendingSubscriptionRequest: null,
+              pendingLanguageUnlockRequest: null,
+            },
+            subscriptionRequired: true,
+          }}
+        >
+          {children}
+        </AuthProvider>
+      ),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      await Promise.resolve();
+    });
+
+    expect(meSpy).not.toHaveBeenCalled();
+    expect(getMyRequestsSpy).not.toHaveBeenCalled();
+  });
+
+  it("calls /auth/me on window focus in plan_required when waitlist mode is enabled", async () => {
+    window.sessionStorage.clear();
+    window.localStorage.clear();
+    document.cookie = "doly_session=1; Path=/";
+
+    const meSpy = jest.spyOn(authService, "me").mockRejectedValue(
+      new ApiClientError({
+        code: ErrorCode.SUBSCRIPTION_REQUIRED,
+        message: "Subscription required",
+        status: 403,
+      }),
+    );
+    jest.spyOn(accessRequestsService, "getMyRequests").mockResolvedValue({
+      message: "OK",
+      data: {
+        enabled: true,
+        requests: [],
+        pendingSubscriptionRequest: null,
+        pendingLanguageUnlockRequest: null,
+      },
+    });
+
+    renderHook(() => useAuth(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <AuthProvider
+          initialAuth={{
+            status: "authenticated",
+            user: null,
+            subscription: null,
+            languagesSettings: null,
+            categoriesSettings: null,
+            accessRequests: {
+              enabled: true,
+              requests: [],
+              pendingSubscriptionRequest: null,
+              pendingLanguageUnlockRequest: null,
+            },
+            subscriptionRequired: true,
+          }}
+        >
+          {children}
+        </AuthProvider>
+      ),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(meSpy).toHaveBeenCalledTimes(1);
+    });
+  });
 });

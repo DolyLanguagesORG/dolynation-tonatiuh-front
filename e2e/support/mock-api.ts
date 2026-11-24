@@ -106,6 +106,7 @@ export interface MockGlossaryEntry {
 export interface MockBackendConfig {
   emailVerificationRequired?: boolean;
   accessRequestsEnabled?: boolean;
+  billingProvider?: "manual" | "stripe";
   validVerificationToken?: string;
   validResetToken?: string;
   categoryDailyLimit?: number;
@@ -448,9 +449,10 @@ export async function attachMockBackend(
     }
 
     if (apiPath === "/billing/config" && method === "GET") {
+      const isStripe = config.billingProvider === "stripe";
       return okResponse(route, {
-        provider: "manual",
-        publishableKey: null,
+        provider: isStripe ? "stripe" : "manual",
+        publishableKey: isStripe ? "pk_test_123" : null,
         currency: "mxn",
         uiMode: "custom",
         plans: [
@@ -465,26 +467,61 @@ export async function attachMockBackend(
           {
             tier: "dolly_plus",
             isFree: false,
-            checkoutRequired: false,
-            amountCents: null,
+            checkoutRequired: isStripe,
+            amountCents: isStripe ? 9900 : null,
             currency: "mxn",
             interval: "month",
           },
           {
             tier: "dolly_pro",
             isFree: false,
-            checkoutRequired: false,
-            amountCents: null,
+            checkoutRequired: isStripe,
+            amountCents: isStripe ? 19900 : null,
             currency: "mxn",
             interval: "month",
           },
         ],
         languageUnlock: {
-          checkoutRequired: false,
-          amountCents: null,
+          checkoutRequired: isStripe,
+          amountCents: isStripe ? 4900 : null,
           currency: "mxn",
         },
       });
+    }
+
+    if (apiPath === "/billing/checkout/subscription" && method === "POST") {
+      if (!state.sessionActive || !state.user) {
+        return errorResponse(
+          route,
+          401,
+          "AUTH_UNAUTHORIZED",
+          "Authentication required",
+        );
+      }
+      if (config.captchaConfig?.enabled && !req.headers()["x-captcha-token"]) {
+        return errorResponse(
+          route,
+          400,
+          "CAPTCHA_REQUIRED",
+          "Captcha token required",
+        );
+      }
+      const body = (parsedBody ?? {}) as {
+        tier?: "dolly_plus" | "dolly_pro";
+        uiMode?: "custom" | "hosted";
+      };
+      return okResponse(
+        route,
+        {
+          sessionId: "cs_test_e2e_1",
+          clientSecret: "cs_test_secret_1",
+          url: null,
+          publishableKey: "pk_test_123",
+          uiMode: body.uiMode ?? "custom",
+          tier: body.tier ?? "dolly_plus",
+        },
+        201,
+      );
     }
 
     if (apiPath === "/auth/oauth/providers" && method === "GET") {
