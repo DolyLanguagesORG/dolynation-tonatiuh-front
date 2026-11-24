@@ -545,6 +545,7 @@
     "generationBlockedBoth": "Vous devez sélectionner au moins une langue cible et enregistrer 3 catégories favorites avant de générer de nouvelles lectures.",
     "missingParameterTitle": "Paramètre manquant",
     "viewPendingReadings": "Voir les lectures en attente",
+    "retryGeneration": "Relancer la génération",
     "viewPlanAndUsage": "Voir l'offre et le quota",
     "wordsUnit": "mots",
     "couldNotSaveTitle": "Enregistrement impossible",

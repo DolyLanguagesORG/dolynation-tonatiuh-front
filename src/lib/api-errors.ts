@@ -73,6 +73,7 @@ export const ErrorCode = {
 
   // Alta demanda (429)
   AI_RATE_LIMITED: "AI_RATE_LIMITED",
+  AI_GENERATION_TIMEOUT: "AI_GENERATION_TIMEOUT",
 
   // Servidor (5xx)
   INTERNAL_ERROR: "INTERNAL_ERROR",
@@ -203,6 +204,8 @@ const ERROR_MESSAGES_ES: Record<KnownErrorCode, string> = {
     "Has realizado demasiados intentos en poco tiempo. Espera un momento e intenta de nuevo.",
   AI_RATE_LIMITED:
     "Estamos atendiendo muchas solicitudes en este momento. Intenta nuevamente en unos minutos.",
+  AI_GENERATION_TIMEOUT:
+    "La lectura tardó demasiado en generarse y se canceló. No se guardó ni se descontó nada: intenta de nuevo.",
   INTERNAL_ERROR:
     "Ocurrió un problema inesperado. Por favor, intenta nuevamente en unos momentos.",
   SERVICE_UNAVAILABLE:
@@ -310,6 +313,8 @@ const ERROR_MESSAGES_EN: Record<KnownErrorCode, string> = {
     "Too many attempts in a short time. Please wait a moment and try again.",
   AI_RATE_LIMITED:
     "We are handling a high volume of requests right now. Please try again in a few minutes.",
+  AI_GENERATION_TIMEOUT:
+    "The reading took too long to generate and was cancelled. Nothing was saved or charged: please try again.",
   INTERNAL_ERROR: "Something unexpected happened. Please try again shortly.",
   SERVICE_UNAVAILABLE:
     "The service is temporarily unavailable. Please try again later.",
@@ -418,6 +423,8 @@ const ERROR_MESSAGES_FR: Record<KnownErrorCode, string> = {
     "Vous avez effectué trop de tentatives en peu de temps. Patientez un instant puis réessayez.",
   AI_RATE_LIMITED:
     "Nous recevons beaucoup de demandes en ce moment. Veuillez réessayer dans quelques minutes.",
+  AI_GENERATION_TIMEOUT:
+    "La génération de la lecture a pris trop de temps et a été annulée. Rien n'a été enregistré ni décompté : réessayez.",
   INTERNAL_ERROR:
     "Un problème inattendu est survenu. Veuillez réessayer dans quelques instants.",
   SERVICE_UNAVAILABLE:
@@ -528,6 +535,8 @@ const ERROR_MESSAGES_IT: Record<KnownErrorCode, string> = {
     "Hai effettuato troppi tentativi in poco tempo. Attendi un momento e riprova.",
   AI_RATE_LIMITED:
     "Stiamo gestendo molte richieste in questo momento. Riprova tra qualche minuto.",
+  AI_GENERATION_TIMEOUT:
+    "La generazione della lettura ha richiesto troppo tempo ed è stata annullata. Nulla è stato salvato né addebitato: riprova.",
   INTERNAL_ERROR:
     "Si è verificato un problema imprevisto. Riprova tra qualche istante.",
   SERVICE_UNAVAILABLE:

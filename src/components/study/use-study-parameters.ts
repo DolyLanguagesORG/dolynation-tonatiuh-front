@@ -18,6 +18,7 @@ import {
   type ReadingDifficulty,
   type ReadingSize,
   type ReadingSizeOption,
+  resolveErrorMessage,
   settingsService,
   studyClient,
   type StudyParameters,
@@ -152,10 +153,7 @@ export function useStudyParameters(
   );
 
   const resolveErrorAction = (code?: string): ToastAction | undefined => {
-    if (
-      code === ErrorCode.READING_PENDING_LIMIT_REACHED ||
-      code === ErrorCode.REQUEST_TIMEOUT
-    ) {
+    if (code === ErrorCode.READING_PENDING_LIMIT_REACHED) {
       return {
         label: t.study.viewPendingReadings,
         href: "/readings",
@@ -531,30 +529,71 @@ export function useStudyParameters(
       if (onGenerate) {
         onGenerate(finalParams);
       } else {
-        const captchaToken = await captcha.execute("reading_generate");
-        const generated = captchaToken
-          ? await studyClient.generateReading(finalParams, { captchaToken })
-          : await studyClient.generateReading(finalParams);
-        const readyMsg = formatMessage(t.study.readingGeneratedSuccess, {
-          title: generated.title,
-        });
-        toast.success(readyMsg, {
-          title: t.study.sessionReadyTitle,
-        });
-        router.push(`/readings/${generated.id}`);
+        await generateAndOpen(finalParams);
       }
     } catch (error) {
-      if (error instanceof ApiClientError) {
-        const msg = error.getUserMessage(locale);
-        toast.error(msg, {
-          title: t.study.generateFailedTitle,
-          action: resolveErrorAction(error.code),
-        });
-      } else {
-        toast.error(t.study.generateFailedError, {
-          title: t.study.generateFailedTitle,
-        });
-      }
+      reportGenerationError(error, finalParams);
+    } finally {
+      captcha.reset();
+      setIsSubmitting(false);
+    }
+  };
+
+  const generateAndOpen = async (params: StudyParameters): Promise<void> => {
+    const captchaToken = await captcha.execute("reading_generate");
+    const generated = captchaToken
+      ? await studyClient.generateReading(params, { captchaToken })
+      : await studyClient.generateReading(params);
+    const readyMsg = formatMessage(t.study.readingGeneratedSuccess, {
+      title: generated.title,
+    });
+    toast.success(readyMsg, {
+      title: t.study.sessionReadyTitle,
+    });
+    router.push(`/readings/${generated.id}`);
+  };
+
+  const reportGenerationError = (
+    error: unknown,
+    params: StudyParameters,
+  ): void => {
+    if (!(error instanceof ApiClientError)) {
+      toast.error(t.study.generateFailedError, {
+        title: t.study.generateFailedTitle,
+      });
+      return;
+    }
+
+    // El backend cancela la generación cuando vence su plazo o el cliente deja de
+    // esperar: no se crea la lectura ni se descuenta cuota, así que se puede reintentar.
+    const timedOut =
+      error.code === ErrorCode.AI_GENERATION_TIMEOUT ||
+      error.code === ErrorCode.REQUEST_TIMEOUT;
+    if (timedOut) {
+      toast.error(resolveErrorMessage(ErrorCode.AI_GENERATION_TIMEOUT, locale), {
+        title: t.study.generateFailedTitle,
+        action: {
+          label: t.study.retryGeneration,
+          onClick: () => {
+            void retryGeneration(params);
+          },
+        },
+      });
+      return;
+    }
+
+    toast.error(error.getUserMessage(locale), {
+      title: t.study.generateFailedTitle,
+      action: resolveErrorAction(error.code),
+    });
+  };
+
+  const retryGeneration = async (params: StudyParameters): Promise<void> => {
+    setIsSubmitting(true);
+    try {
+      await generateAndOpen(params);
+    } catch (error) {
+      reportGenerationError(error, params);
     } finally {
       captcha.reset();
       setIsSubmitting(false);
