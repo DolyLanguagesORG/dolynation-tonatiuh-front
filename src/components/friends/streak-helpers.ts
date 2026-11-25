@@ -9,7 +9,7 @@ import { type Locale } from "@/i18n";
 
 /**
  * Resuelve la lista de categorías aprobadas disponibles en la biblioteca del estudiante
- * para proponer o aceptar una racha diaria entre amigos.
+ * (`selected` ∪ `catalog` de `GET /settings/categories`) para proponer o editar una racha diaria.
  */
 export function resolveAvailableCategoriesForStreak(
   settings: CategoriesSettings | null | undefined,
@@ -23,29 +23,34 @@ export function resolveAvailableCategoriesForStreak(
 
   const byKey = new Map<string, CatalogItem>();
   for (const item of catalog) {
-    byKey.set(item.id.toLowerCase(), item);
     byKey.set(item.name.toLowerCase(), item);
   }
 
   const seen = new Set<string>();
   const resolved: CatalogItem[] = [];
 
-  for (const entry of selected) {
-    const clean = entry.trim();
+  const pushEntry = (rawName: string, id?: string) => {
+    const clean = rawName.trim();
     if (!clean) {
-      continue;
+      return;
     }
-    const matched = byKey.get(clean.toLowerCase());
-    const name = matched?.name ?? clean;
-    const dedupeKey = name.toLowerCase();
+    const dedupeKey = clean.toLowerCase();
     if (seen.has(dedupeKey)) {
-      continue;
+      return;
     }
     seen.add(dedupeKey);
+    const matched = byKey.get(dedupeKey);
     resolved.push({
-      id: matched?.id ?? clean,
-      name,
+      id: id ?? matched?.id ?? clean,
+      name: matched?.name ?? clean,
     });
+  };
+
+  for (const entry of selected) {
+    pushEntry(entry);
+  }
+  for (const item of catalog) {
+    pushEntry(item.name, item.id);
   }
 
   return resolved;

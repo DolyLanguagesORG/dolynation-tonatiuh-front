@@ -21,7 +21,6 @@ import {
 } from "@/components/ui";
 import { type Dictionary, formatMessage, type Locale } from "@/i18n";
 import {
-  type AcceptFriendStreakInput,
   type CatalogItem,
   formatReadingLanguageBadge,
   type FriendStreakDto,
@@ -39,6 +38,7 @@ export interface FriendStreakFormModalProps {
   mode: FriendStreakFormMode;
   partnerName: string;
   availableCategories: readonly CatalogItem[];
+  friendAvailableCategories?: readonly CatalogItem[];
   languageOptions: readonly { id: TargetLanguageCode; name: string }[];
   streak?: FriendStreakDto | null;
   defaultLanguage?: TargetLanguageCode;
@@ -50,7 +50,7 @@ export interface FriendStreakFormModalProps {
   onSubmitPropose?: (input: ProposeFriendStreakInput) => Promise<void> | void;
   onSubmitAccept?: (
     streakId: number,
-    input: AcceptFriendStreakInput,
+    updatedCategories?: string[],
   ) => Promise<void> | void;
   onSubmitEdit?: (
     streakId: number,
@@ -79,10 +79,31 @@ function isPointerOutsideDialog(
   );
 }
 
+function areCategorySetsEqual(
+  first: readonly string[],
+  second: readonly string[],
+): boolean {
+  if (first.length !== second.length) {
+    return false;
+  }
+  const firstKeys = new Set(first.map((item) => item.trim().toLowerCase()));
+  const secondKeys = new Set(second.map((item) => item.trim().toLowerCase()));
+  if (firstKeys.size !== secondKeys.size) {
+    return false;
+  }
+  for (const key of firstKeys) {
+    if (!secondKeys.has(key)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 interface StreakModalFormBodyProps {
   mode: FriendStreakFormMode;
   partnerName: string;
   availableCategories: readonly CatalogItem[];
+  friendAvailableCategories: readonly CatalogItem[];
   languageOptions: readonly { id: TargetLanguageCode; name: string }[];
   streak?: FriendStreakDto | null;
   defaultLanguage?: TargetLanguageCode;
@@ -96,7 +117,7 @@ interface StreakModalFormBodyProps {
   onSubmitPropose?: (input: ProposeFriendStreakInput) => Promise<void> | void;
   onSubmitAccept?: (
     streakId: number,
-    input: AcceptFriendStreakInput,
+    updatedCategories?: string[],
   ) => Promise<void> | void;
   onSubmitEdit?: (
     streakId: number,
@@ -108,6 +129,7 @@ function StreakModalFormBody({
   mode,
   partnerName,
   availableCategories,
+  friendAvailableCategories,
   languageOptions,
   streak,
   defaultLanguage,
@@ -122,14 +144,46 @@ function StreakModalFormBody({
   onSubmitAccept,
   onSubmitEdit,
 }: StreakModalFormBodyProps) {
-  const availableNames = new Set(availableCategories.map((c) => c.name));
+  const mergedMyCategories: CatalogItem[] = (() => {
+    const seen = new Set<string>();
+    const items: CatalogItem[] = [];
+    for (const cat of availableCategories) {
+      const key = cat.name.trim().toLowerCase();
+      if (key && !seen.has(key)) {
+        seen.add(key);
+        items.push(cat);
+      }
+    }
+    if (mode === "accept" || mode === "edit") {
+      for (const raw of streak?.myCategories ?? []) {
+        const clean = raw.trim();
+        const key = clean.toLowerCase();
+        if (key && !seen.has(key)) {
+          seen.add(key);
+          items.push({ id: clean, name: clean });
+        }
+      }
+    }
+    return items;
+  })();
+
+  const availableNameByKey = new Map(
+    mergedMyCategories.map((c) => [c.name.trim().toLowerCase(), c.name]),
+  );
+
   const initialCategories =
-    mode === "edit" && streak
-      ? streak.myCategories.filter((c) => availableNames.has(c)).slice(0, 2)
+    (mode === "edit" || mode === "accept") && streak
+      ? streak.myCategories
+          .map((c) => availableNameByKey.get(c.trim().toLowerCase()) ?? c)
+          .filter(Boolean)
+          .slice(0, 2)
       : [];
 
   const [selectedCategories, setSelectedCategories] =
     useState<string[]>(initialCategories);
+  const [selectedFriendCategories, setSelectedFriendCategories] = useState<
+    string[]
+  >([]);
   const [language, setLanguage] = useState<TargetLanguageCode>(
     defaultLanguage ?? languageOptions[0]?.id ?? "en",
   );
@@ -140,6 +194,19 @@ function StreakModalFormBody({
   const toggleCategory = (categoryName: string) => {
     setValidationError(null);
     setSelectedCategories((prev) => {
+      if (prev.includes(categoryName)) {
+        return prev.filter((item) => item !== categoryName);
+      }
+      if (prev.length >= 2) {
+        return prev;
+      }
+      return [...prev, categoryName];
+    });
+  };
+
+  const toggleFriendCategory = (categoryName: string) => {
+    setValidationError(null);
+    setSelectedFriendCategories((prev) => {
       if (prev.includes(categoryName)) {
         return prev.filter((item) => item !== categoryName);
       }
@@ -180,10 +247,20 @@ function StreakModalFormBody({
       return;
     }
 
+    if (mode === "propose" && selectedFriendCategories.length !== 2) {
+      setValidationError(
+        formatMessage(t.friends.streakModal.exactlyTwoFriendError, {
+          name: partnerName,
+        }),
+      );
+      return;
+    }
+
     setValidationError(null);
     if (mode === "propose" && onSubmitPropose) {
       await onSubmitPropose({
         categories: selectedCategories,
+        friendCategories: selectedFriendCategories,
         language,
         difficulty,
         size,
@@ -192,7 +269,14 @@ function StreakModalFormBody({
     }
 
     if (mode === "accept" && streak && onSubmitAccept) {
-      await onSubmitAccept(streak.id, { categories: selectedCategories });
+      const unchanged = areCategorySetsEqual(
+        selectedCategories,
+        streak.myCategories,
+      );
+      await onSubmitAccept(
+        streak.id,
+        unchanged ? undefined : selectedCategories,
+      );
       return;
     }
 
@@ -213,6 +297,14 @@ function StreakModalFormBody({
             label: formatReadingLanguageBadge(language, locale),
           },
         ];
+
+  const isSubmitDisabled =
+    mode === "propose"
+      ? mergedMyCategories.length < 2 ||
+        friendAvailableCategories.length < 2 ||
+        selectedCategories.length !== 2 ||
+        selectedFriendCategories.length !== 2
+      : mergedMyCategories.length < 2 || selectedCategories.length !== 2;
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-5 p-6">
@@ -296,7 +388,9 @@ function StreakModalFormBody({
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <Text variant="small" className="font-semibold text-heading">
-            {t.friends.streakModal.categoriesHint}
+            {mode === "propose"
+              ? t.friends.streakModal.myCategoriesSectionTitle
+              : t.friends.streakModal.categoriesHint}
           </Text>
           <Badge
             variant={selectedCategories.length === 2 ? "primary" : "outline"}
@@ -307,13 +401,21 @@ function StreakModalFormBody({
           </Badge>
         </div>
 
-        {availableCategories.length < 2 ? (
+        {mergedMyCategories.length < 2 ? (
           <Alert variant="warning">
             {t.friends.streakModal.noCategoriesWarning}
           </Alert>
         ) : (
-          <div className="flex flex-wrap gap-2 pt-1">
-            {availableCategories.map((category) => {
+          <div
+            role="group"
+            aria-label={
+              mode === "propose"
+                ? t.friends.streakModal.myCategoriesSectionTitle
+                : t.friends.streakModal.categoriesHint
+            }
+            className="flex flex-wrap gap-2 pt-1"
+          >
+            {mergedMyCategories.map((category) => {
               const isSelected = selectedCategories.includes(category.name);
               const isLocked =
                 !isSelected && selectedCategories.length >= 2;
@@ -333,6 +435,64 @@ function StreakModalFormBody({
         )}
       </div>
 
+      {mode === "propose" && (
+        <div className="flex flex-col gap-2 border-t border-default pt-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <Text variant="small" className="font-semibold text-heading">
+              {formatMessage(
+                t.friends.streakModal.friendCategoriesSectionTitle,
+                { name: partnerName },
+              )}
+            </Text>
+            <Badge
+              variant={
+                selectedFriendCategories.length === 2 ? "primary" : "outline"
+              }
+            >
+              {formatMessage(t.friends.streakModal.categoriesCounter, {
+                count: selectedFriendCategories.length,
+              })}
+            </Badge>
+          </div>
+
+          {friendAvailableCategories.length < 2 ? (
+            <Alert variant="warning">
+              {formatMessage(t.friends.streakModal.noFriendCategoriesWarning, {
+                name: partnerName,
+              })}
+            </Alert>
+          ) : (
+            <div
+              role="group"
+              aria-label={formatMessage(
+                t.friends.streakModal.friendCategoriesSectionTitle,
+                { name: partnerName },
+              )}
+              className="flex flex-wrap gap-2 pt-1"
+            >
+              {friendAvailableCategories.map((category) => {
+                const isSelected = selectedFriendCategories.includes(
+                  category.name,
+                );
+                const isLocked =
+                  !isSelected && selectedFriendCategories.length >= 2;
+                return (
+                  <ChoiceChip
+                    key={`friend-${category.id}`}
+                    selected={isSelected}
+                    indicator="plus-check"
+                    disabled={isSubmitting || isLocked}
+                    onClick={() => toggleFriendCategory(category.name)}
+                  >
+                    {category.name}
+                  </ChoiceChip>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center justify-end gap-2 border-t border-default pt-4">
         <Button
           type="button"
@@ -348,9 +508,7 @@ function StreakModalFormBody({
           variant="primary"
           size="sm"
           isLoading={isSubmitting}
-          disabled={
-            availableCategories.length < 2 || selectedCategories.length !== 2
-          }
+          disabled={isSubmitDisabled}
         >
           {submitLabel}
         </Button>
@@ -367,6 +525,7 @@ export function FriendStreakFormModal({
   mode,
   partnerName,
   availableCategories,
+  friendAvailableCategories = [],
   languageOptions,
   streak,
   defaultLanguage,
@@ -465,6 +624,7 @@ export function FriendStreakFormModal({
           mode={mode}
           partnerName={partnerName}
           availableCategories={availableCategories}
+          friendAvailableCategories={friendAvailableCategories}
           languageOptions={languageOptions}
           streak={streak}
           defaultLanguage={defaultLanguage}
