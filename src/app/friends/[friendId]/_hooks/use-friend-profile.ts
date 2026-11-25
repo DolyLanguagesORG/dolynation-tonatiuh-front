@@ -11,17 +11,22 @@ import { useAuth } from "@/context";
 import { useToast } from "@/context/toast-context";
 import { formatMessage, useLocale } from "@/i18n";
 import {
-  type AcceptFriendStreakInput,
   ApiClientError,
+  type CatalogItem,
   type CategoriesSettings,
+  clearLocallyInitiatedStreak,
   type CopyFriendCategoriesResponseDto,
-  type FriendReadingDetailDto,
-  type FriendReadingListItemDto,
+  correlateStreakReadings,
+  type FriendReadingDto,
+  type FriendshipDto,
   friendsService,
   type FriendStreakDto,
   type LanguagesSettings,
-  normalizePaginatedList,
+  markLocallyInitiatedStreak,
+  paginateItems,
   type ProposeFriendStreakInput,
+  type ReadingDto,
+  readingsService,
   resolveStartedReadingId,
   settingsService,
   type UpdateFriendStreakCategoriesInput,
@@ -30,6 +35,7 @@ import {
 export type FriendProfileTab = "readings" | "categories" | "streak";
 
 const READINGS_PAGE_SIZE = 12;
+const FRIEND_READINGS_FETCH_LIMIT = 50;
 
 function resolveErrorMessageText(
   err: unknown,
@@ -53,6 +59,7 @@ export function useFriendProfile(
   const { locale, t } = useLocale();
   const toast = useToast();
   const {
+    user,
     accessPhase,
     isAuthenticated,
     categoriesSettings: authCategoriesSettings,
@@ -74,27 +81,30 @@ export function useFriendProfile(
   const [actionError, setActionError] = useState<string | null>(null);
   const [isMutating, setIsMutating] = useState(false);
 
+  const [rawFriendships, setRawFriendships] = useState<FriendshipDto[]>([]);
   const [friendName, setFriendName] = useState<string | null>(null);
-  const [readings, setReadings] = useState<FriendReadingListItemDto[]>([]);
-  const [readingsTotal, setReadingsTotal] = useState(0);
+  const [allReadings, setAllReadings] = useState<FriendReadingDto[]>([]);
   const [readingsPage, setReadingsPage] = useState(1);
-  const [readingsTotalPages, setReadingsTotalPages] = useState(1);
 
   const [previewReading, setPreviewReading] =
-    useState<FriendReadingDetailDto | null>(null);
+    useState<FriendReadingDto | null>(null);
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [startingReadingId, setStartingReadingId] = useState<number | null>(
     null,
   );
 
   const [friendCategories, setFriendCategories] = useState<string[]>([]);
+  const [friendAvailableCategories, setFriendAvailableCategories] = useState<
+    CatalogItem[]
+  >([]);
   const [selectedCategoriesToCopy, setSelectedCategoriesToCopy] = useState<
     string[]
   >([]);
   const [copyResult, setCopyResult] =
     useState<CopyFriendCategoriesResponseDto | null>(null);
 
-  const [streak, setStreak] = useState<FriendStreakDto | null>(null);
+  const [rawStreak, setRawStreak] = useState<FriendStreakDto | null>(null);
+  const [pendingReadings, setPendingReadings] = useState<ReadingDto[]>([]);
   const [categoriesSettings, setCategoriesSettings] =
     useState<CategoriesSettings | null>(null);
   const [languagesSettings, setLanguagesSettings] =
@@ -103,108 +113,130 @@ export function useFriendProfile(
   const canFetch =
     isAuthenticated && accessPhase === "ready" && friendUserId !== null;
 
-  const loadAll = useCallback(
-    async (page: number) => {
-      if (!canFetch || friendUserId === null) {
-        return;
-      }
+  const loadAll = useCallback(async () => {
+    if (!canFetch || friendUserId === null) {
+      return;
+    }
 
-      const [
-        friendsRes,
-        readingsRes,
-        friendCategoriesRes,
-        streaksRes,
-        myCategoriesRes,
-        myLanguagesRes,
-      ] = await Promise.allSettled([
-        friendsService.listFriends({ page: 1, limit: 100 }),
-        friendsService.listFriendReadings(friendUserId, {
-          page,
-          limit: READINGS_PAGE_SIZE,
-        }),
-        friendsService.getFriendCategories(friendUserId),
-        friendsService.listStreaks(),
-        settingsService.getCategories(),
-        settingsService.getLanguages(),
-      ]);
+    const [
+      friendsRes,
+      readingsRes,
+      friendCategoriesRes,
+      streaksRes,
+      pendingReadingsRes,
+      myCategoriesRes,
+      myLanguagesRes,
+    ] = await Promise.allSettled([
+      friendsService.listFriends(),
+      friendsService.listFriendReadings(friendUserId, {
+        limit: FRIEND_READINGS_FETCH_LIMIT,
+      }),
+      friendsService.getFriendCategories(friendUserId),
+      friendsService.listStreaks(),
+      readingsService.listPending(),
+      settingsService.getCategories(),
+      settingsService.getLanguages(),
+    ]);
 
-      if (
-        readingsRes.status === "rejected" &&
-        friendCategoriesRes.status === "rejected"
-      ) {
-        setLoadError(
-          resolveErrorMessageText(
-            readingsRes.reason,
-            locale,
-            t.friends.profile.invalidIdDesc,
-          ),
-        );
-        setIsLoading(false);
-        return;
-      }
-
-      setLoadError(null);
-
-      let resolvedName: string | null = null;
-      if (friendsRes.status === "fulfilled") {
-        const list = normalizePaginatedList(friendsRes.value.data, 100);
-        const match = list.items.find((item) => item.userId === friendUserId);
-        if (match?.fullName) {
-          resolvedName = match.fullName;
-        }
-      }
-
-      if (readingsRes.status === "fulfilled") {
-        const normalized = normalizePaginatedList(
-          readingsRes.value.data,
-          READINGS_PAGE_SIZE,
-        );
-        setReadings(normalized.items);
-        setReadingsTotal(normalized.total);
-        setReadingsPage(normalized.page);
-        setReadingsTotalPages(normalized.totalPages);
-      }
-
-      if (
-        friendCategoriesRes.status === "fulfilled" &&
-        friendCategoriesRes.value.data
-      ) {
-        const catData = friendCategoriesRes.value.data;
-        setFriendCategories(
-          Array.isArray(catData.categories) ? catData.categories : [],
-        );
-        if (!resolvedName && catData.friendName) {
-          resolvedName = catData.friendName;
-        }
-      }
-
-      if (
-        streaksRes.status === "fulfilled" &&
-        Array.isArray(streaksRes.value.data)
-      ) {
-        const matchingStreak =
-          streaksRes.value.data.find(
-            (item) =>
-              item.partnerUserId === friendUserId && item.status !== "ended",
-          ) ?? null;
-        setStreak(matchingStreak);
-        if (!resolvedName && matchingStreak?.partnerName) {
-          resolvedName = matchingStreak.partnerName;
-        }
-      }
-
-      if (myCategoriesRes.status === "fulfilled" && myCategoriesRes.value.data) {
-        setCategoriesSettings(myCategoriesRes.value.data);
-      }
-      if (myLanguagesRes.status === "fulfilled" && myLanguagesRes.value.data) {
-        setLanguagesSettings(myLanguagesRes.value.data);
-      }
-
-      setFriendName(resolvedName);
+    if (
+      readingsRes.status === "rejected" &&
+      friendCategoriesRes.status === "rejected"
+    ) {
+      setLoadError(
+        resolveErrorMessageText(
+          readingsRes.reason,
+          locale,
+          t.friends.profile.invalidIdDesc,
+        ),
+      );
       setIsLoading(false);
-    },
-    [canFetch, friendUserId, locale, t.friends.profile.invalidIdDesc],
-  );
+      return;
+    }
+
+    setLoadError(null);
+
+    let resolvedName: string | null = null;
+    if (
+      friendsRes.status === "fulfilled" &&
+      Array.isArray(friendsRes.value.data)
+    ) {
+      setRawFriendships(friendsRes.value.data);
+      const match = friendsRes.value.data.find(
+        (item) => item.friend.id === friendUserId,
+      );
+      if (match?.friend.fullName) {
+        resolvedName = match.friend.fullName;
+      }
+    }
+
+    if (
+      readingsRes.status === "fulfilled" &&
+      Array.isArray(readingsRes.value.data)
+    ) {
+      setAllReadings(readingsRes.value.data);
+      setReadingsPage(1);
+    }
+
+    if (
+      friendCategoriesRes.status === "fulfilled" &&
+      Array.isArray(friendCategoriesRes.value.data)
+    ) {
+      const seenNames = new Set<string>();
+      const names: string[] = [];
+      const catalog: CatalogItem[] = [];
+
+      for (const entry of friendCategoriesRes.value.data) {
+        const displayName = entry.category.trim();
+        const dedupeKey = (entry.canonicalKey || displayName)
+          .trim()
+          .toLowerCase();
+        if (!displayName || !dedupeKey || seenNames.has(dedupeKey)) {
+          continue;
+        }
+        seenNames.add(dedupeKey);
+        names.push(displayName);
+        catalog.push({
+          id: entry.canonicalKey || displayName,
+          name: displayName,
+        });
+      }
+
+      setFriendCategories(names);
+      setFriendAvailableCategories(catalog);
+    }
+
+    if (
+      streaksRes.status === "fulfilled" &&
+      Array.isArray(streaksRes.value.data)
+    ) {
+      const matchingStreak =
+        streaksRes.value.data.find(
+          (item) =>
+            item.friendUserId === friendUserId && item.status !== "ended",
+        ) ?? null;
+      setRawStreak(matchingStreak);
+      if (!resolvedName && matchingStreak?.partnerName) {
+        resolvedName = matchingStreak.partnerName;
+      }
+    }
+
+    if (
+      pendingReadingsRes.status === "fulfilled" &&
+      Array.isArray(pendingReadingsRes.value.data)
+    ) {
+      setPendingReadings(pendingReadingsRes.value.data);
+    }
+
+    if (myCategoriesRes.status === "fulfilled" && myCategoriesRes.value.data) {
+      setCategoriesSettings(myCategoriesRes.value.data);
+    }
+    if (myLanguagesRes.status === "fulfilled" && myLanguagesRes.value.data) {
+      setLanguagesSettings(myLanguagesRes.value.data);
+    }
+
+    setFriendName(resolvedName);
+    setIsLoading(false);
+  }, [canFetch, friendUserId, locale, t.friends.profile.invalidIdDesc]);
 
   useEffect(() => {
     if (!canFetch) {
@@ -214,7 +246,7 @@ export function useFriendProfile(
     let cancelled = false;
     void (async () => {
       if (!cancelled) {
-        await loadAll(1);
+        await loadAll();
       }
     })();
 
@@ -225,30 +257,25 @@ export function useFriendProfile(
 
   const reloadAll = useCallback(async () => {
     setLoadError(null);
-    await loadAll(readingsPage);
-  }, [loadAll, readingsPage]);
+    await loadAll();
+  }, [loadAll]);
 
-  const changeReadingsPage = async (nextPage: number) => {
-    if (friendUserId === null) {
-      return;
-    }
+  const changeReadingsPage = (nextPage: number) => {
     setActionError(null);
-    try {
-      const res = await friendsService.listFriendReadings(friendUserId, {
-        page: nextPage,
-        limit: READINGS_PAGE_SIZE,
-      });
-      const normalized = normalizePaginatedList(res.data, READINGS_PAGE_SIZE);
-      setReadings(normalized.items);
-      setReadingsTotal(normalized.total);
-      setReadingsPage(normalized.page);
-      setReadingsTotalPages(normalized.totalPages);
-    } catch (err) {
-      setActionError(
-        resolveErrorMessageText(err, locale, t.friends.common.errorTitle),
-      );
-    }
+    setReadingsPage(nextPage);
   };
+
+  const paginatedReadings = paginateItems(
+    allReadings,
+    readingsPage,
+    READINGS_PAGE_SIZE,
+  );
+
+  const friendsById = new Map(rawFriendships.map((f) => [f.friend.id, f]));
+  const streak = rawStreak
+    ? (correlateStreakReadings([rawStreak], pendingReadings, friendsById)[0] ??
+        null)
+    : null;
 
   const openReadingPreview = async (readingId: number) => {
     if (friendUserId === null) {
@@ -371,7 +398,8 @@ export function useFriendProfile(
     try {
       const res = await friendsService.proposeStreak(friendUserId, input);
       if (res.data) {
-        setStreak(res.data);
+        markLocallyInitiatedStreak(res.data.id);
+        setRawStreak(res.data);
       }
       toast.success(
         formatMessage(t.friends.streakModal.proposedNotice, {
@@ -391,14 +419,28 @@ export function useFriendProfile(
 
   const acceptStreak = async (
     streakId: number,
-    input: AcceptFriendStreakInput,
+    updatedCategories?: string[],
   ): Promise<boolean> => {
     setActionError(null);
     setIsMutating(true);
     try {
-      const res = await friendsService.acceptStreak(streakId, input);
+      if (updatedCategories && updatedCategories.length === 2) {
+        await friendsService.updateStreakCategories(streakId, {
+          categories: updatedCategories,
+        });
+      }
+      const res = await friendsService.acceptStreak(streakId);
+      clearLocallyInitiatedStreak(streakId);
       if (res.data) {
-        setStreak(res.data);
+        setRawStreak(res.data);
+      }
+      try {
+        const pendingRes = await readingsService.listPending();
+        if (Array.isArray(pendingRes.data)) {
+          setPendingReadings(pendingRes.data);
+        }
+      } catch {
+        // Correlación no bloqueante
       }
       toast.success(t.friends.hub.streaksTab.acceptedNotice);
       return true;
@@ -417,7 +459,8 @@ export function useFriendProfile(
     setIsMutating(true);
     try {
       await friendsService.rejectStreak(streakId);
-      setStreak(null);
+      clearLocallyInitiatedStreak(streakId);
+      setRawStreak(null);
       toast.success(t.friends.hub.streaksTab.rejectedNotice);
     } catch (err) {
       setActionError(
@@ -437,7 +480,7 @@ export function useFriendProfile(
     try {
       const res = await friendsService.updateStreakCategories(streakId, input);
       if (res.data) {
-        setStreak(res.data);
+        setRawStreak(res.data);
       }
       toast.success(t.friends.hub.streaksTab.updatedCategoriesNotice);
       return true;
@@ -456,7 +499,8 @@ export function useFriendProfile(
     setIsMutating(true);
     try {
       await friendsService.endStreak(streakId);
-      setStreak(null);
+      clearLocallyInitiatedStreak(streakId);
+      setRawStreak(null);
       toast.success(t.friends.hub.streaksTab.endedNotice);
     } catch (err) {
       setActionError(
@@ -526,6 +570,7 @@ export function useFriendProfile(
   return {
     t,
     locale,
+    currentUserId: user?.id ?? null,
     friendUserId,
     isInvalidId: friendUserId === null,
     friendName: friendName?.trim() || t.friends.anonymousName,
@@ -537,10 +582,10 @@ export function useFriendProfile(
     setActionError,
     isMutating,
     reloadAll,
-    readings,
-    readingsTotal,
-    readingsPage,
-    readingsTotalPages,
+    readings: paginatedReadings.items,
+    readingsTotal: paginatedReadings.total,
+    readingsPage: paginatedReadings.page,
+    readingsTotalPages: paginatedReadings.totalPages,
     changeReadingsPage,
     previewReading,
     isLoadingPreview,
@@ -549,6 +594,7 @@ export function useFriendProfile(
     startingReadingId,
     startPrivateReading,
     friendCategories,
+    friendAvailableCategories,
     selectedCategoriesToCopy,
     toggleCategorySelection,
     selectAllCategories,

@@ -11,6 +11,7 @@ import {
   useLocale,
 } from "@/i18n";
 import {
+  correlateStreakReadings,
   formatReadingLanguageBadge,
   friendsService,
   type FriendStreakDto,
@@ -165,6 +166,7 @@ export function useHomeDashboard() {
       subscriptionsService.getCurrentSubscription(),
       usersService.getProfile(),
       friendsService.listStreaks(),
+      friendsService.listFriends(),
     ])
       .then(
         ([
@@ -174,10 +176,12 @@ export function useHomeDashboard() {
           subscriptionRes,
           profileRes,
           friendStreaksRes,
+          friendsRes,
         ]) => {
           if (cancelled) return;
 
           const merged: ReadingDto[] = [];
+          const pendingList: ReadingDto[] = [];
           if (
             completedRes.status === "fulfilled" &&
             Array.isArray(completedRes.value.data)
@@ -188,6 +192,7 @@ export function useHomeDashboard() {
             pendingRes.status === "fulfilled" &&
             Array.isArray(pendingRes.value.data)
           ) {
+            pendingList.push(...pendingRes.value.data);
             merged.push(...pendingRes.value.data);
           }
 
@@ -232,7 +237,18 @@ export function useHomeDashboard() {
             friendStreaksRes.status === "fulfilled" &&
             Array.isArray(friendStreaksRes.value.data)
           ) {
-            setFriendStreaks(friendStreaksRes.value.data);
+            const friendsById =
+              friendsRes.status === "fulfilled" &&
+              Array.isArray(friendsRes.value.data)
+                ? new Map(friendsRes.value.data.map((f) => [f.friend.id, f]))
+                : undefined;
+            setFriendStreaks(
+              correlateStreakReadings(
+                friendStreaksRes.value.data,
+                pendingList,
+                friendsById,
+              ),
+            );
           } else {
             setFriendStreaks([]);
           }
