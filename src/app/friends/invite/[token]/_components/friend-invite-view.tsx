@@ -19,11 +19,12 @@ import { useAuth } from "@/context";
 import { useToast } from "@/context/toast-context";
 import { formatMessage, useLocale } from "@/i18n";
 import {
-  type AcceptFriendInviteLinkResponseDto,
   ApiClientError,
+  buildFriendInvitePath,
   consumePendingInviteRedirect,
   formatReadingDate,
   type FriendInviteLinkPreviewDto,
+  type FriendshipDto,
   friendsService,
   ROUTE_ADMIN,
   ROUTE_SELECT_PLAN,
@@ -36,7 +37,7 @@ export interface FriendInviteViewProps {
 }
 
 type InviteDecisionState =
-  | { kind: "accepted"; result: AcceptFriendInviteLinkResponseDto }
+  | { kind: "accepted"; result: FriendshipDto }
   | { kind: "declined" }
   | null;
 
@@ -60,7 +61,9 @@ export function FriendInviteView({ token }: FriendInviteViewProps) {
   const [decision, setDecision] = useState<InviteDecisionState>(null);
 
   const cleanToken = token.trim();
-  const invitePath = `/friends/invite/${encodeURIComponent(cleanToken)}`;
+  const invitePath = cleanToken
+    ? buildFriendInvitePath(cleanToken)
+    : "/friends/invite";
 
   useEffect(() => {
     let cancelled = false;
@@ -98,7 +101,7 @@ export function FriendInviteView({ token }: FriendInviteViewProps) {
     return () => {
       cancelled = true;
     };
-  }, [cleanToken, locale, t.friends.invite.invalidBody]);
+  }, [cleanToken, isAuthenticated, locale, t.friends.invite.invalidBody]);
 
   useEffect(() => {
     if (!preview?.valid || preview.isOwnLink || preview.alreadyFriends) {
@@ -116,6 +119,13 @@ export function FriendInviteView({ token }: FriendInviteViewProps) {
   const inviterName =
     preview?.inviterName?.trim() || t.friends.anonymousName;
 
+  const acceptedFriendId =
+    decision?.kind === "accepted" ? decision.result.friend.id : null;
+  const acceptedFriendName =
+    decision?.kind === "accepted"
+      ? decision.result.friend.fullName?.trim() || inviterName
+      : inviterName;
+
   const handleAccept = async () => {
     setActionError(null);
     setSubmittingAction("accept");
@@ -125,8 +135,10 @@ export function FriendInviteView({ token }: FriendInviteViewProps) {
       if (res.data) {
         setDecision({ kind: "accepted", result: res.data });
       }
+      const resolvedName =
+        res.data?.friend.fullName?.trim() || inviterName;
       toast.success(
-        formatMessage(t.friends.invite.acceptedBody, { name: inviterName }),
+        formatMessage(t.friends.invite.acceptedBody, { name: resolvedName }),
       );
     } catch (err) {
       const message =
@@ -165,8 +177,7 @@ export function FriendInviteView({ token }: FriendInviteViewProps) {
       return {
         title: t.friends.invite.acceptedTitle,
         subtitle: formatMessage(t.friends.invite.acceptedBody, {
-          name:
-            decision.result.friendName?.trim() || inviterName,
+          name: acceptedFriendName,
         }),
       };
     }
@@ -221,22 +232,22 @@ export function FriendInviteView({ token }: FriendInviteViewProps) {
     >
       {isLoading ? (
         <SkeletonCard lines={3} label={t.friends.invite.loadingLabel} />
-      ) : decision?.kind === "accepted" ? (
+      ) : decision?.kind === "accepted" && acceptedFriendId !== null ? (
         <div className="flex flex-col gap-4">
           <Alert variant="success" title={t.friends.invite.acceptedTitle}>
             {formatMessage(t.friends.invite.acceptedBody, {
-              name: decision.result.friendName?.trim() || inviterName,
+              name: acceptedFriendName,
             })}
           </Alert>
           <div className="flex flex-wrap items-center gap-3">
             <ActionLink
-              href={`/friends/${decision.result.friendUserId}`}
+              href={`/friends/${acceptedFriendId}`}
               variant="primary"
               size="md"
               leftIcon={<Icon name="book-open" size="xs" />}
             >
               {formatMessage(t.friends.invite.openFriendProfileCta, {
-                name: decision.result.friendName?.trim() || inviterName,
+                name: acceptedFriendName,
               })}
             </ActionLink>
             <ActionLink href="/friends" variant="secondary" size="md">

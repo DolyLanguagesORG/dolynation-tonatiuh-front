@@ -9,6 +9,7 @@ import { useLocale } from "@/i18n";
 import {
   ApiClientError,
   ErrorCode,
+  isValidInviteRedirectPath,
   resolveErrorMessage,
   savePendingInviteRedirect,
 } from "@/lib";
@@ -77,7 +78,7 @@ export function useLoginForm() {
   }, [locale, oauthErrorParam]);
 
   useEffect(() => {
-    if (redirectTarget.startsWith("/friends/invite/")) {
+    if (isValidInviteRedirectPath(redirectTarget)) {
       savePendingInviteRedirect(redirectTarget);
     }
   }, [redirectTarget]);
