@@ -290,7 +290,10 @@
         "requestSuccessNotice": "Demande ajoutée à la liste d'attente. Surveillez votre messagerie pour la confirmation.",
         "requestCancelledNotice": "Demande en attente annulée.",
         "cancelErrorFallback": "Impossible d'annuler la demande en attente.",
-        "statusPendingBadge": "EN ATTENTE"
+        "statusPendingBadge": "EN ATTENTE",
+        "switchAccountButton": "Changer de compte",
+        "oauthBackNoticeTitle": "Session déjà active",
+        "oauthBackNoticeBody": "Vous êtes déjà connecté et il ne reste qu'à choisir une offre. Pour revenir à la connexion ou utiliser un autre compte, cliquez sur « Changer de compte »."
       },
       "step4Languages": {
         "title": "Langues cibles d'étude",

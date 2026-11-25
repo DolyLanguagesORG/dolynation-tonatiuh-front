@@ -290,7 +290,10 @@
         "requestSuccessNotice": "Access request submitted to the waitlist. Watch your email for confirmation.",
         "requestCancelledNotice": "Pending request cancelled.",
         "cancelErrorFallback": "Could not cancel the pending request.",
-        "statusPendingBadge": "ON WAITLIST"
+        "statusPendingBadge": "ON WAITLIST",
+        "switchAccountButton": "Switch account",
+        "oauthBackNoticeTitle": "Session already active",
+        "oauthBackNoticeBody": "You are already signed in and only need to choose a plan. To return to sign in or use another account, click \"Switch account\"."
       },
       "step4Languages": {
         "title": "Target Study Languages",
