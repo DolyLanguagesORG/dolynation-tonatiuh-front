@@ -1,6 +1,6 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
 import type { ReactNode } from "react";
 
 const mockLogout = jest.fn(async () => {});
@@ -59,6 +59,7 @@ import { AppShell } from "@/components/layout/app-shell";
 import { Header } from "@/components/layout/header";
 import { Sidebar } from "@/components/layout/sidebar";
 import { LocaleProvider } from "@/i18n";
+import { friendsService, readingsService } from "@/lib";
 
 describe("Header & Sidebar layout", () => {
   beforeEach(() => {
@@ -66,6 +67,10 @@ describe("Header & Sidebar layout", () => {
     window.localStorage.clear();
     mockPathname = "/";
     mockAuthOverrides = {};
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
   });
 
   it("renders ES/EN/FR/IT LocaleSelector dropdown and user dropdown menu in Header top-right", async () => {
@@ -434,5 +439,101 @@ describe("Header & Sidebar layout", () => {
     expect(screen.getByTestId("header-auth-skeleton")).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Iniciar sesión/i })).not.toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Crear cuenta/i })).not.toBeInTheDocument();
+  });
+
+  it("renders accurate pending badge count from real incoming requests and correlated streak readings, clearing to 0 when resolved", async () => {
+    const incomingSpy = jest
+      .spyOn(friendsService, "listIncomingRequests")
+      .mockResolvedValue({
+        message: "ok",
+        data: [
+          {
+            requestId: 91,
+            id: 22,
+            fullName: "Elena",
+            since: "2026-11-24T08:00:00.000Z",
+            direction: "incoming",
+            origin: "email",
+            createdAt: "2026-11-24T08:00:00.000Z",
+          },
+        ],
+      });
+    const streaksSpy = jest
+      .spyOn(friendsService, "listStreaks")
+      .mockResolvedValue({
+        message: "ok",
+        data: [
+          {
+            id: 50,
+            status: "active",
+            myCategories: ["Ciencia", "Arte"],
+            partnerCategories: ["Cine", "Música"],
+            language: "en",
+            difficulty: "medium",
+            size: "medium",
+            currentStreak: 2,
+            longestStreak: 5,
+            lastCompletedDate: null,
+            myCompletedToday: false,
+            partnerCompletedToday: false,
+            friendUserId: 22,
+          },
+        ],
+      });
+    const pendingSpy = jest
+      .spyOn(readingsService, "listPending")
+      .mockResolvedValue({
+        message: "ok",
+        data: [
+          {
+            id: 700,
+            userId: 7,
+            title: "Daily Streak Essay",
+            description: "Streak desc",
+            content: "Text",
+            category: "Cine",
+            difficulty: "medium",
+            language: "en",
+            wordCount: 210,
+            status: "pending",
+            score: null,
+            feedback: null,
+            userResponse: null,
+            passed: null,
+            originType: "friend_streak",
+            createdAt: "2026-11-24T06:00:00.000Z",
+            updatedAt: null,
+            deletedAt: null,
+          },
+        ],
+      });
+
+    const { rerender } = render(
+      <LocaleProvider initialLocale="es">
+        <Sidebar isOpen={false} onClose={() => {}} />
+      </LocaleProvider>,
+    );
+
+    const badge = await screen.findByLabelText(
+      /Solicitudes o lecturas de racha pendientes/i,
+    );
+    expect(badge).toHaveTextContent("2");
+
+    incomingSpy.mockResolvedValue({ message: "ok", data: [] });
+    streaksSpy.mockResolvedValue({ message: "ok", data: [] });
+    pendingSpy.mockResolvedValue({ message: "ok", data: [] });
+    mockPathname = "/friends";
+
+    rerender(
+      <LocaleProvider initialLocale="es">
+        <Sidebar isOpen={false} onClose={() => {}} />
+      </LocaleProvider>,
+    );
+
+    await waitFor(() => {
+      expect(
+        screen.queryByLabelText(/Solicitudes o lecturas de racha pendientes/i),
+      ).not.toBeInTheDocument();
+    });
   });
 });

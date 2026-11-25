@@ -25,25 +25,36 @@ test.describe("Friends Module (Invitations, Private Readings & Streaks)", () => 
       initialSelectedCategories: ["Tecnología", "Ciencia", "Historia"],
       initialFriends: [
         {
-          userId: 202,
-          friendshipId: 12,
-          fullName: "Carlos López",
-          email: "carlos@example.com",
-          since: "2026-11-12T10:00:00.000Z",
+          id: 12,
+          friend: {
+            id: 202,
+            fullName: "Carlos López",
+            since: "2026-11-12T10:00:00.000Z",
+          },
+          createdAt: "2026-11-12T10:00:00.000Z",
         },
       ],
       initialIncomingFriendRequests: [
         {
-          id: 501,
-          status: "pending",
+          requestId: 501,
+          id: 203,
+          fullName: "Sofía Ramírez",
+          since: "2026-11-21T10:00:00.000Z",
+          direction: "incoming",
           origin: "email",
-          requesterId: 203,
-          addresseeId: 101,
-          requesterName: "Sofía Ramírez",
-          requesterEmail: "sofia@example.com",
-          addresseeName: "Juan Student",
           createdAt: "2026-11-21T10:00:00.000Z",
-          respondedAt: null,
+        },
+      ],
+      initialFriendInviteLinks: [
+        {
+          id: 401,
+          token: "older-link-token-0123456789abcdef0123",
+          inviterUserId: 101,
+          inviterName: "Juan Student",
+          maxUses: 1,
+          usesCount: 0,
+          expiresAt: "2099-12-31T00:00:00.000Z",
+          revokedAt: null,
         },
       ],
     });
@@ -56,13 +67,16 @@ test.describe("Friends Module (Invitations, Private Readings & Streaks)", () => 
       page.getByRole("heading", { name: "Carlos López" }),
     ).toBeVisible();
 
-    // Tab: Agregar amigo (correo + link compartible + WhatsApp + revocar)
+    // Tab: Agregar amigo (correo + link existente url:null + link compartible recién creado + WhatsApp + revocar)
     await page.getByRole("tab", { name: /Agregar amigo/i }).click();
+    await expect(
+      page.getByText(/Por seguridad, la URL solo se muestra justo al crear/i),
+    ).toBeVisible();
     await page.getByLabel(/Correo de tu amigo/i).fill("nuevo@example.com");
     await page
       .getByRole("button", { name: /Enviar solicitud por correo/i })
       .click();
-    await expect(page.getByText(/nuevo@example.com/i).first()).toBeVisible();
+    await expect(page.getByText("nuevo").first()).toBeVisible();
     expect(mock.state.outgoingFriendRequests).toHaveLength(1);
 
     await page
@@ -84,7 +98,7 @@ test.describe("Friends Module (Invitations, Private Readings & Streaks)", () => 
       .click();
     await expect(page.getByText("REVOCADO", { exact: true })).toBeVisible();
 
-    // Tab: Solicitudes (aceptar entrante y cancelar saliente)
+    // Tab: Solicitudes (aceptar entrante usando requestId y cancelar saliente usando requestId)
     await page.getByRole("tab", { name: /Solicitudes/i }).click();
     await expect(page.getByText("Sofía Ramírez")).toBeVisible();
     await page.getByRole("button", { name: /^Aceptar$/i }).click();
@@ -120,12 +134,13 @@ test.describe("Friends Module (Invitations, Private Readings & Streaks)", () => 
     ).toHaveCount(0);
   });
 
-  test("preserves /friends/invite/[token] through login and accepts invitation cleanly", async ({
+  test("preserves /friends/invite?token=... through login and accepts invitation cleanly", async ({
     page,
     context,
     baseURL,
   }) => {
     test.setTimeout(90_000);
+    const inviteToken = "ana-invite-token-0123456789abcdef0123";
     const mock = await attachMockBackend(page, context, baseURL!, {
       initialAuthenticated: false,
       initialSelectedLanguages: ["en"],
@@ -133,14 +148,13 @@ test.describe("Friends Module (Invitations, Private Readings & Streaks)", () => 
       initialFriendInviteLinks: [
         {
           id: 77,
-          token: "ana-invite-token",
+          token: inviteToken,
           inviterUserId: 202,
           inviterName: "Ana Sofía",
           maxUses: 1,
           usesCount: 0,
           expiresAt: "2099-12-31T00:00:00.000Z",
           revokedAt: null,
-          createdAt: "2026-11-20T00:00:00.000Z",
         },
       ],
     });
@@ -157,7 +171,7 @@ test.describe("Friends Module (Invitations, Private Readings & Streaks)", () => 
       createdAt: "2026-11-01T00:00:00.000Z",
     };
 
-    await page.goto("/friends/invite/ana-invite-token");
+    await page.goto(`/friends/invite?token=${inviteToken}`);
     await expect(
       page.getByRole("heading", {
         name: "¿Quieres ser amigo de Ana Sofía?",
@@ -173,7 +187,9 @@ test.describe("Friends Module (Invitations, Private Readings & Streaks)", () => 
     await page.getByRole("textbox", { name: "Contraseña" }).fill("DolyPass2026!");
     await page.getByRole("button", { name: /Iniciar sesión/i }).click();
 
-    await expect(page).toHaveURL(/\/friends\/invite\/ana-invite-token/);
+    await expect(page).toHaveURL(
+      new RegExp(`/friends/invite\\?token=${inviteToken}`),
+    );
     await expect(
       page.getByRole("heading", {
         name: "¿Quieres ser amigo de Ana Sofía?",
@@ -189,7 +205,7 @@ test.describe("Friends Module (Invitations, Private Readings & Streaks)", () => 
     ).toHaveAttribute("href", "/friends/202");
   });
 
-  test("explores friend readings privately, starts copy, copies categories split by plan, and renders /readings origin badges", async ({
+  test("explores friend readings privately, starts copy, copies categories split by plan, proposes 2+2 streak, and renders /readings origin badges", async ({
     page,
     context,
     baseURL,
@@ -219,10 +235,13 @@ test.describe("Friends Module (Invitations, Private Readings & Streaks)", () => 
       ],
       initialFriends: [
         {
-          userId: 202,
-          friendshipId: 12,
-          fullName: "Ana Sofía",
-          since: "2026-11-10T00:00:00.000Z",
+          id: 12,
+          friend: {
+            id: 202,
+            fullName: "Ana Sofía",
+            since: "2026-11-10T00:00:00.000Z",
+          },
+          createdAt: "2026-11-10T00:00:00.000Z",
         },
       ],
       initialFriendReadingsByUserId: {
@@ -272,18 +291,40 @@ test.describe("Friends Module (Invitations, Private Readings & Streaks)", () => 
     await expect(page.getByText("Deep Sea Robotics")).toBeVisible();
     await expect(page.getByText(/\/100/)).toHaveCount(0);
 
-    // Copiar categorías con límite plan Básico (maxCategories=10 -> 9 previas => 1 activada, 1 solo guardada, 1 omitida)
+    // Proponer racha diaria eligiendo 2 categorías propias + 2 categorías aprobadas del amigo
+    await page.getByRole("tab", { name: /Racha diaria/i }).click();
+    await page
+      .getByRole("button", { name: /Proponer racha diaria/i })
+      .click();
+    const streakDialog = page.locator("dialog[open]");
+    const myCatsGroup = streakDialog.getByRole("group", {
+      name: /Tus 2 categorías aprobadas/i,
+    });
+    const friendCatsGroup = streakDialog.getByRole("group", {
+      name: /2 categorías aprobadas de Ana Sofía/i,
+    });
+    await myCatsGroup.getByRole("button", { name: "Tecnología" }).click();
+    await myCatsGroup.getByRole("button", { name: "Ciencia" }).click();
+    await friendCatsGroup
+      .getByRole("button", { name: "Astrobiología" })
+      .click();
+    await friendCatsGroup.getByRole("button", { name: "Robótica" }).click();
+    await streakDialog
+      .getByRole("button", { name: /Enviar propuesta/i })
+      .click();
+    await expect(
+      page.getByText(/Esperando a que Ana Sofía acepte/i),
+    ).toBeVisible();
+
+    // Copiar categorías con límite plan Básico (maxCategories=10 -> 9 previas => 1 nueva activada + 1 ya activa, 1 solo guardada)
     await page.getByRole("tab", { name: /Categorías/i }).click();
     await page.getByRole("button", { name: /Seleccionar todas/i }).click();
     await page.getByRole("button", { name: /Copiar seleccionadas/i }).click();
     await expect(
-      page.getByText(/Activadas en tu plan: Astrobiología/i),
+      page.getByText(/Activadas en tu plan:.*Astrobiología/i),
     ).toBeVisible();
     await expect(
       page.getByText(/Solo guardadas en biblioteca.*Robótica/i),
-    ).toBeVisible();
-    await expect(
-      page.getByText(/Ya existentes o no disponibles: Tecnología/i),
     ).toBeVisible();
 
     // Leer texto y empezar copia privada -> redirige a /readings/[miId]
@@ -306,7 +347,7 @@ test.describe("Friends Module (Invitations, Private Readings & Streaks)", () => 
     await expect(page.getByText("Racha con amigo").first()).toBeVisible();
   });
 
-  test("runs friend streak lifecycle on mobile viewport, surfaces pending streak on /, and blocks admins", async ({
+  test("runs friend streak lifecycle on mobile viewport, correlates pending streak on / and Sidebar, and blocks admins", async ({
     page,
     context,
     baseURL,
@@ -328,36 +369,30 @@ test.describe("Friends Module (Invitations, Private Readings & Streaks)", () => 
       initialSelectedCategories: ["Tecnología", "Ciencia", "Historia"],
       initialFriends: [
         {
-          userId: 202,
-          friendshipId: 12,
-          fullName: "Ana Sofía",
-          since: "2026-11-10T00:00:00.000Z",
+          id: 12,
+          friend: {
+            id: 202,
+            fullName: "Ana Sofía",
+            since: "2026-11-10T00:00:00.000Z",
+          },
+          createdAt: "2026-11-10T00:00:00.000Z",
         },
       ],
       initialFriendStreaks: [
         {
           id: 88,
-          friendshipId: 12,
-          partnerUserId: 202,
-          partnerName: "Ana Sofía",
-          initiatedByUserId: 202,
-          awaitingMyAcceptance: true,
           status: "pending_partner",
-          myCategories: [],
+          myCategories: ["Tecnología", "Historia"],
           partnerCategories: ["Cine", "Música"],
-          categoryPool: ["Cine", "Música"],
           language: "en",
           difficulty: "medium",
           size: "medium",
           currentStreak: 0,
           longestStreak: 0,
           lastCompletedDate: null,
-          startedAt: null,
-          createdAt: "2026-11-22T09:00:00.000Z",
-          updatedAt: null,
           myCompletedToday: false,
           partnerCompletedToday: false,
-          todayReadingId: null,
+          friendUserId: 202,
         },
       ],
     });
@@ -368,10 +403,10 @@ test.describe("Friends Module (Invitations, Private Readings & Streaks)", () => 
     ).toBeVisible();
 
     await page
-      .getByRole("button", { name: /Aceptar y elegir 2 categorías/i })
+      .getByRole("button", { name: /Aceptar propuesta/i })
       .click();
     const modal = page.locator("dialog[open]");
-    await modal.getByRole("button", { name: "Tecnología" }).click();
+    await modal.getByRole("button", { name: "Historia" }).click();
     await modal.getByRole("button", { name: "Ciencia" }).click();
     await modal.getByRole("button", { name: /Aceptar y activar racha/i }).click();
 
@@ -387,7 +422,7 @@ test.describe("Friends Module (Invitations, Private Readings & Streaks)", () => 
     );
     expect(hasHorizontalOverflow).toBe(false);
 
-    // Inicio `/` muestra la lectura compartida pendiente
+    // Inicio `/` muestra la lectura compartida pendiente correlacionada con /readings/pending
     await page.goto("/");
     await expect(
       page.getByText(/Lecturas diarias pendientes de racha/i),
@@ -396,8 +431,14 @@ test.describe("Friends Module (Invitations, Private Readings & Streaks)", () => 
       page.getByRole("link", { name: /Leer hoy/i }),
     ).toHaveAttribute("href", /\/readings\/\d+/);
 
-    // Cuenta admin queda aislada fuera de /friends
+    // Sidebar escritorio refleja el badge pendiente en Amigos
     await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    await expect(
+      page.getByLabel(/Solicitudes o lecturas de racha pendientes/i).first(),
+    ).toHaveText("1");
+
+    // Cuenta admin queda aislada fuera de /friends
     await page.unrouteAll({ behavior: "ignoreErrors" });
     await attachMockBackend(page, context, baseURL!, {
       initialAuthenticated: true,

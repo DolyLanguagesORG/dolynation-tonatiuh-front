@@ -205,7 +205,7 @@ describe("RouteAccessGuard & RequireAuth", () => {
   it("consumes pending invite redirect for already authenticated ready users on auth pages", () => {
     window.sessionStorage.setItem(
       "doly.pending_invite_redirect",
-      "/friends/invite/tok-123",
+      "/friends/invite?token=tok-123",
     );
     mockAuthState = {
       isLoading: false,
@@ -224,37 +224,39 @@ describe("RouteAccessGuard & RequireAuth", () => {
       </RouteAccessGuard>,
     );
 
-    expect(mockReplace).toHaveBeenCalledWith("/friends/invite/tok-123");
+    expect(mockReplace).toHaveBeenCalledWith("/friends/invite?token=tok-123");
     expect(
       window.sessionStorage.getItem("doly.pending_invite_redirect"),
     ).toBeNull();
   });
 
-  it("allows unauthenticated and onboarded users to view public /friends/invite/[token] links without forced redirect", () => {
-    mockPathname = "/friends/invite/public-token-1";
+  it("allows unauthenticated and onboarded users to view public /friends/invite links without forced redirect", () => {
+    for (const path of ["/friends/invite", "/friends/invite/public-token-1"]) {
+      mockPathname = path;
 
-    for (const phase of [
-      "unauthenticated",
-      "unverified_email",
-      "plan_required",
-      "ready",
-      "admin",
-    ] as const) {
-      mockReplace.mockClear();
-      mockAuthState = {
-        isLoading: false,
-        isAuthenticated: phase !== "unauthenticated",
-        accessPhase: phase,
-      };
-      const { unmount } = render(
-        <RouteAccessGuard>
-          <div>Invite Preview</div>
-        </RouteAccessGuard>,
-      );
+      for (const phase of [
+        "unauthenticated",
+        "unverified_email",
+        "plan_required",
+        "ready",
+        "admin",
+      ] as const) {
+        mockReplace.mockClear();
+        mockAuthState = {
+          isLoading: false,
+          isAuthenticated: phase !== "unauthenticated",
+          accessPhase: phase,
+        };
+        const { unmount } = render(
+          <RouteAccessGuard>
+            <div>Invite Preview</div>
+          </RouteAccessGuard>,
+        );
 
-      expect(mockReplace).not.toHaveBeenCalled();
-      expect(screen.getByText("Invite Preview")).toBeInTheDocument();
-      unmount();
+        expect(mockReplace).not.toHaveBeenCalled();
+        expect(screen.getByText("Invite Preview")).toBeInTheDocument();
+        unmount();
+      }
     }
   });
 

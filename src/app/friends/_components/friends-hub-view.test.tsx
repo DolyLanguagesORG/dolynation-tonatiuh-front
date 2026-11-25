@@ -36,53 +36,38 @@ jest.mock("@/context/toast-context", () => ({
 
 import { FriendsHubView } from "@/app/friends/_components/friends-hub-view";
 import { LocaleProvider } from "@/i18n";
-import { friendsService, settingsService } from "@/lib";
+import { friendsService, readingsService, settingsService } from "@/lib";
 
 describe("FriendsHubView", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    window.localStorage.clear();
 
     jest.spyOn(friendsService, "listFriends").mockResolvedValue({
       message: "ok",
-      data: {
-        items: [
-          {
-            userId: 2,
-            friendshipId: 10,
+      data: [
+        {
+          id: 10,
+          friend: {
+            id: 2,
             fullName: "Ana Sofía",
             since: "2026-11-10T10:00:00.000Z",
-            activeStreak: {
-              id: 50,
-              status: "active",
-              currentStreak: 4,
-              longestStreak: 7,
-              language: "en",
-              myCompletedToday: false,
-              partnerCompletedToday: true,
-              todayReadingId: 901,
-            },
           },
-        ],
-        total: 1,
-        page: 1,
-        limit: 12,
-        totalPages: 1,
-      },
+          createdAt: "2026-11-10T10:00:00.000Z",
+        },
+      ],
     });
     jest.spyOn(friendsService, "listIncomingRequests").mockResolvedValue({
       message: "ok",
       data: [
         {
-          id: 71,
-          status: "pending",
+          requestId: 71,
+          id: 3,
+          fullName: "Carlos Méndez",
+          since: "2026-11-20T12:00:00.000Z",
+          direction: "incoming",
           origin: "email",
-          requesterId: 3,
-          addresseeId: 1,
-          requesterName: "Carlos Méndez",
-          requesterEmail: "carlos@example.com",
-          addresseeName: "Juan Student",
           createdAt: "2026-11-20T12:00:00.000Z",
-          respondedAt: null,
         },
       ],
     });
@@ -95,13 +80,11 @@ describe("FriendsHubView", () => {
       data: [
         {
           id: 81,
-          token: "tok-active-1",
-          url: "http://localhost:3000/friends/invite/tok-active-1",
+          url: null,
           maxUses: 1,
           usesCount: 0,
           expiresAt: "2099-12-01T00:00:00.000Z",
           revokedAt: null,
-          createdAt: "2026-11-20T00:00:00.000Z",
         },
       ],
     });
@@ -110,37 +93,32 @@ describe("FriendsHubView", () => {
       data: [
         {
           id: 50,
-          friendshipId: 10,
-          partnerUserId: 2,
-          partnerName: "Ana Sofía",
-          initiatedByUserId: 2,
-          awaitingMyAcceptance: true,
           status: "pending_partner",
-          myCategories: [],
+          myCategories: ["Tecnología", "Historia"],
           partnerCategories: ["Cine", "Música"],
-          categoryPool: ["Cine", "Música"],
           language: "en",
           difficulty: "medium",
           size: "medium",
           currentStreak: 0,
           longestStreak: 0,
           lastCompletedDate: null,
-          startedAt: null,
-          createdAt: "2026-11-22T08:00:00.000Z",
-          updatedAt: null,
           myCompletedToday: false,
           partnerCompletedToday: false,
-          todayReadingId: null,
+          friendUserId: 2,
         },
       ],
+    });
+    jest.spyOn(readingsService, "listPending").mockResolvedValue({
+      message: "ok",
+      data: [],
     });
     jest.spyOn(friendsService, "listBlockedUsers").mockResolvedValue({
       message: "ok",
       data: [
         {
-          userId: 9,
+          id: 9,
           fullName: "Cuenta Bloqueada",
-          blockedAt: "2026-11-18T12:00:00.000Z",
+          createdAt: "2026-11-18T12:00:00.000Z",
         },
       ],
     });
@@ -172,10 +150,11 @@ describe("FriendsHubView", () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    window.localStorage.clear();
   });
 
   it(
-    "renders friends list, supports keyboard tab navigation, email request, and invite link copy/WhatsApp",
+    "renders friends list, supports keyboard tab navigation, email request, null existing link note, and newly created invite link copy/WhatsApp",
     async () => {
       const user = userEvent.setup();
       const writeTextMock = jest.fn<Promise<void>, [string]>(
@@ -191,16 +170,28 @@ describe("FriendsHubView", () => {
         .mockResolvedValue({
           message: "ok",
           data: {
-            id: 72,
-            status: "pending",
+            requestId: 72,
+            id: 4,
+            fullName: "Lucía",
+            since: "2026-11-23T00:00:00.000Z",
+            direction: "outgoing",
             origin: "email",
-            requesterId: 1,
-            addresseeId: 4,
-            requesterName: "Juan Student",
-            addresseeName: "Lucía",
-            addresseeEmail: "lucia@example.com",
             createdAt: "2026-11-23T00:00:00.000Z",
-            respondedAt: null,
+          },
+        });
+
+      const createLinkSpy = jest
+        .spyOn(friendsService, "createInviteLink")
+        .mockResolvedValue({
+          message: "ok",
+          data: {
+            id: 82,
+            token: "tok-created-2",
+            url: "http://localhost:3000/friends/invite?token=tok-created-2",
+            maxUses: 1,
+            usesCount: 0,
+            expiresAt: "2099-12-01T00:00:00.000Z",
+            revokedAt: null,
           },
         });
 
@@ -224,6 +215,10 @@ describe("FriendsHubView", () => {
       const addTab = screen.getByRole("tab", { name: /Agregar amigo/i });
       expect(addTab).toHaveAttribute("aria-selected", "true");
 
+      expect(
+        screen.getByText(/Por seguridad, la URL solo se muestra justo al crear/i),
+      ).toBeInTheDocument();
+
       await user.type(
         screen.getByLabelText(/Correo de tu amigo/i),
         "lucia@example.com",
@@ -238,6 +233,13 @@ describe("FriendsHubView", () => {
         });
       });
 
+      await user.click(
+        screen.getByRole("button", { name: /Generar enlace de amistad/i }),
+      );
+      await waitFor(() => {
+        expect(createLinkSpy).toHaveBeenCalledWith({ maxUses: 1 });
+      });
+
       const whatsAppLink = screen.getByRole("link", { name: /WhatsApp/i });
       expect(whatsAppLink).toHaveAttribute(
         "href",
@@ -245,14 +247,14 @@ describe("FriendsHubView", () => {
       );
       await user.click(screen.getByRole("button", { name: /Copiar enlace/i }));
       expect(writeTextMock).toHaveBeenCalledWith(
-        "http://localhost:3000/friends/invite/tok-active-1",
+        "http://localhost:3000/friends/invite?token=tok-created-2",
       );
     },
     15_000,
   );
 
   it(
-    "handles incoming request acceptance, streak 2-category acceptance, and unblock confirm",
+    "handles incoming request acceptance by requestId, streak acceptance without body (with optional category edit), and unblock by blocked.id",
     async () => {
       const user = userEvent.setup();
       const acceptRequestSpy = jest
@@ -261,14 +263,32 @@ describe("FriendsHubView", () => {
           message: "ok",
           data: {
             id: 71,
-            status: "accepted",
-            origin: "email",
-            requesterId: 3,
-            addresseeId: 1,
-            requesterName: "Carlos Méndez",
-            addresseeName: "Juan Student",
-            createdAt: "2026-11-20T12:00:00.000Z",
-            respondedAt: "2026-11-23T00:00:00.000Z",
+            friend: {
+              id: 3,
+              fullName: "Carlos Méndez",
+              since: "2026-11-23T00:00:00.000Z",
+            },
+            createdAt: "2026-11-23T00:00:00.000Z",
+          },
+        });
+      const updateCategoriesSpy = jest
+        .spyOn(friendsService, "updateStreakCategories")
+        .mockResolvedValue({
+          message: "ok",
+          data: {
+            id: 50,
+            status: "pending_partner",
+            myCategories: ["Tecnología", "Ciencia"],
+            partnerCategories: ["Cine", "Música"],
+            language: "en",
+            difficulty: "medium",
+            size: "medium",
+            currentStreak: 0,
+            longestStreak: 0,
+            lastCompletedDate: null,
+            myCompletedToday: false,
+            partnerCompletedToday: false,
+            friendUserId: 2,
           },
         });
       const acceptStreakSpy = jest
@@ -277,27 +297,18 @@ describe("FriendsHubView", () => {
           message: "ok",
           data: {
             id: 50,
-            friendshipId: 10,
-            partnerUserId: 2,
-            partnerName: "Ana Sofía",
-            initiatedByUserId: 2,
-            awaitingMyAcceptance: false,
             status: "active",
             myCategories: ["Tecnología", "Ciencia"],
             partnerCategories: ["Cine", "Música"],
-            categoryPool: ["Tecnología", "Ciencia", "Cine", "Música"],
             language: "en",
             difficulty: "medium",
             size: "medium",
             currentStreak: 1,
             longestStreak: 1,
             lastCompletedDate: null,
-            startedAt: "2026-11-23T00:00:00.000Z",
-            createdAt: "2026-11-22T08:00:00.000Z",
-            updatedAt: null,
             myCompletedToday: false,
             partnerCompletedToday: false,
-            todayReadingId: 501,
+            friendUserId: 2,
           },
         });
       const unblockSpy = jest
@@ -320,21 +331,25 @@ describe("FriendsHubView", () => {
       });
 
       await user.click(screen.getByRole("tab", { name: /Rachas/i }));
+      expect(
+        screen.getByText(/Ana Sofía te propuso esta racha diaria/i),
+      ).toBeInTheDocument();
+
       await user.click(
-        screen.getByRole("button", { name: /Aceptar y elegir 2 categorías/i }),
+        screen.getByRole("button", { name: /Aceptar propuesta/i }),
       );
       const modal = screen.getByRole("dialog");
-      await user.click(
-        within(modal).getByRole("button", { name: "Tecnología" }),
-      );
+      // Historia venía preseleccionada: la cambiamos por Ciencia antes de confirmar
+      await user.click(within(modal).getByRole("button", { name: "Historia" }));
       await user.click(within(modal).getByRole("button", { name: "Ciencia" }));
       await user.click(
         within(modal).getByRole("button", { name: /Aceptar y activar racha/i }),
       );
       await waitFor(() => {
-        expect(acceptStreakSpy).toHaveBeenCalledWith(50, {
+        expect(updateCategoriesSpy).toHaveBeenCalledWith(50, {
           categories: ["Tecnología", "Ciencia"],
         });
+        expect(acceptStreakSpy).toHaveBeenCalledWith(50);
       });
 
       await user.click(screen.getByRole("tab", { name: /Bloqueados/i }));

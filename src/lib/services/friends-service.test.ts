@@ -1,13 +1,27 @@
-import { beforeEach, describe, expect, it, jest } from "@jest/globals";
+import { afterEach, beforeEach, describe, expect, it, jest } from "@jest/globals";
 
-import type { ApiTransport } from "@/lib/api-contracts";
+import type {
+  ApiTransport,
+  FriendStreakDto,
+  FriendshipDto,
+  ReadingDto,
+} from "@/lib/api-contracts";
 import type { ApiResponse } from "@/lib/api-errors";
 import {
+  buildFriendInvitePath,
   buildFriendInviteUrl,
   buildWhatsAppShareUrl,
+  clearLocallyInitiatedStreak,
   consumePendingInviteRedirect,
+  correlateStreakReadings,
   createFriendsService,
+  hasLocallyInitiatedStreak,
+  isStreakAwaitingMyAcceptance,
+  isValidInviteRedirectPath,
+  mapFriendshipToSummary,
+  markLocallyInitiatedStreak,
   normalizePaginatedList,
+  paginateItems,
   peekPendingInviteRedirect,
   resolveStartedReadingId,
   savePendingInviteRedirect,
@@ -31,6 +45,12 @@ function createMockTransport(): jest.Mocked<ApiTransport> {
 describe("friendsService", () => {
   beforeEach(() => {
     window.sessionStorage.clear();
+    window.localStorage.clear();
+  });
+
+  afterEach(() => {
+    window.sessionStorage.clear();
+    window.localStorage.clear();
   });
 
   it("calls all friendship request and invite link endpoints with expected paths and skipAuth preview", async () => {
@@ -44,15 +64,17 @@ describe("friendsService", () => {
       undefined,
     );
 
-    await service.listIncomingRequests({ page: 1, limit: 10 });
-    expect(transport.get).toHaveBeenCalledWith("/friends/requests/incoming", {
-      query: { page: 1, limit: 10 },
-    });
+    await service.listIncomingRequests();
+    expect(transport.get).toHaveBeenCalledWith(
+      "/friends/requests/incoming",
+      undefined,
+    );
 
     await service.listOutgoingRequests();
-    expect(transport.get).toHaveBeenCalledWith("/friends/requests/outgoing", {
-      query: undefined,
-    });
+    expect(transport.get).toHaveBeenCalledWith(
+      "/friends/requests/outgoing",
+      undefined,
+    );
 
     await service.acceptRequest(14);
     expect(transport.post).toHaveBeenCalledWith(
@@ -78,6 +100,13 @@ describe("friendsService", () => {
     expect(transport.post).toHaveBeenCalledWith(
       "/friends/invite-links",
       { maxUses: 1 },
+      undefined,
+    );
+
+    await service.createInviteLink();
+    expect(transport.post).toHaveBeenCalledWith(
+      "/friends/invite-links",
+      {},
       undefined,
     );
 
@@ -114,14 +143,12 @@ describe("friendsService", () => {
     );
   });
 
-  it("calls friend reading, category copy, block, and streak endpoints accurately", async () => {
+  it("calls friend reading, category copy, block, and streak endpoints accurately without forbidden params", async () => {
     const transport = createMockTransport();
     const service = createFriendsService(transport);
 
-    await service.listFriends({ page: 2, limit: 12, search: "Carlos" });
-    expect(transport.get).toHaveBeenCalledWith("/friends", {
-      query: { page: 2, limit: 12, search: "Carlos" },
-    });
+    await service.listFriends();
+    expect(transport.get).toHaveBeenCalledWith("/friends", undefined);
 
     await service.removeFriend(7);
     expect(transport.delete).toHaveBeenCalledWith("/friends/7", undefined);
@@ -142,9 +169,14 @@ describe("friendsService", () => {
       undefined,
     );
 
-    await service.listFriendReadings(7, { page: 1, limit: 12 });
+    await service.listFriendReadings(7, { limit: 50 });
     expect(transport.get).toHaveBeenCalledWith("/friends/7/readings", {
-      query: { page: 1, limit: 12 },
+      query: { limit: 50 },
+    });
+
+    await service.listFriendReadings(7, { limit: 999 });
+    expect(transport.get).toHaveBeenCalledWith("/friends/7/readings", {
+      query: { limit: 50 },
     });
 
     await service.getFriendReading(7, 99);
@@ -175,6 +207,7 @@ describe("friendsService", () => {
 
     await service.proposeStreak(7, {
       categories: ["Ciencia", "Historia"],
+      friendCategories: ["Arte", "Música"],
       language: "en",
       difficulty: "medium",
       size: "medium",
@@ -183,6 +216,7 @@ describe("friendsService", () => {
       "/friends/7/streak",
       {
         categories: ["Ciencia", "Historia"],
+        friendCategories: ["Arte", "Música"],
         language: "en",
         difficulty: "medium",
         size: "medium",
@@ -190,10 +224,10 @@ describe("friendsService", () => {
       undefined,
     );
 
-    await service.acceptStreak(12, { categories: ["Arte", "Música"] });
+    await service.acceptStreak(12);
     expect(transport.post).toHaveBeenCalledWith(
       "/friends/streaks/12/accept",
-      { categories: ["Arte", "Música"] },
+      undefined,
       undefined,
     );
 
@@ -229,7 +263,7 @@ describe("friendsService", () => {
     );
   });
 
-  it("normalizes arrays and paginated envelopes cleanly", () => {
+  it("normalizes and paginates arrays cleanly", () => {
     expect(normalizePaginatedList(null, 12)).toEqual({
       items: [],
       total: 0,
@@ -246,24 +280,125 @@ describe("friendsService", () => {
       totalPages: 1,
     });
 
-    expect(
-      normalizePaginatedList(
-        { items: [{ id: 3 }], total: 25, page: 2, limit: 10 },
-        12,
-      ),
-    ).toEqual({
-      items: [{ id: 3 }],
-      total: 25,
+    expect(paginateItems([1, 2, 3, 4, 5], 2, 2)).toEqual({
+      items: [3, 4],
+      total: 5,
       page: 2,
-      limit: 10,
+      limit: 2,
       totalPages: 3,
+    });
+
+    expect(paginateItems([1, 2, 3], 99, 2)).toEqual({
+      items: [3],
+      total: 3,
+      page: 2,
+      limit: 2,
+      totalPages: 2,
     });
   });
 
-  it("builds invite URLs, WhatsApp URLs, resolves started reading IDs, and guards invite redirect storage", () => {
+  it("maps FriendshipDto, tracks local initiated streaks, and correlates streaks with pending readings", () => {
+    const friendship: FriendshipDto = {
+      id: 10,
+      friend: {
+        id: 202,
+        fullName: "Ana Sofía",
+        since: "2026-11-10T10:00:00.000Z",
+      },
+      createdAt: "2026-11-10T10:00:00.000Z",
+    };
+
+    const friendsById = new Map([[friendship.friend.id, friendship]]);
+
+    const activeStreak: FriendStreakDto = {
+      id: 50,
+      status: "active",
+      myCategories: ["Tecnología", "Ciencia"],
+      partnerCategories: ["Cine", "Música"],
+      language: "en",
+      difficulty: "medium",
+      size: "medium",
+      currentStreak: 4,
+      longestStreak: 7,
+      lastCompletedDate: null,
+      myCompletedToday: false,
+      partnerCompletedToday: true,
+      friendUserId: 202,
+    };
+
+    const pendingReading: ReadingDto = {
+      id: 901,
+      userId: 101,
+      title: "AI & Jazz",
+      description: "Daily streak",
+      content: "Content",
+      category: "Música",
+      difficulty: "medium",
+      language: "en",
+      wordCount: 220,
+      status: "pending",
+      score: null,
+      feedback: null,
+      userResponse: null,
+      passed: null,
+      originType: "friend_streak",
+      createdAt: "2026-11-24T06:00:00.000Z",
+      updatedAt: null,
+      deletedAt: null,
+    };
+
+    const [enriched] = correlateStreakReadings(
+      [activeStreak],
+      [pendingReading],
+      friendsById,
+    );
+
+    expect(enriched).toMatchObject({
+      partnerUserId: 202,
+      partnerName: "Ana Sofía",
+      categoryPool: ["Tecnología", "Ciencia", "Cine", "Música"],
+      todayReadingId: 901,
+      todayCategory: "Música",
+      todayStatus: "pending",
+    });
+
+    expect(mapFriendshipToSummary(friendship, enriched)).toEqual({
+      userId: 202,
+      friendshipId: 10,
+      fullName: "Ana Sofía",
+      since: "2026-11-10T10:00:00.000Z",
+      activeStreak: {
+        id: 50,
+        status: "active",
+        currentStreak: 4,
+        longestStreak: 7,
+        language: "en",
+        myCompletedToday: false,
+        partnerCompletedToday: true,
+        todayReadingId: 901,
+      },
+    });
+
+    const pendingStreak: FriendStreakDto = {
+      ...activeStreak,
+      id: 77,
+      status: "pending_partner",
+    };
+    expect(isStreakAwaitingMyAcceptance(pendingStreak, 101)).toBe(true);
+    markLocallyInitiatedStreak(77);
+    expect(hasLocallyInitiatedStreak(77)).toBe(true);
+    expect(isStreakAwaitingMyAcceptance(pendingStreak, 101)).toBe(false);
+    clearLocallyInitiatedStreak(77);
+    expect(hasLocallyInitiatedStreak(77)).toBe(false);
+  });
+
+  it("builds /friends/invite?token= URLs, resolves started reading IDs, and guards invite redirects for both query and segment formats", () => {
+    expect(buildFriendInvitePath("  abc-123  ")).toBe(
+      "/friends/invite?token=abc-123",
+    );
     expect(
       buildFriendInviteUrl("  abc-123  ", "https://dolynation.app/"),
-    ).toBe("https://dolynation.app/friends/invite/abc-123");
+    ).toBe("https://dolynation.app/friends/invite?token=abc-123");
 
     expect(buildWhatsAppShareUrl("Únete: https://x.test/a")).toBe(
       "https://wa.me/?text=%C3%9Anete%3A%20https%3A%2F%2Fx.test%2Fa",
@@ -278,15 +413,25 @@ describe("friendsService", () => {
     expect(resolveStartedReadingId({ id: 403 })).toBe(403);
     expect(resolveStartedReadingId(null)).toBeNull();
 
+    expect(isValidInviteRedirectPath("/friends/invite?token=tok-123")).toBe(
+      true,
+    );
+    expect(isValidInviteRedirectPath("/friends/invite/tok-123")).toBe(true);
+    expect(isValidInviteRedirectPath("/friends/invite?token=")).toBe(false);
+    expect(isValidInviteRedirectPath("/friends/invite/")).toBe(false);
+    expect(isValidInviteRedirectPath("//evil.test/phish")).toBe(false);
+
     savePendingInviteRedirect("https://evil.test/phish");
     expect(peekPendingInviteRedirect()).toBeNull();
 
     savePendingInviteRedirect("/friends/invite/");
     expect(peekPendingInviteRedirect()).toBeNull();
 
-    savePendingInviteRedirect(" /friends/invite/tok-999 ");
-    expect(peekPendingInviteRedirect()).toBe("/friends/invite/tok-999");
-    expect(consumePendingInviteRedirect()).toBe("/friends/invite/tok-999");
+    savePendingInviteRedirect(" /friends/invite?token=tok-999 ");
+    expect(peekPendingInviteRedirect()).toBe("/friends/invite?token=tok-999");
+    expect(consumePendingInviteRedirect()).toBe(
+      "/friends/invite?token=tok-999",
+    );
     expect(consumePendingInviteRedirect()).toBeNull();
   });
 });
