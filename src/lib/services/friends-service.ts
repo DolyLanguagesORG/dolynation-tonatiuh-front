@@ -1,22 +1,19 @@
 import {
-  type AcceptFriendInviteLinkResponseDto,
-  type AcceptFriendStreakInput,
   type ApiRequestOptions,
   type ApiTransport,
   type BlockedUserDto,
   type CopyFriendCategoriesInput,
   type CopyFriendCategoriesResponseDto,
+  type CreatedFriendInviteLinkDto,
   type CreateFriendInviteLinkInput,
   type CreateFriendRequestByEmailInput,
-  type FriendCategoriesDto,
+  type FriendCategoryDto,
   type FriendInviteLinkDto,
   type FriendInviteLinkPreviewDto,
-  type FriendReadingDetailDto,
-  type FriendReadingListItemDto,
-  type FriendReadingsListResponseDto,
-  type FriendRequestDto,
-  type FriendsListResponseDto,
-  type FriendsPaginationQuery,
+  type FriendReadingDto,
+  type FriendReadingsQuery,
+  type FriendshipDto,
+  type FriendshipRequestDto,
   type FriendStreakDto,
   type FriendSummaryDto,
   type ProposeFriendStreakInput,
@@ -30,7 +27,10 @@ import { httpClient } from "@/lib/http-client";
 export type FriendsRequestOptions = Omit<ApiRequestOptions, "method" | "body">;
 
 const PENDING_INVITE_REDIRECT_KEY = "doly.pending_invite_redirect";
-const FRIEND_INVITE_PREFIX = "/friends/invite/";
+const INITIATED_STREAKS_STORAGE_KEY = "doly.initiated_friend_streaks";
+const MAX_INITIATED_STREAKS = 50;
+const FRIEND_INVITE_BASE_PATH = "/friends/invite";
+const FRIEND_INVITE_PREFIX = `${FRIEND_INVITE_BASE_PATH}/`;
 
 export interface NormalizedPaginatedResult<T> {
   items: T[];
@@ -38,6 +38,32 @@ export interface NormalizedPaginatedResult<T> {
   page: number;
   limit: number;
   totalPages: number;
+}
+
+/**
+ * Pagina de forma segura un arreglo en memoria ajustando el número de página al rango válido.
+ */
+export function paginateItems<T>(
+  items: readonly T[],
+  page: number,
+  limit: number,
+): NormalizedPaginatedResult<T> {
+  const safeLimit =
+    Number.isFinite(limit) && limit >= 1 ? Math.floor(limit) : 12;
+  const total = items.length;
+  const totalPages = Math.max(1, Math.ceil(total / safeLimit));
+  const clampedPage = Math.min(
+    totalPages,
+    Math.max(1, Number.isFinite(page) ? Math.floor(page) : 1),
+  );
+  const start = (clampedPage - 1) * safeLimit;
+  return {
+    items: items.slice(start, start + safeLimit),
+    total,
+    page: clampedPage,
+    limit: safeLimit,
+    totalPages,
+  };
 }
 
 /**
@@ -92,11 +118,18 @@ export function normalizePaginatedList<T>(
 }
 
 /**
- * Construye la URL pública compartible hacia `/friends/invite/[token]`.
+ * Construye la ruta canónica relativa hacia `/friends/invite?token=...`, idéntica a la generada por el backend.
+ */
+export function buildFriendInvitePath(token: string): string {
+  const cleanToken = encodeURIComponent(token.trim());
+  return `${FRIEND_INVITE_BASE_PATH}?token=${cleanToken}`;
+}
+
+/**
+ * Construye la URL pública compartible hacia `/friends/invite?token=...`.
  */
 export function buildFriendInviteUrl(token: string, origin?: string): string {
-  const cleanToken = encodeURIComponent(token.trim());
-  const path = `${FRIEND_INVITE_PREFIX}${cleanToken}`;
+  const path = buildFriendInvitePath(token);
   const resolvedOrigin =
     origin?.trim() ||
     (typeof window !== "undefined" ? window.location.origin : "");
@@ -140,20 +173,41 @@ export function resolveStartedReadingId(
   return null;
 }
 
-function isValidInviteRedirectPath(path: string | null | undefined): path is string {
+/**
+ * Valida que una ruta de redirección pertenezca exclusivamente a `/friends/invite?token=<token>`
+ * o a la variante heredada `/friends/invite/<token>`.
+ */
+export function isValidInviteRedirectPath(
+  path: string | null | undefined,
+): path is string {
   if (!path || typeof path !== "string") {
     return false;
   }
   const trimmed = path.trim();
-  if (!trimmed.startsWith(FRIEND_INVITE_PREFIX) || trimmed.startsWith("//")) {
+  if (!trimmed.startsWith("/") || trimmed.startsWith("//")) {
     return false;
   }
-  return trimmed.length > FRIEND_INVITE_PREFIX.length;
+  try {
+    const parsed = new URL(trimmed, "http://localhost");
+    if (parsed.origin !== "http://localhost") {
+      return false;
+    }
+    if (parsed.pathname === FRIEND_INVITE_BASE_PATH) {
+      return Boolean(parsed.searchParams.get("token")?.trim());
+    }
+    if (parsed.pathname.startsWith(FRIEND_INVITE_PREFIX)) {
+      const tokenSegment = parsed.pathname.slice(FRIEND_INVITE_PREFIX.length);
+      return tokenSegment.trim().length > 0 && !tokenSegment.includes("/");
+    }
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 /**
- * Guarda temporalmente la ruta de invitación (`/friends/invite/<token>`) en `sessionStorage`
- * para completarla automáticamente después de registrarse o elegir plan.
+ * Guarda temporalmente la ruta de invitación (`/friends/invite?token=<token>` o `/friends/invite/<token>`)
+ * en `sessionStorage` para completarla automáticamente después de registrarse o elegir plan.
  */
 export function savePendingInviteRedirect(path: string): void {
   if (typeof window === "undefined" || !isValidInviteRedirectPath(path)) {
@@ -190,6 +244,254 @@ export function consumePendingInviteRedirect(): string | null {
   return pending;
 }
 
+function readInitiatedStreakIdsFromStorage(storage: Storage): number[] {
+  const raw = storage.getItem(INITIATED_STREAKS_STORAGE_KEY);
+  if (!raw) {
+    return [];
+  }
+  const parsed = JSON.parse(raw) as unknown;
+  if (!Array.isArray(parsed)) {
+    return [];
+  }
+  return parsed.filter(
+    (item): item is number =>
+      typeof item === "number" && Number.isInteger(item) && item > 0,
+  );
+}
+
+function readInitiatedStreakIds(): number[] {
+  if (typeof window === "undefined") {
+    return [];
+  }
+  try {
+    return readInitiatedStreakIdsFromStorage(window.localStorage);
+  } catch {
+    try {
+      return readInitiatedStreakIdsFromStorage(window.sessionStorage);
+    } catch {
+      return [];
+    }
+  }
+}
+
+function writeInitiatedStreakIds(ids: number[]): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  const serialized = JSON.stringify(ids.slice(-MAX_INITIATED_STREAKS));
+  try {
+    window.localStorage.setItem(INITIATED_STREAKS_STORAGE_KEY, serialized);
+  } catch {
+    try {
+      window.sessionStorage.setItem(INITIATED_STREAKS_STORAGE_KEY, serialized);
+    } catch {
+      // Almacenamiento bloqueado.
+    }
+  }
+}
+
+/**
+ * Registra localmente una racha propuesta desde esta sesión para distinguirla de propuestas entrantes.
+ */
+export function markLocallyInitiatedStreak(streakId: number): void {
+  if (!Number.isInteger(streakId) || streakId <= 0) {
+    return;
+  }
+  const existing = readInitiatedStreakIds().filter((id) => id !== streakId);
+  writeInitiatedStreakIds([...existing, streakId]);
+}
+
+export function hasLocallyInitiatedStreak(streakId: number): boolean {
+  if (!Number.isInteger(streakId) || streakId <= 0) {
+    return false;
+  }
+  return readInitiatedStreakIds().includes(streakId);
+}
+
+export function clearLocallyInitiatedStreak(streakId: number): void {
+  if (!Number.isInteger(streakId) || streakId <= 0) {
+    return;
+  }
+  const next = readInitiatedStreakIds().filter((id) => id !== streakId);
+  writeInitiatedStreakIds(next);
+}
+
+/**
+ * Convierte el DTO real `FriendshipDto` del backend en el resumen usado por la UI del hub.
+ */
+export function mapFriendshipToSummary(
+  friendship: FriendshipDto,
+  activeStreak?: FriendStreakDto | null,
+): FriendSummaryDto {
+  return {
+    userId: friendship.friend.id,
+    friendshipId: friendship.id,
+    fullName: friendship.friend.fullName,
+    since: friendship.friend.since,
+    activeStreak: activeStreak
+      ? {
+          id: activeStreak.id,
+          status: activeStreak.status,
+          currentStreak: activeStreak.currentStreak,
+          longestStreak: activeStreak.longestStreak,
+          language: activeStreak.language,
+          myCompletedToday: activeStreak.myCompletedToday,
+          partnerCompletedToday: activeStreak.partnerCompletedToday,
+          todayReadingId:
+            activeStreak.todayReadingId ??
+            activeStreak.today?.myReadingId ??
+            null,
+        }
+      : null,
+  };
+}
+
+/**
+ * Determina si una racha en `pending_partner` espera confirmación del usuario actual.
+ */
+export function isStreakAwaitingMyAcceptance(
+  streak: FriendStreakDto,
+  currentUserId?: number | null,
+): boolean {
+  if (streak.status !== "pending_partner") {
+    return false;
+  }
+  if (typeof streak.awaitingMyAcceptance === "boolean") {
+    return streak.awaitingMyAcceptance;
+  }
+  if (typeof streak.isInitiator === "boolean") {
+    return !streak.isInitiator;
+  }
+  const partnerId = streak.partnerUserId ?? streak.friendUserId;
+  if (typeof streak.initiatedByUserId === "number") {
+    if (typeof currentUserId === "number") {
+      return streak.initiatedByUserId !== currentUserId;
+    }
+    return streak.initiatedByUserId === partnerId;
+  }
+  if (hasLocallyInitiatedStreak(streak.id)) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Enriquece `FriendStreakDto[]` del backend con `partnerName`, `partnerUserId`, `categoryPool`
+ * y la lectura diaria pendiente (`originType === "friend_streak"`) de `/readings/pending`.
+ */
+export function correlateStreakReadings(
+  streaks: readonly FriendStreakDto[],
+  pendingReadings: readonly ReadingDto[] = [],
+  friendsById?: ReadonlyMap<number, FriendshipDto>,
+): FriendStreakDto[] {
+  const usedReadingIds = new Set<number>();
+  for (const streak of streaks) {
+    const explicitId = streak.todayReadingId ?? streak.today?.myReadingId;
+    if (typeof explicitId === "number") {
+      usedReadingIds.add(explicitId);
+    }
+  }
+
+  const candidateReadings = pendingReadings
+    .filter(
+      (reading) =>
+        reading.originType === "friend_streak" &&
+        reading.status === "pending" &&
+        !reading.deletedAt,
+    )
+    .sort((a, b) => {
+      const timeDiff = Date.parse(b.createdAt) - Date.parse(a.createdAt);
+      if (Number.isFinite(timeDiff) && timeDiff !== 0) {
+        return timeDiff;
+      }
+      return b.id - a.id;
+    });
+
+  const readingsById = new Map(pendingReadings.map((r) => [r.id, r]));
+
+  return streaks.map((streak) => {
+    const friendUserId = streak.friendUserId;
+    const partnerUserId = streak.partnerUserId ?? friendUserId;
+    const partnerName =
+      streak.partnerName ??
+      friendsById?.get(friendUserId)?.friend.fullName ??
+      null;
+    const categoryPool =
+      streak.categoryPool && streak.categoryPool.length > 0
+        ? streak.categoryPool
+        : Array.from(
+            new Set([...streak.myCategories, ...streak.partnerCategories]),
+          );
+
+    const existingTodayId =
+      streak.todayReadingId ?? streak.today?.myReadingId ?? null;
+    if (typeof existingTodayId === "number") {
+      const existingReading = readingsById.get(existingTodayId);
+      return {
+        ...streak,
+        partnerUserId,
+        partnerName,
+        categoryPool,
+        todayReadingId: existingTodayId,
+        todayCategory:
+          streak.todayCategory ??
+          streak.today?.category ??
+          existingReading?.category ??
+          null,
+        todayStatus: streak.todayStatus ?? streak.today?.status ?? "pending",
+      };
+    }
+
+    let matchedReading: ReadingDto | undefined;
+    if (streak.status === "active" && !streak.myCompletedToday) {
+      const poolKeys = new Set(categoryPool.map((c) => c.trim().toLowerCase()));
+      let bestScore = -1;
+      for (const candidate of candidateReadings) {
+        if (usedReadingIds.has(candidate.id)) {
+          continue;
+        }
+        if (candidate.language !== streak.language) {
+          continue;
+        }
+        let score = 0;
+        if (
+          candidate.category &&
+          poolKeys.has(candidate.category.trim().toLowerCase())
+        ) {
+          score += 2;
+        }
+        if (candidate.difficulty === streak.difficulty) {
+          score += 1;
+        }
+        if (score > bestScore) {
+          bestScore = score;
+          matchedReading = candidate;
+        }
+      }
+      if (matchedReading) {
+        usedReadingIds.add(matchedReading.id);
+      }
+    }
+
+    return {
+      ...streak,
+      partnerUserId,
+      partnerName,
+      categoryPool,
+      todayReadingId: matchedReading ? matchedReading.id : null,
+      todayCategory:
+        streak.todayCategory ??
+        streak.today?.category ??
+        matchedReading?.category ??
+        null,
+      todayStatus:
+        streak.todayStatus ??
+        streak.today?.status ??
+        (matchedReading ? "pending" : null),
+    };
+  });
+}
+
 /**
  * Crea el servicio del módulo de amistades (`/api/v1/friends/*`).
  */
@@ -201,8 +503,8 @@ export function createFriendsService(transport: ApiTransport) {
     sendRequestByEmail(
       input: CreateFriendRequestByEmailInput,
       options?: FriendsRequestOptions,
-    ): Promise<ApiResponse<FriendRequestDto>> {
-      return transport.post<FriendRequestDto>(
+    ): Promise<ApiResponse<FriendshipRequestDto>> {
+      return transport.post<FriendshipRequestDto>(
         "/friends/requests/by-email",
         input,
         options,
@@ -211,32 +513,30 @@ export function createFriendsService(transport: ApiTransport) {
 
     /** Lista las solicitudes de amistad entrantes. */
     listIncomingRequests(
-      query?: FriendsPaginationQuery,
       options?: FriendsRequestOptions,
-    ): Promise<ApiResponse<FriendRequestDto[]>> {
-      return transport.get<FriendRequestDto[]>("/friends/requests/incoming", {
-        ...options,
-        query,
-      });
+    ): Promise<ApiResponse<FriendshipRequestDto[]>> {
+      return transport.get<FriendshipRequestDto[]>(
+        "/friends/requests/incoming",
+        options,
+      );
     },
 
     /** Lista las solicitudes de amistad salientes enviadas por el usuario. */
     listOutgoingRequests(
-      query?: FriendsPaginationQuery,
       options?: FriendsRequestOptions,
-    ): Promise<ApiResponse<FriendRequestDto[]>> {
-      return transport.get<FriendRequestDto[]>("/friends/requests/outgoing", {
-        ...options,
-        query,
-      });
+    ): Promise<ApiResponse<FriendshipRequestDto[]>> {
+      return transport.get<FriendshipRequestDto[]>(
+        "/friends/requests/outgoing",
+        options,
+      );
     },
 
     /** Acepta una solicitud de amistad entrante pendiente. */
     acceptRequest(
       requestId: number,
       options?: FriendsRequestOptions,
-    ): Promise<ApiResponse<FriendRequestDto>> {
-      return transport.post<FriendRequestDto>(
+    ): Promise<ApiResponse<FriendshipDto>> {
+      return transport.post<FriendshipDto>(
         `/friends/requests/${requestId}/accept`,
         undefined,
         options,
@@ -247,8 +547,8 @@ export function createFriendsService(transport: ApiTransport) {
     rejectRequest(
       requestId: number,
       options?: FriendsRequestOptions,
-    ): Promise<ApiResponse<FriendRequestDto>> {
-      return transport.post<FriendRequestDto>(
+    ): Promise<ApiResponse<null>> {
+      return transport.post<null>(
         `/friends/requests/${requestId}/reject`,
         undefined,
         options,
@@ -269,10 +569,12 @@ export function createFriendsService(transport: ApiTransport) {
     createInviteLink(
       input: CreateFriendInviteLinkInput = {},
       options?: FriendsRequestOptions,
-    ): Promise<ApiResponse<FriendInviteLinkDto>> {
-      return transport.post<FriendInviteLinkDto>(
+    ): Promise<ApiResponse<CreatedFriendInviteLinkDto>> {
+      const payload: CreateFriendInviteLinkInput =
+        input.maxUses !== undefined ? { maxUses: input.maxUses } : {};
+      return transport.post<CreatedFriendInviteLinkDto>(
         "/friends/invite-links",
-        input,
+        payload,
         options,
       );
     },
@@ -296,7 +598,7 @@ export function createFriendsService(transport: ApiTransport) {
     },
 
     /**
-     * Consulta la vista previa pública (`@Public()`) de un link de invitación sin revelar datos sensibles.
+     * Consulta la vista previa pública (`@OptionalAuth()`) de un link de invitación sin revelar datos sensibles.
      */
     previewInviteLink(
       token: string,
@@ -315,8 +617,8 @@ export function createFriendsService(transport: ApiTransport) {
     acceptInviteLink(
       token: string,
       options?: FriendsRequestOptions,
-    ): Promise<ApiResponse<AcceptFriendInviteLinkResponseDto>> {
-      return transport.post<AcceptFriendInviteLinkResponseDto>(
+    ): Promise<ApiResponse<FriendshipDto>> {
+      return transport.post<FriendshipDto>(
         `/friends/invite-links/${encodeURIComponent(token.trim())}/accept`,
         undefined,
         options,
@@ -337,18 +639,11 @@ export function createFriendsService(transport: ApiTransport) {
 
     // ── Amigos y bloqueos ────────────────────────────────────────────────────
 
-    /** Lista las amistades activas del usuario con soporte de paginación. */
+    /** Lista las amistades activas del usuario. */
     listFriends(
-      query?: FriendsPaginationQuery,
       options?: FriendsRequestOptions,
-    ): Promise<ApiResponse<FriendsListResponseDto | FriendSummaryDto[]>> {
-      return transport.get<FriendsListResponseDto | FriendSummaryDto[]>(
-        "/friends",
-        {
-          ...options,
-          query,
-        },
-      );
+    ): Promise<ApiResponse<FriendshipDto[]>> {
+      return transport.get<FriendshipDto[]>("/friends", options);
     },
 
     /** Elimina la amistad con otro usuario. */
@@ -384,20 +679,23 @@ export function createFriendsService(transport: ApiTransport) {
 
     // ── Lecturas y categorías privadas de amigos ─────────────────────────────
 
-    /** Lista las lecturas personales de un amigo sin exponer calificaciones ni estado. */
+    /** Lista las lecturas personales de un amigo sin exponer calificaciones ni estado (`limit` 1..50). */
     listFriendReadings(
       friendUserId: number,
-      query?: FriendsPaginationQuery,
+      query?: FriendReadingsQuery,
       options?: FriendsRequestOptions,
-    ): Promise<
-      ApiResponse<FriendReadingsListResponseDto | FriendReadingListItemDto[]>
-    > {
-      return transport.get<
-        FriendReadingsListResponseDto | FriendReadingListItemDto[]
-      >(`/friends/${friendUserId}/readings`, {
-        ...options,
-        query,
-      });
+    ): Promise<ApiResponse<FriendReadingDto[]>> {
+      const clampedLimit =
+        typeof query?.limit === "number" && Number.isFinite(query.limit)
+          ? Math.min(50, Math.max(1, Math.floor(query.limit)))
+          : undefined;
+      return transport.get<FriendReadingDto[]>(
+        `/friends/${friendUserId}/readings`,
+        {
+          ...options,
+          query: clampedLimit !== undefined ? { limit: clampedLimit } : undefined,
+        },
+      );
     },
 
     /** Obtiene el contenido completo de una lectura personal de un amigo (sin métricas privadas). */
@@ -405,8 +703,8 @@ export function createFriendsService(transport: ApiTransport) {
       friendUserId: number,
       readingId: number,
       options?: FriendsRequestOptions,
-    ): Promise<ApiResponse<FriendReadingDetailDto>> {
-      return transport.get<FriendReadingDetailDto>(
+    ): Promise<ApiResponse<FriendReadingDto>> {
+      return transport.get<FriendReadingDto>(
         `/friends/${friendUserId}/readings/${readingId}`,
         options,
       );
@@ -429,8 +727,8 @@ export function createFriendsService(transport: ApiTransport) {
     getFriendCategories(
       friendUserId: number,
       options?: FriendsRequestOptions,
-    ): Promise<ApiResponse<FriendCategoriesDto>> {
-      return transport.get<FriendCategoriesDto>(
+    ): Promise<ApiResponse<FriendCategoryDto[]>> {
+      return transport.get<FriendCategoryDto[]>(
         `/friends/${friendUserId}/categories`,
         options,
       );
@@ -451,7 +749,7 @@ export function createFriendsService(transport: ApiTransport) {
 
     // ── Rachas diarias entre amigos ──────────────────────────────────────────
 
-    /** Propone una racha diaria compartida con exactamente 2 categorías iniciales. */
+    /** Propone una racha diaria compartida indicando 2 categorías propias y 2 del amigo. */
     proposeStreak(
       friendUserId: number,
       input: ProposeFriendStreakInput,
@@ -464,15 +762,14 @@ export function createFriendsService(transport: ApiTransport) {
       );
     },
 
-    /** Acepta una propuesta de racha aportando 2 categorías propias. */
+    /** Acepta una propuesta pendiente de racha compartida (sin cuerpo JSON). */
     acceptStreak(
       streakId: number,
-      input: AcceptFriendStreakInput,
       options?: FriendsRequestOptions,
     ): Promise<ApiResponse<FriendStreakDto>> {
       return transport.post<FriendStreakDto>(
         `/friends/streaks/${streakId}/accept`,
-        input,
+        undefined,
         options,
       );
     },

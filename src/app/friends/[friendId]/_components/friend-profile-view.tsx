@@ -708,16 +708,6 @@ function FriendProfileContent({
                         )}
                       </span>
                     )}
-                    {profile.copyResult.skipped.length > 0 && (
-                      <span>
-                        {formatMessage(
-                          t.friends.profile.categoriesTab.skippedLabel,
-                          {
-                            items: profile.copyResult.skipped.join(", "),
-                          },
-                        )}
-                      </span>
-                    )}
                   </div>
                 </Alert>
               )}
@@ -780,6 +770,7 @@ function FriendProfileContent({
                 t={t}
                 locale={locale}
                 streak={profile.streak}
+                currentUserId={profile.currentUserId}
                 isMutating={profile.isMutating}
                 onAccept={() => setStreakModalMode("accept")}
                 onReject={() => setConfirmKind("reject_streak")}
@@ -840,6 +831,7 @@ function FriendProfileContent({
         partnerName={profile.friendName}
         streak={profile.streak}
         availableCategories={profile.availableCategories}
+        friendAvailableCategories={profile.friendAvailableCategories}
         languageOptions={profile.languageOptions}
         isSubmitting={profile.isMutating}
         errorMessage={profile.actionError}
@@ -855,8 +847,8 @@ function FriendProfileContent({
             setStreakModalMode(null);
           }
         }}
-        onSubmitAccept={async (streakId, input) => {
-          const ok = await profile.acceptStreak(streakId, input);
+        onSubmitAccept={async (streakId, updatedCategories) => {
+          const ok = await profile.acceptStreak(streakId, updatedCategories);
           if (ok) {
             setStreakModalMode(null);
           }

@@ -11,12 +11,17 @@ import {
   Text,
 } from "@/components/ui";
 import { type Dictionary, formatMessage, type Locale } from "@/i18n";
-import { formatReadingLanguageBadge, type FriendStreakDto } from "@/lib";
+import {
+  formatReadingLanguageBadge,
+  type FriendStreakDto,
+  isStreakAwaitingMyAcceptance,
+} from "@/lib";
 
 export interface FriendStreakCardProps {
   t: Dictionary;
   locale: Locale;
   streak: FriendStreakDto;
+  currentUserId?: number | null;
   onAccept?: (streak: FriendStreakDto) => void;
   onReject?: (streak: FriendStreakDto) => void;
   onEditCategories?: (streak: FriendStreakDto) => void;
@@ -51,6 +56,7 @@ export function FriendStreakCard({
   t,
   locale,
   streak,
+  currentUserId,
   onAccept,
   onReject,
   onEditCategories,
@@ -61,14 +67,7 @@ export function FriendStreakCard({
     streak.partnerName?.trim() || t.friends.anonymousName;
   const statusMeta = resolveStatusMeta(streak.status, t);
 
-  const awaitingMe =
-    streak.status === "pending_partner" &&
-    (typeof streak.awaitingMyAcceptance === "boolean"
-      ? streak.awaitingMyAcceptance
-      : typeof streak.isInitiator === "boolean"
-        ? !streak.isInitiator
-        : streak.initiatedByUserId === streak.partnerUserId);
-
+  const awaitingMe = isStreakAwaitingMyAcceptance(streak, currentUserId);
   const awaitingPartner = streak.status === "pending_partner" && !awaitingMe;
 
   const difficultyLabel =
@@ -77,9 +76,10 @@ export function FriendStreakCard({
   const sizeLabel =
     t.study.sizeOptions[streak.size]?.label ?? streak.size.toUpperCase();
 
+  const rawPool = streak.categoryPool ?? [];
   const poolCategories =
-    streak.categoryPool.length > 0
-      ? streak.categoryPool
+    rawPool.length > 0
+      ? rawPool
       : Array.from(
           new Set([...streak.myCategories, ...streak.partnerCategories]),
         );

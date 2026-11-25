@@ -38,53 +38,56 @@ jest.mock("@/context/toast-context", () => ({
 
 import { FriendProfileView } from "@/app/friends/[friendId]/_components/friend-profile-view";
 import { LocaleProvider } from "@/i18n";
-import { friendsService, settingsService } from "@/lib";
+import { friendsService, readingsService, settingsService } from "@/lib";
 
 describe("FriendProfileView", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    window.localStorage.clear();
 
     jest.spyOn(friendsService, "listFriends").mockResolvedValue({
       message: "ok",
       data: [
         {
-          userId: 2,
-          friendshipId: 10,
-          fullName: "Ana Sofía",
-          since: "2026-11-10T10:00:00.000Z",
+          id: 10,
+          friend: {
+            id: 2,
+            fullName: "Ana Sofía",
+            since: "2026-11-10T10:00:00.000Z",
+          },
+          createdAt: "2026-11-10T10:00:00.000Z",
         },
       ],
     });
     jest.spyOn(friendsService, "listFriendReadings").mockResolvedValue({
       message: "ok",
-      data: {
-        items: [
-          {
-            id: 301,
-            title: "Clean Friend Essay",
-            description: "Explores orbital telescopes.",
-            category: "Ciencia",
-            difficulty: "medium",
-            language: "en",
-            wordCount: 320,
-            createdAt: "2026-11-21T10:00:00.000Z",
-          },
-        ],
-        total: 1,
-        page: 1,
-        limit: 12,
-        totalPages: 1,
-      },
+      data: [
+        {
+          id: 301,
+          title: "Clean Friend Essay",
+          description: "Explores orbital telescopes.",
+          content: "Paragraph one about deep space.\n\nParagraph two about optics.",
+          category: "Ciencia",
+          difficulty: "medium",
+          language: "en",
+          wordCount: 320,
+          createdAt: "2026-11-21T10:00:00.000Z",
+        },
+      ],
     });
     jest.spyOn(friendsService, "getFriendCategories").mockResolvedValue({
       message: "ok",
-      data: {
-        friendUserId: 2,
-        friendName: "Ana Sofía",
-        categories: ["Astrofísica", "Cine", "Literatura"],
-      },
+      data: [
+        { category: "Astrofísica", canonicalKey: "astrofisica" },
+        { category: "Cine", canonicalKey: "cine" },
+        { category: "Literatura", canonicalKey: "literatura" },
+      ],
     });
     jest.spyOn(friendsService, "listStreaks").mockResolvedValue({
+      message: "ok",
+      data: [],
+    });
+    jest.spyOn(readingsService, "listPending").mockResolvedValue({
       message: "ok",
       data: [],
     });
@@ -115,9 +118,10 @@ describe("FriendProfileView", () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    window.localStorage.clear();
   });
 
-  it("renders friend readings strictly without private score/feedback, previews clean text, starts private copy, copies categories, and enforces 2 categories on streak proposal", async () => {
+  it("renders friend readings strictly without private score/feedback, previews clean text, starts private copy, copies categories, and enforces 2 own + 2 friend categories on streak proposal", async () => {
     const user = userEvent.setup();
 
     jest.spyOn(friendsService, "getFriendReading").mockResolvedValue({
@@ -138,15 +142,17 @@ describe("FriendProfileView", () => {
       .spyOn(friendsService, "startFriendReading")
       .mockResolvedValue({
         message: "ok",
-        data: { readingId: 888, alreadyExisted: false },
+        data: {
+          readingId: 888,
+          sourceReadingId: 301,
+          originType: "friend_copy",
+        },
       });
     jest.spyOn(friendsService, "copyFriendCategories").mockResolvedValue({
       message: "ok",
       data: {
-        copied: ["Astrofísica", "Cine"],
         activated: ["Astrofísica"],
         savedOnly: ["Cine"],
-        skipped: ["Literatura"],
       },
     });
     const proposeStreakSpy = jest
@@ -155,27 +161,18 @@ describe("FriendProfileView", () => {
         message: "ok",
         data: {
           id: 61,
-          friendshipId: 10,
-          partnerUserId: 2,
-          partnerName: "Ana Sofía",
-          initiatedByUserId: 1,
-          isInitiator: true,
           status: "pending_partner",
           myCategories: ["Tecnología", "Ciencia"],
-          partnerCategories: [],
-          categoryPool: ["Tecnología", "Ciencia"],
+          partnerCategories: ["Astrofísica", "Cine"],
           language: "en",
           difficulty: "medium",
           size: "medium",
           currentStreak: 0,
           longestStreak: 0,
           lastCompletedDate: null,
-          startedAt: null,
-          createdAt: "2026-11-23T00:00:00.000Z",
-          updatedAt: null,
           myCompletedToday: false,
           partnerCompletedToday: false,
-          todayReadingId: null,
+          friendUserId: 2,
         },
       });
 
@@ -188,6 +185,9 @@ describe("FriendProfileView", () => {
     expect(
       await screen.findByRole("heading", { name: "Ana Sofía" }),
     ).toBeInTheDocument();
+    expect(friendsService.listFriendReadings).toHaveBeenCalledWith(2, {
+      limit: 50,
+    });
     expect(screen.getByText("Clean Friend Essay")).toBeInTheDocument();
     expect(screen.queryByText(/\/100/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Completada/i)).not.toBeInTheDocument();
@@ -221,9 +221,6 @@ describe("FriendProfileView", () => {
     expect(
       screen.getByText(/Solo guardadas en biblioteca.*Cine/i),
     ).toBeInTheDocument();
-    expect(
-      screen.getByText(/Ya existentes o no disponibles: Literatura/i),
-    ).toBeInTheDocument();
 
     await user.click(screen.getByRole("tab", { name: /Racha diaria/i }));
     await user.click(
@@ -238,10 +235,16 @@ describe("FriendProfileView", () => {
     await user.click(
       within(streakDialog).getByRole("button", { name: "Tecnología" }),
     );
+    await user.click(
+      within(streakDialog).getByRole("button", { name: "Ciencia" }),
+    );
     expect(submitProposal).toBeDisabled();
 
     await user.click(
-      within(streakDialog).getByRole("button", { name: "Ciencia" }),
+      within(streakDialog).getByRole("button", { name: "Astrofísica" }),
+    );
+    await user.click(
+      within(streakDialog).getByRole("button", { name: "Cine" }),
     );
     expect(submitProposal).not.toBeDisabled();
 
@@ -249,11 +252,15 @@ describe("FriendProfileView", () => {
     await waitFor(() => {
       expect(proposeStreakSpy).toHaveBeenCalledWith(2, {
         categories: ["Tecnología", "Ciencia"],
+        friendCategories: ["Astrofísica", "Cine"],
         language: "en",
         difficulty: "medium",
         size: "medium",
       });
     });
+    expect(
+      await screen.findByText(/Esperando a que Ana Sofía acepte/i),
+    ).toBeInTheDocument();
   },
   15_000,
 );

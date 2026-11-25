@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   resolveAvailableCategoriesForStreak,
@@ -10,17 +10,22 @@ import { useAuth } from "@/context";
 import { useToast } from "@/context/toast-context";
 import { formatMessage, useLocale } from "@/i18n";
 import {
-  type AcceptFriendStreakInput,
   ApiClientError,
   type BlockedUserDto,
   type CategoriesSettings,
+  clearLocallyInitiatedStreak,
+  correlateStreakReadings,
   type FriendInviteLinkDto,
-  type FriendRequestDto,
+  type FriendshipDto,
+  type FriendshipRequestDto,
   friendsService,
   type FriendStreakDto,
   type FriendSummaryDto,
   type LanguagesSettings,
-  normalizePaginatedList,
+  mapFriendshipToSummary,
+  paginateItems,
+  type ReadingDto,
+  readingsService,
   settingsService,
   type UpdateFriendStreakCategoriesInput,
 } from "@/lib";
@@ -52,6 +57,7 @@ export function useFriendsHub(initialTab: FriendsHubTab = "friends") {
   const { locale, t } = useLocale();
   const toast = useToast();
   const {
+    user,
     accessPhase,
     isAuthenticated,
     categoriesSettings: authCategoriesSettings,
@@ -65,21 +71,20 @@ export function useFriendsHub(initialTab: FriendsHubTab = "friends") {
   const [actionError, setActionError] = useState<string | null>(null);
   const [isMutating, setIsMutating] = useState(false);
 
-  const [friends, setFriends] = useState<FriendSummaryDto[]>([]);
-  const [friendsTotal, setFriendsTotal] = useState(0);
+  const [rawFriendships, setRawFriendships] = useState<FriendshipDto[]>([]);
   const [friendsPage, setFriendsPage] = useState(1);
-  const [friendsTotalPages, setFriendsTotalPages] = useState(1);
   const [searchInput, setSearchInput] = useState("");
   const [appliedSearch, setAppliedSearch] = useState("");
 
-  const [incomingRequests, setIncomingRequests] = useState<FriendRequestDto[]>(
-    [],
-  );
-  const [outgoingRequests, setOutgoingRequests] = useState<FriendRequestDto[]>(
-    [],
-  );
+  const [incomingRequests, setIncomingRequests] = useState<
+    FriendshipRequestDto[]
+  >([]);
+  const [outgoingRequests, setOutgoingRequests] = useState<
+    FriendshipRequestDto[]
+  >([]);
   const [inviteLinks, setInviteLinks] = useState<FriendInviteLinkDto[]>([]);
-  const [streaks, setStreaks] = useState<FriendStreakDto[]>([]);
+  const [rawStreaks, setRawStreaks] = useState<FriendStreakDto[]>([]);
+  const [pendingReadings, setPendingReadings] = useState<ReadingDto[]>([]);
   const [blockedUsers, setBlockedUsers] = useState<BlockedUserDto[]>([]);
 
   const [categoriesSettings, setCategoriesSettings] =
@@ -95,124 +100,132 @@ export function useFriendsHub(initialTab: FriendsHubTab = "friends") {
   const [lastCreatedLink, setLastCreatedLink] =
     useState<FriendInviteLinkDto | null>(null);
 
+  const createdLinkUrlsRef = useRef<
+    Map<number, { url: string | null; token?: string }>
+  >(new Map());
+
   const canFetch = isAuthenticated && accessPhase === "ready";
 
-  const fetchFriendsList = useCallback(
-    async (page: number, search: string) => {
-      const res = await friendsService.listFriends({
-        page,
-        limit: FRIENDS_PAGE_SIZE,
-        ...(search.trim() ? { search: search.trim() } : {}),
-      });
-      const normalized = normalizePaginatedList(res.data, FRIENDS_PAGE_SIZE);
-      setFriends(normalized.items);
-      setFriendsTotal(normalized.total);
-      setFriendsPage(normalized.page);
-      setFriendsTotalPages(normalized.totalPages);
-    },
+  const mergeWithCachedUrls = useCallback(
+    (links: readonly FriendInviteLinkDto[]): FriendInviteLinkDto[] =>
+      links.map((link) => {
+        const cached = createdLinkUrlsRef.current.get(link.id);
+        if (cached && !link.url) {
+          return {
+            ...link,
+            url: cached.url,
+            ...(cached.token ? { token: cached.token } : {}),
+          };
+        }
+        return link;
+      }),
     [],
   );
 
-  const loadHub = useCallback(
-    async (page: number, search: string) => {
-      if (!canFetch) {
-        return;
-      }
+  const fetchFriendsList = useCallback(async () => {
+    const res = await friendsService.listFriends();
+    if (Array.isArray(res.data)) {
+      setRawFriendships(res.data);
+    }
+  }, []);
 
-      const [
-        friendsRes,
-        incomingRes,
-        outgoingRes,
-        linksRes,
-        streaksRes,
-        blockedRes,
-        categoriesRes,
-        languagesRes,
-      ] = await Promise.allSettled([
-        friendsService.listFriends({
-          page,
-          limit: FRIENDS_PAGE_SIZE,
-          ...(search.trim() ? { search: search.trim() } : {}),
-        }),
-        friendsService.listIncomingRequests(),
-        friendsService.listOutgoingRequests(),
-        friendsService.listInviteLinks(),
-        friendsService.listStreaks(),
-        friendsService.listBlockedUsers(),
-        settingsService.getCategories(),
-        settingsService.getLanguages(),
-      ]);
+  const loadHub = useCallback(async () => {
+    if (!canFetch) {
+      return;
+    }
 
-      setReferenceNowMs(Date.now());
+    const [
+      friendsRes,
+      incomingRes,
+      outgoingRes,
+      linksRes,
+      streaksRes,
+      pendingReadingsRes,
+      blockedRes,
+      categoriesRes,
+      languagesRes,
+    ] = await Promise.allSettled([
+      friendsService.listFriends(),
+      friendsService.listIncomingRequests(),
+      friendsService.listOutgoingRequests(),
+      friendsService.listInviteLinks(),
+      friendsService.listStreaks(),
+      readingsService.listPending(),
+      friendsService.listBlockedUsers(),
+      settingsService.getCategories(),
+      settingsService.getLanguages(),
+    ]);
 
-      const coreFailed =
-        friendsRes.status === "rejected" &&
-        incomingRes.status === "rejected" &&
-        streaksRes.status === "rejected";
+    setReferenceNowMs(Date.now());
 
-      if (coreFailed) {
-        setLoadError(
-          resolveErrorMessageText(
-            friendsRes.reason,
-            locale,
-            t.friends.common.errorTitle,
-          ),
-        );
-        setIsLoading(false);
-        return;
-      }
+    const coreFailed =
+      friendsRes.status === "rejected" &&
+      incomingRes.status === "rejected" &&
+      streaksRes.status === "rejected";
 
-      setLoadError(null);
-
-      if (friendsRes.status === "fulfilled") {
-        const normalized = normalizePaginatedList(
-          friendsRes.value.data,
-          FRIENDS_PAGE_SIZE,
-        );
-        setFriends(normalized.items);
-        setFriendsTotal(normalized.total);
-        setFriendsPage(normalized.page);
-        setFriendsTotalPages(normalized.totalPages);
-      }
-
-      if (
-        incomingRes.status === "fulfilled" &&
-        Array.isArray(incomingRes.value.data)
-      ) {
-        setIncomingRequests(incomingRes.value.data);
-      }
-      if (
-        outgoingRes.status === "fulfilled" &&
-        Array.isArray(outgoingRes.value.data)
-      ) {
-        setOutgoingRequests(outgoingRes.value.data);
-      }
-      if (linksRes.status === "fulfilled" && Array.isArray(linksRes.value.data)) {
-        setInviteLinks(linksRes.value.data);
-      }
-      if (
-        streaksRes.status === "fulfilled" &&
-        Array.isArray(streaksRes.value.data)
-      ) {
-        setStreaks(streaksRes.value.data);
-      }
-      if (
-        blockedRes.status === "fulfilled" &&
-        Array.isArray(blockedRes.value.data)
-      ) {
-        setBlockedUsers(blockedRes.value.data);
-      }
-      if (categoriesRes.status === "fulfilled" && categoriesRes.value.data) {
-        setCategoriesSettings(categoriesRes.value.data);
-      }
-      if (languagesRes.status === "fulfilled" && languagesRes.value.data) {
-        setLanguagesSettings(languagesRes.value.data);
-      }
-
+    if (coreFailed) {
+      setLoadError(
+        resolveErrorMessageText(
+          friendsRes.reason,
+          locale,
+          t.friends.common.errorTitle,
+        ),
+      );
       setIsLoading(false);
-    },
-    [canFetch, locale, t.friends.common.errorTitle],
-  );
+      return;
+    }
+
+    setLoadError(null);
+
+    if (
+      friendsRes.status === "fulfilled" &&
+      Array.isArray(friendsRes.value.data)
+    ) {
+      setRawFriendships(friendsRes.value.data);
+    }
+
+    if (
+      incomingRes.status === "fulfilled" &&
+      Array.isArray(incomingRes.value.data)
+    ) {
+      setIncomingRequests(incomingRes.value.data);
+    }
+    if (
+      outgoingRes.status === "fulfilled" &&
+      Array.isArray(outgoingRes.value.data)
+    ) {
+      setOutgoingRequests(outgoingRes.value.data);
+    }
+    if (linksRes.status === "fulfilled" && Array.isArray(linksRes.value.data)) {
+      setInviteLinks(mergeWithCachedUrls(linksRes.value.data));
+    }
+    if (
+      streaksRes.status === "fulfilled" &&
+      Array.isArray(streaksRes.value.data)
+    ) {
+      setRawStreaks(streaksRes.value.data);
+    }
+    if (
+      pendingReadingsRes.status === "fulfilled" &&
+      Array.isArray(pendingReadingsRes.value.data)
+    ) {
+      setPendingReadings(pendingReadingsRes.value.data);
+    }
+    if (
+      blockedRes.status === "fulfilled" &&
+      Array.isArray(blockedRes.value.data)
+    ) {
+      setBlockedUsers(blockedRes.value.data);
+    }
+    if (categoriesRes.status === "fulfilled" && categoriesRes.value.data) {
+      setCategoriesSettings(categoriesRes.value.data);
+    }
+    if (languagesRes.status === "fulfilled" && languagesRes.value.data) {
+      setLanguagesSettings(languagesRes.value.data);
+    }
+
+    setIsLoading(false);
+  }, [canFetch, locale, mergeWithCachedUrls, t.friends.common.errorTitle]);
 
   useEffect(() => {
     if (!canFetch) {
@@ -222,7 +235,7 @@ export function useFriendsHub(initialTab: FriendsHubTab = "friends") {
     let cancelled = false;
     void (async () => {
       if (!cancelled) {
-        await loadHub(1, "");
+        await loadHub();
       }
     })();
 
@@ -233,44 +246,63 @@ export function useFriendsHub(initialTab: FriendsHubTab = "friends") {
 
   const reloadAll = useCallback(async () => {
     setLoadError(null);
-    await loadHub(friendsPage, appliedSearch);
-  }, [appliedSearch, friendsPage, loadHub]);
+    await loadHub();
+  }, [loadHub]);
 
-  const handleSearchSubmit = async () => {
-    const trimmed = searchInput.trim();
-    setAppliedSearch(trimmed);
-    setActionError(null);
-    try {
-      await fetchFriendsList(1, trimmed);
-    } catch (err) {
-      setActionError(
-        resolveErrorMessageText(err, locale, t.friends.common.errorTitle),
-      );
+  const friendsById = new Map(rawFriendships.map((f) => [f.friend.id, f]));
+  const streaks = correlateStreakReadings(
+    rawStreaks,
+    pendingReadings,
+    friendsById,
+  );
+
+  const activeStreakByFriendId = new Map<number, FriendStreakDto>();
+  for (const streak of streaks) {
+    if (streak.status !== "active" && streak.status !== "paused") {
+      continue;
     }
+    const existing = activeStreakByFriendId.get(streak.friendUserId);
+    if (!existing || streak.status === "active") {
+      activeStreakByFriendId.set(streak.friendUserId, streak);
+    }
+  }
+
+  const allFriends: FriendSummaryDto[] = rawFriendships.map((friendship) =>
+    mapFriendshipToSummary(
+      friendship,
+      activeStreakByFriendId.get(friendship.friend.id) ?? null,
+    ),
+  );
+
+  const normalizedSearch = appliedSearch.trim().toLowerCase();
+  const filteredFriends = normalizedSearch
+    ? allFriends.filter((friend) =>
+        friend.fullName.toLowerCase().includes(normalizedSearch),
+      )
+    : allFriends;
+
+  const paginatedFriends = paginateItems(
+    filteredFriends,
+    friendsPage,
+    FRIENDS_PAGE_SIZE,
+  );
+
+  const handleSearchSubmit = () => {
+    setAppliedSearch(searchInput.trim());
+    setFriendsPage(1);
+    setActionError(null);
   };
 
-  const handleClearSearch = async () => {
+  const handleClearSearch = () => {
     setSearchInput("");
     setAppliedSearch("");
+    setFriendsPage(1);
     setActionError(null);
-    try {
-      await fetchFriendsList(1, "");
-    } catch (err) {
-      setActionError(
-        resolveErrorMessageText(err, locale, t.friends.common.errorTitle),
-      );
-    }
   };
 
-  const handlePageChange = async (nextPage: number) => {
+  const handlePageChange = (nextPage: number) => {
+    setFriendsPage(nextPage);
     setActionError(null);
-    try {
-      await fetchFriendsList(nextPage, appliedSearch);
-    } catch (err) {
-      setActionError(
-        resolveErrorMessageText(err, locale, t.friends.common.errorTitle),
-      );
-    }
   };
 
   const sendRequestByEmail = async () => {
@@ -290,7 +322,7 @@ export function useFriendsHub(initialTab: FriendsHubTab = "friends") {
       if (res.data) {
         setOutgoingRequests((prev) => [
           res.data!,
-          ...prev.filter((item) => item.id !== res.data!.id),
+          ...prev.filter((item) => item.requestId !== res.data!.requestId),
         ]);
       }
       setEmailInput("");
@@ -319,6 +351,10 @@ export function useFriendsHub(initialTab: FriendsHubTab = "friends") {
       const maxUses = maxUsesChoice === "1" ? 1 : null;
       const res = await friendsService.createInviteLink({ maxUses });
       if (res.data) {
+        createdLinkUrlsRef.current.set(res.data.id, {
+          url: res.data.url,
+          token: res.data.token,
+        });
         setLastCreatedLink(res.data);
         setInviteLinks((prev) => [res.data!, ...prev]);
       }
@@ -370,9 +406,17 @@ export function useFriendsHub(initialTab: FriendsHubTab = "friends") {
     setActionError(null);
     setIsMutating(true);
     try {
-      await friendsService.acceptRequest(requestId);
-      setIncomingRequests((prev) => prev.filter((item) => item.id !== requestId));
-      await fetchFriendsList(friendsPage, appliedSearch);
+      const res = await friendsService.acceptRequest(requestId);
+      setIncomingRequests((prev) =>
+        prev.filter((item) => item.requestId !== requestId),
+      );
+      if (res.data) {
+        setRawFriendships((prev) => [
+          res.data!,
+          ...prev.filter((f) => f.friend.id !== res.data!.friend.id),
+        ]);
+      }
+      await fetchFriendsList();
       toast.success(
         formatMessage(t.friends.hub.requestsTab.acceptedNotice, {
           name: friendName,
@@ -396,7 +440,9 @@ export function useFriendsHub(initialTab: FriendsHubTab = "friends") {
     setIsMutating(true);
     try {
       await friendsService.rejectRequest(requestId);
-      setIncomingRequests((prev) => prev.filter((item) => item.id !== requestId));
+      setIncomingRequests((prev) =>
+        prev.filter((item) => item.requestId !== requestId),
+      );
       toast.success(t.friends.hub.requestsTab.rejectedNotice);
     } catch (err) {
       const message = resolveErrorMessageText(
@@ -416,7 +462,9 @@ export function useFriendsHub(initialTab: FriendsHubTab = "friends") {
     setIsMutating(true);
     try {
       await friendsService.cancelRequest(requestId);
-      setOutgoingRequests((prev) => prev.filter((item) => item.id !== requestId));
+      setOutgoingRequests((prev) =>
+        prev.filter((item) => item.requestId !== requestId),
+      );
       toast.success(t.friends.hub.requestsTab.cancelledNotice);
     } catch (err) {
       const message = resolveErrorMessageText(
@@ -436,9 +484,12 @@ export function useFriendsHub(initialTab: FriendsHubTab = "friends") {
     setIsMutating(true);
     try {
       await friendsService.removeFriend(friendUserId);
-      setFriends((prev) => prev.filter((f) => f.userId !== friendUserId));
-      setStreaks((prev) => prev.filter((s) => s.partnerUserId !== friendUserId));
-      setFriendsTotal((prev) => Math.max(0, prev - 1));
+      setRawFriendships((prev) =>
+        prev.filter((f) => f.friend.id !== friendUserId),
+      );
+      setRawStreaks((prev) =>
+        prev.filter((s) => s.friendUserId !== friendUserId),
+      );
       toast.success(
         formatMessage(t.friends.hub.friendsTab.removedNotice, {
           name: friendName,
@@ -462,15 +513,10 @@ export function useFriendsHub(initialTab: FriendsHubTab = "friends") {
     setIsMutating(true);
     try {
       await friendsService.blockUser(userId);
-      setFriends((prev) => prev.filter((f) => f.userId !== userId));
-      setStreaks((prev) => prev.filter((s) => s.partnerUserId !== userId));
-      setIncomingRequests((prev) =>
-        prev.filter((r) => r.requesterId !== userId && r.addresseeId !== userId),
-      );
-      setOutgoingRequests((prev) =>
-        prev.filter((r) => r.requesterId !== userId && r.addresseeId !== userId),
-      );
-      setFriendsTotal((prev) => Math.max(0, prev - 1));
+      setRawFriendships((prev) => prev.filter((f) => f.friend.id !== userId));
+      setRawStreaks((prev) => prev.filter((s) => s.friendUserId !== userId));
+      setIncomingRequests((prev) => prev.filter((r) => r.id !== userId));
+      setOutgoingRequests((prev) => prev.filter((r) => r.id !== userId));
       const blockedRes = await friendsService.listBlockedUsers();
       if (Array.isArray(blockedRes.data)) {
         setBlockedUsers(blockedRes.data);
@@ -498,7 +544,7 @@ export function useFriendsHub(initialTab: FriendsHubTab = "friends") {
     setIsMutating(true);
     try {
       await friendsService.unblockUser(userId);
-      setBlockedUsers((prev) => prev.filter((u) => u.userId !== userId));
+      setBlockedUsers((prev) => prev.filter((u) => u.id !== userId));
       toast.success(
         formatMessage(t.friends.hub.blockedTab.unblockedNotice, {
           name: userName,
@@ -519,16 +565,30 @@ export function useFriendsHub(initialTab: FriendsHubTab = "friends") {
 
   const acceptStreak = async (
     streakId: number,
-    input: AcceptFriendStreakInput,
+    updatedCategories?: string[],
   ): Promise<boolean> => {
     setActionError(null);
     setIsMutating(true);
     try {
-      const res = await friendsService.acceptStreak(streakId, input);
+      if (updatedCategories && updatedCategories.length === 2) {
+        await friendsService.updateStreakCategories(streakId, {
+          categories: updatedCategories,
+        });
+      }
+      const res = await friendsService.acceptStreak(streakId);
+      clearLocallyInitiatedStreak(streakId);
       if (res.data) {
-        setStreaks((prev) =>
+        setRawStreaks((prev) =>
           prev.map((item) => (item.id === streakId ? res.data! : item)),
         );
+      }
+      try {
+        const pendingRes = await readingsService.listPending();
+        if (Array.isArray(pendingRes.data)) {
+          setPendingReadings(pendingRes.data);
+        }
+      } catch {
+        // Correlación no bloqueante
       }
       toast.success(t.friends.hub.streaksTab.acceptedNotice);
       return true;
@@ -550,7 +610,8 @@ export function useFriendsHub(initialTab: FriendsHubTab = "friends") {
     setIsMutating(true);
     try {
       await friendsService.rejectStreak(streakId);
-      setStreaks((prev) => prev.filter((item) => item.id !== streakId));
+      clearLocallyInitiatedStreak(streakId);
+      setRawStreaks((prev) => prev.filter((item) => item.id !== streakId));
       toast.success(t.friends.hub.streaksTab.rejectedNotice);
     } catch (err) {
       const message = resolveErrorMessageText(
@@ -574,7 +635,7 @@ export function useFriendsHub(initialTab: FriendsHubTab = "friends") {
     try {
       const res = await friendsService.updateStreakCategories(streakId, input);
       if (res.data) {
-        setStreaks((prev) =>
+        setRawStreaks((prev) =>
           prev.map((item) => (item.id === streakId ? res.data! : item)),
         );
       }
@@ -598,7 +659,8 @@ export function useFriendsHub(initialTab: FriendsHubTab = "friends") {
     setIsMutating(true);
     try {
       await friendsService.endStreak(streakId);
-      setStreaks((prev) => prev.filter((item) => item.id !== streakId));
+      clearLocallyInitiatedStreak(streakId);
+      setRawStreaks((prev) => prev.filter((item) => item.id !== streakId));
       toast.success(t.friends.hub.streaksTab.endedNotice);
     } catch (err) {
       const message = resolveErrorMessageText(
@@ -626,6 +688,7 @@ export function useFriendsHub(initialTab: FriendsHubTab = "friends") {
   return {
     t,
     locale,
+    currentUserId: user?.id ?? null,
     activeTab,
     setActiveTab,
     isLoading,
@@ -634,10 +697,10 @@ export function useFriendsHub(initialTab: FriendsHubTab = "friends") {
     setActionError,
     isMutating,
     reloadAll,
-    friends,
-    friendsTotal,
-    friendsPage,
-    friendsTotalPages,
+    friends: paginatedFriends.items,
+    friendsTotal: paginatedFriends.total,
+    friendsPage: paginatedFriends.page,
+    friendsTotalPages: paginatedFriends.totalPages,
     searchInput,
     setSearchInput,
     appliedSearch,

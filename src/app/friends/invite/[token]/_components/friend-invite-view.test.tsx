@@ -67,15 +67,18 @@ describe("FriendInviteView", () => {
 
     expect(
       screen.getByRole("link", { name: /Iniciar sesión para aceptar/i }),
-    ).toHaveAttribute("href", "/login?redirect=%2Ffriends%2Finvite%2Ftok-123");
+    ).toHaveAttribute(
+      "href",
+      "/login?redirect=%2Ffriends%2Finvite%3Ftoken%3Dtok-123",
+    );
     expect(
       screen.getByRole("link", { name: /Crear cuenta/i }),
     ).toHaveAttribute(
       "href",
-      "/register?redirect=%2Ffriends%2Finvite%2Ftok-123",
+      "/register?redirect=%2Ffriends%2Finvite%3Ftoken%3Dtok-123",
     );
     expect(window.sessionStorage.getItem("doly.pending_invite_redirect")).toBe(
-      "/friends/invite/tok-123",
+      "/friends/invite?token=tok-123",
     );
   });
 
@@ -83,7 +86,7 @@ describe("FriendInviteView", () => {
     const user = userEvent.setup();
     window.sessionStorage.setItem(
       "doly.pending_invite_redirect",
-      "/friends/invite/tok-123",
+      "/friends/invite?token=tok-123",
     );
     mockAuthState = {
       accessPhase: "ready",
@@ -104,10 +107,13 @@ describe("FriendInviteView", () => {
       .mockResolvedValue({
         message: "ok",
         data: {
-          friendshipId: 11,
-          friendUserId: 2,
-          friendName: "Ana Sofía",
-          status: "accepted",
+          id: 11,
+          friend: {
+            id: 2,
+            fullName: "Ana Sofía",
+            since: "2026-11-23T00:00:00.000Z",
+          },
+          createdAt: "2026-11-23T00:00:00.000Z",
         },
       });
 

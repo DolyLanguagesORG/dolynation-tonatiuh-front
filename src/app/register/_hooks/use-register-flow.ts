@@ -9,6 +9,7 @@ import { useLocale } from "@/i18n";
 import {
   ApiClientError,
   ErrorCode,
+  isValidInviteRedirectPath,
   resolveErrorMessage,
   savePendingInviteRedirect,
 } from "@/lib";
@@ -93,7 +94,7 @@ export function useRegisterFlow() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
-    if (redirectTarget.startsWith("/friends/invite/")) {
+    if (isValidInviteRedirectPath(redirectTarget)) {
       savePendingInviteRedirect(redirectTarget);
     }
   }, [redirectTarget]);

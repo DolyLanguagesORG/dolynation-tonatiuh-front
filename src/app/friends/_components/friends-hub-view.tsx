@@ -255,7 +255,7 @@ function FriendsHubContent({
         return;
       case "unblock_user":
         await hub.unblockUser(
-          current.user.userId,
+          current.user.id,
           current.user.fullName?.trim() || t.friends.anonymousName,
         );
     }
@@ -769,7 +769,9 @@ function FriendsHubContent({
                                   }
                                 />
                               ) : (
-                                <span />
+                                <Text variant="caption" tone="muted">
+                                  {t.friends.hub.addTab.linkHiddenSecurityNote}
+                                </Text>
                               )}
 
                               <Button
@@ -820,10 +822,10 @@ function FriendsHubContent({
                 <ul className="flex flex-col gap-3">
                   {hub.incomingRequests.map((req) => {
                     const name =
-                      req.requesterName?.trim() || t.friends.anonymousName;
+                      req.fullName?.trim() || t.friends.anonymousName;
                     return (
                       <li
-                        key={req.id}
+                        key={req.requestId}
                         className="flex flex-col gap-3 rounded-base border border-default p-4"
                       >
                         <div className="flex flex-wrap items-start justify-between gap-2">
@@ -831,11 +833,6 @@ function FriendsHubContent({
                             <span className="font-serif text-base font-bold text-heading">
                               {name}
                             </span>
-                            {req.requesterEmail && (
-                              <span className="font-mono text-xs text-muted">
-                                {req.requesterEmail}
-                              </span>
-                            )}
                           </div>
                           <Badge variant="outline">
                             {req.origin === "invite_link"
@@ -859,7 +856,10 @@ function FriendsHubContent({
                               size="xs"
                               disabled={hub.isMutating}
                               onClick={() => {
-                                void hub.acceptIncomingRequest(req.id, name);
+                                void hub.acceptIncomingRequest(
+                                  req.requestId,
+                                  name,
+                                );
                               }}
                             >
                               {t.friends.hub.requestsTab.acceptButton}
@@ -870,7 +870,7 @@ function FriendsHubContent({
                               size="xs"
                               disabled={hub.isMutating}
                               onClick={() => {
-                                void hub.rejectIncomingRequest(req.id);
+                                void hub.rejectIncomingRequest(req.requestId);
                               }}
                             >
                               {t.friends.hub.requestsTab.rejectButton}
@@ -900,12 +900,10 @@ function FriendsHubContent({
                 <ul className="flex flex-col gap-3">
                   {hub.outgoingRequests.map((req) => {
                     const name =
-                      req.addresseeName?.trim() ||
-                      req.addresseeEmail ||
-                      t.friends.anonymousName;
+                      req.fullName?.trim() || t.friends.anonymousName;
                     return (
                       <li
-                        key={req.id}
+                        key={req.requestId}
                         className="flex flex-col gap-3 rounded-base border border-default p-4"
                       >
                         <div className="flex flex-wrap items-start justify-between gap-2">
@@ -913,11 +911,6 @@ function FriendsHubContent({
                             <span className="font-serif text-base font-bold text-heading">
                               {name}
                             </span>
-                            {req.addresseeEmail && req.addresseeName && (
-                              <span className="font-mono text-xs text-muted">
-                                {req.addresseeEmail}
-                              </span>
-                            )}
                           </div>
                           <Badge variant="outline">
                             {req.origin === "invite_link"
@@ -940,7 +933,7 @@ function FriendsHubContent({
                             size="xs"
                             disabled={hub.isMutating}
                             onClick={() => {
-                              void hub.cancelOutgoingRequest(req.id);
+                              void hub.cancelOutgoingRequest(req.requestId);
                             }}
                           >
                             {t.friends.hub.requestsTab.cancelButton}
@@ -981,6 +974,7 @@ function FriendsHubContent({
                           t={t}
                           locale={locale}
                           streak={streak}
+                          currentUserId={hub.currentUserId}
                           isMutating={hub.isMutating}
                           onAccept={(selectedStreak) =>
                             setStreakModalState({
@@ -1024,6 +1018,7 @@ function FriendsHubContent({
                           t={t}
                           locale={locale}
                           streak={streak}
+                          currentUserId={hub.currentUserId}
                           isMutating={hub.isMutating}
                           onEditCategories={(selectedStreak) =>
                             setStreakModalState({
@@ -1072,12 +1067,10 @@ function FriendsHubContent({
               <div className="grid gap-4 md:grid-cols-2">
                 {hub.blockedUsers.map((blocked) => {
                   const name =
-                    blocked.fullName?.trim() ||
-                    blocked.email ||
-                    t.friends.anonymousName;
+                    blocked.fullName?.trim() || t.friends.anonymousName;
                   return (
                     <Card
-                      key={blocked.userId}
+                      key={blocked.id}
                       as="article"
                       padding="md"
                       className="flex items-center justify-between gap-3 border-default"
@@ -1091,7 +1084,7 @@ function FriendsHubContent({
                             t.friends.hub.blockedTab.blockedAtLabel,
                             {
                               date: formatReadingDate(
-                                blocked.blockedAt,
+                                blocked.createdAt,
                                 locale,
                               ),
                             },
@@ -1158,8 +1151,8 @@ function FriendsHubContent({
           setStreakModalState(null);
           hub.setActionError(null);
         }}
-        onSubmitAccept={async (streakId, input) => {
-          const ok = await hub.acceptStreak(streakId, input);
+        onSubmitAccept={async (streakId, updatedCategories) => {
+          const ok = await hub.acceptStreak(streakId, updatedCategories);
           if (ok) {
             setStreakModalState(null);
           }

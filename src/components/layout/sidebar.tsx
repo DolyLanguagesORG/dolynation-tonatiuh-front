@@ -19,7 +19,12 @@ import {
 } from "@/components/ui";
 import { useAuth } from "@/context";
 import { useLocale } from "@/i18n";
-import { friendsService } from "@/lib";
+import {
+  correlateStreakReadings,
+  friendsService,
+  isStreakAwaitingMyAcceptance,
+  readingsService,
+} from "@/lib";
 
 export interface SidebarProps {
   isOpen: boolean;
@@ -54,36 +59,50 @@ function SidebarContent({ onItemClick }: { onItemClick?: () => void }) {
     Promise.allSettled([
       friendsService.listIncomingRequests(),
       friendsService.listStreaks(),
+      readingsService.listPending(),
     ])
-      .then(([requestsRes, streaksRes]) => {
+      .then(([requestsRes, streaksRes, pendingRes]) => {
         if (cancelled) return;
+        const anyFulfilled =
+          requestsRes.status === "fulfilled" ||
+          streaksRes.status === "fulfilled";
+        if (!anyFulfilled) {
+          return;
+        }
         const incomingCount =
           requestsRes.status === "fulfilled" &&
           Array.isArray(requestsRes.value.data)
-            ? requestsRes.value.data.filter((item) => item.status === "pending")
-                .length
+            ? requestsRes.value.data.length
             : 0;
-        const pendingStreaksCount =
+        const rawStreaks =
           streaksRes.status === "fulfilled" &&
           Array.isArray(streaksRes.value.data)
-            ? streaksRes.value.data.filter(
-                (item) =>
-                  item.status === "active" &&
-                  !item.myCompletedToday &&
-                  Boolean(item.todayReadingId),
-              ).length
-            : 0;
-        const total = incomingCount + pendingStreaksCount;
-        if (total > 0) {
-          setPendingFriendsCount(total);
-        }
+            ? streaksRes.value.data
+            : [];
+        const pendingReadings =
+          pendingRes.status === "fulfilled" &&
+          Array.isArray(pendingRes.value.data)
+            ? pendingRes.value.data
+            : [];
+        const enrichedStreaks = correlateStreakReadings(
+          rawStreaks,
+          pendingReadings,
+        );
+        const pendingStreaksCount = enrichedStreaks.filter(
+          (item) =>
+            (item.status === "active" &&
+              !item.myCompletedToday &&
+              Boolean(item.todayReadingId)) ||
+            isStreakAwaitingMyAcceptance(item, user?.id),
+        ).length;
+        setPendingFriendsCount(incomingCount + pendingStreaksCount);
       })
       .catch(() => undefined);
 
     return () => {
       cancelled = true;
     };
-  }, [accessPhase, isAdminSession, isAuthenticated, pathname]);
+  }, [accessPhase, isAdminSession, isAuthenticated, pathname, user?.id]);
 
   const visibleFriendsBadge =
     isAuthenticated && !isAdminSession && accessPhase === "ready"

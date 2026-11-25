@@ -814,43 +814,38 @@ export interface FriendActiveStreakBadgeDto {
   todayReadingId?: number | null;
 }
 
+export interface FriendUserDto {
+  id: number;
+  fullName: string;
+  since: string;
+}
+
+export interface FriendshipDto {
+  id: number;
+  friend: FriendUserDto;
+  createdAt: string;
+}
+
+/** Modelo de vista en UI derivado de `FriendshipDto` + racha activa asociada. */
 export interface FriendSummaryDto {
   userId: number;
   friendshipId: number;
-  fullName: string | null;
-  email?: string | null;
+  fullName: string;
   since: string;
   activeStreak?: FriendActiveStreakBadgeDto | null;
 }
 
-export interface FriendsPaginationQuery extends QueryParams {
-  page?: number;
-  limit?: number;
-  search?: string;
-}
-
-export interface FriendsListResponseDto {
-  items: FriendSummaryDto[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
-
-export interface FriendRequestDto {
+export interface FriendshipRequestDto {
+  requestId: number;
   id: number;
-  status: FriendshipStatus;
+  fullName: string;
+  since: string;
+  direction: "incoming" | "outgoing";
   origin: FriendshipOrigin;
-  direction?: "incoming" | "outgoing";
-  requesterId: number;
-  addresseeId: number;
-  requesterName: string | null;
-  requesterEmail?: string | null;
-  addresseeName: string | null;
-  addresseeEmail?: string | null;
   createdAt: string;
-  respondedAt: string | null;
 }
+
+export type FriendRequestDto = FriendshipRequestDto;
 
 export interface CreateFriendRequestByEmailInput {
   email: string;
@@ -858,18 +853,20 @@ export interface CreateFriendRequestByEmailInput {
 
 export interface FriendInviteLinkDto {
   id: number;
-  token?: string;
-  url?: string;
+  url: string | null;
   maxUses: number | null;
   usesCount: number;
   expiresAt: string;
   revokedAt: string | null;
-  createdAt: string;
+  token?: string;
+}
+
+export interface CreatedFriendInviteLinkDto extends FriendInviteLinkDto {
+  token: string;
 }
 
 export interface CreateFriendInviteLinkInput {
   maxUses?: number | null;
-  expiresInDays?: number;
 }
 
 export interface FriendInviteLinkPreviewDto {
@@ -881,27 +878,24 @@ export interface FriendInviteLinkPreviewDto {
   reason?: "expired" | "revoked" | "exhausted" | "not_found" | null;
 }
 
-export interface AcceptFriendInviteLinkResponseDto {
-  friendshipId: number;
-  friendUserId: number;
-  friendName: string | null;
-  status: FriendshipStatus;
+export interface BlockedUserDto {
+  id: number;
+  fullName: string;
+  createdAt: string;
 }
 
-export interface BlockedUserDto {
-  userId: number;
-  fullName: string | null;
-  email?: string | null;
-  blockedAt: string;
+export interface FriendReadingsQuery extends QueryParams {
+  limit?: number;
 }
 
 /**
  * Vista privada de lectura de un amigo: nunca expone estado, calificación, respuesta ni feedback.
  */
-export interface FriendReadingListItemDto {
+export interface FriendReadingDto {
   id: number;
   title: string;
   description: string;
+  content: string;
   category: string | null;
   difficulty: ReadingDifficulty | null;
   language: TargetLanguageCode;
@@ -909,31 +903,26 @@ export interface FriendReadingListItemDto {
   createdAt: string;
 }
 
-export interface FriendReadingDetailDto extends FriendReadingListItemDto {
-  content: string;
-}
+export type FriendReadingListItemDto = FriendReadingDto;
+export type FriendReadingDetailDto = FriendReadingDto;
 
-export interface FriendReadingsListResponseDto {
-  items: FriendReadingListItemDto[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
+export interface FriendReadingCopyDto {
+  readingId: number;
+  sourceReadingId: number;
+  originType: "friend_copy";
 }
 
 export interface StartFriendReadingResponseDto {
   readingId?: number;
+  sourceReadingId?: number;
+  originType?: "friend_copy";
   id?: number;
   reading?: ReadingDto;
-  alreadyExisted?: boolean;
 }
 
-export interface FriendCategoriesDto {
-  friendUserId: number;
-  friendName: string | null;
-  categories: string[];
-  activeCategories?: string[];
-  savedCategories?: string[];
+export interface FriendCategoryDto {
+  category: string;
+  canonicalKey: string;
 }
 
 export interface CopyFriendCategoriesInput {
@@ -941,10 +930,8 @@ export interface CopyFriendCategoriesInput {
 }
 
 export interface CopyFriendCategoriesResponseDto {
-  copied: string[];
   activated: string[];
   savedOnly: string[];
-  skipped: string[];
 }
 
 export interface FriendStreakDayDto {
@@ -960,28 +947,26 @@ export interface FriendStreakDayDto {
 
 export interface FriendStreakDto {
   id: number;
-  friendshipId: number;
-  partnerUserId: number;
-  partnerName: string | null;
-  initiatedByUserId: number;
-  isInitiator?: boolean;
-  awaitingMyAcceptance?: boolean;
   status: FriendStreakStatus;
   myCategories: string[];
   partnerCategories: string[];
-  categoryPool: string[];
   language: TargetLanguageCode;
   difficulty: ReadingDifficulty;
   size: ReadingSize;
   currentStreak: number;
   longestStreak: number;
   lastCompletedDate: string | null;
-  startedAt: string | null;
-  createdAt: string;
-  updatedAt: string | null;
   myCompletedToday: boolean;
   partnerCompletedToday: boolean;
-  todayReadingId: number | null;
+  friendUserId: number;
+  friendshipId?: number;
+  partnerUserId?: number;
+  partnerName?: string | null;
+  initiatedByUserId?: number;
+  isInitiator?: boolean;
+  awaitingMyAcceptance?: boolean;
+  categoryPool?: string[];
+  todayReadingId?: number | null;
   todayCategory?: string | null;
   todayStatus?: FriendStreakDayStatus | null;
   today?: FriendStreakDayDto | null;
@@ -989,13 +974,10 @@ export interface FriendStreakDto {
 
 export interface ProposeFriendStreakInput {
   categories: string[];
+  friendCategories: string[];
   language: TargetLanguageCode;
-  difficulty: ReadingDifficulty;
-  size: ReadingSize;
-}
-
-export interface AcceptFriendStreakInput {
-  categories: string[];
+  difficulty?: ReadingDifficulty;
+  size?: ReadingSize;
 }
 
 export interface UpdateFriendStreakCategoriesInput {

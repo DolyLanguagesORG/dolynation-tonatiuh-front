@@ -308,31 +308,35 @@ describe("routeAccessService", () => {
     });
   });
 
-  it("allows public /friends/invite/[token] in every phase and restricts /friends to ready students", () => {
-    const invitePath = `${ROUTE_FRIENDS_INVITE}/invite-token-xyz`;
-    for (const phase of [
-      "unauthenticated",
-      "unverified_email",
-      "plan_required",
-      "ready",
-      "admin",
-    ] as const) {
-      expect(
-        routeAccessService.evaluate({
-          pathname: invitePath,
-          phase,
-        }),
-      ).toEqual({
-        allowed: true,
-        redirectTo: null,
-        reason: "allowed",
-      });
-      expect(routeAccessService.isMinimalShellRoute(invitePath, phase)).toBe(
-        true,
-      );
-      expect(routeAccessService.isHeaderlessAuthRoute(invitePath, phase)).toBe(
-        true,
-      );
+  it("allows public /friends/invite and /friends/invite/[token] in every phase and restricts /friends to ready students", () => {
+    for (const invitePath of [
+      ROUTE_FRIENDS_INVITE,
+      `${ROUTE_FRIENDS_INVITE}/invite-token-xyz`,
+    ]) {
+      for (const phase of [
+        "unauthenticated",
+        "unverified_email",
+        "plan_required",
+        "ready",
+        "admin",
+      ] as const) {
+        expect(
+          routeAccessService.evaluate({
+            pathname: invitePath,
+            phase,
+          }),
+        ).toEqual({
+          allowed: true,
+          redirectTo: null,
+          reason: "allowed",
+        });
+        expect(routeAccessService.isMinimalShellRoute(invitePath, phase)).toBe(
+          true,
+        );
+        expect(routeAccessService.isHeaderlessAuthRoute(invitePath, phase)).toBe(
+          true,
+        );
+      }
     }
 
     for (const protectedFriendsPath of [ROUTE_FRIENDS, `${ROUTE_FRIENDS}/42`]) {
