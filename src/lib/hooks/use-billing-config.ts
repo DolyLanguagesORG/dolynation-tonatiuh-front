@@ -57,7 +57,7 @@ let cachedConfig: {
  * `available` es `false` cuando no se pudo leer la configuración real del backend y
  * `config` es solo un valor de respaldo para pintar la UI.
  */
-interface BillingConfigFetchOutcome {
+export interface BillingConfigFetchOutcome {
   config: BillingConfigResponse;
   available: boolean;
 }
@@ -69,7 +69,21 @@ export function resetBillingConfigCacheForTests(): void {
   inFlightPromise = null;
 }
 
-async function fetchBillingConfigCached(
+/**
+ * Devuelve la configuración de facturación cacheada si aún está vigente (TTL 5 min),
+ * sin iniciar ninguna petición de red.
+ */
+export function peekCachedBillingConfig(): BillingConfigResponse | null {
+  if (
+    cachedConfig &&
+    Date.now() - cachedConfig.fetchedAt < BILLING_CONFIG_CACHE_TTL_MS
+  ) {
+    return cachedConfig.data;
+  }
+  return null;
+}
+
+export async function fetchBillingConfigCached(
   force = false,
 ): Promise<BillingConfigFetchOutcome> {
   const now = Date.now();
