@@ -10,6 +10,7 @@ import type {
 import { backendInternalUrl } from "@/lib/server/backend-url";
 
 export const OAUTH_TX_COOKIE_NAME = "doly_oauth_tx";
+export const OAUTH_RETURN_QUERY_PARAM = "oauth";
 export const OAUTH_TX_MAX_AGE_SECONDS = 600;
 export const SUPPORTED_OAUTH_PROVIDERS = new Set<string>([
   "google",
@@ -92,6 +93,29 @@ export function sanitizeOAuthLocale(
   return VALID_OAUTH_LOCALES.has(normalized)
     ? (normalized as OAuthUiLocale)
     : "es";
+}
+
+/**
+ * Construye la URL de destino tras el callback OAuth BFF.
+ * Cuando el usuario aún no tiene suscripción activa, marca `/select-plan` con
+ * `?oauth=<provider>` para armar el guard de historial en cliente.
+ */
+export function buildPostOAuthDestinationUrl(params: {
+  publicOrigin: string;
+  provider: string;
+  hasSubscriptionTier: boolean;
+  redirectTarget: string;
+}): URL {
+  if (params.hasSubscriptionTier) {
+    return new URL(
+      sanitizeOAuthRedirect(params.redirectTarget),
+      params.publicOrigin,
+    );
+  }
+
+  const destinationUrl = new URL("/select-plan", params.publicOrigin);
+  destinationUrl.searchParams.set(OAUTH_RETURN_QUERY_PARAM, params.provider);
+  return destinationUrl;
 }
 
 export function serializeOAuthTransaction(

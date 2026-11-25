@@ -4,12 +4,12 @@ import { appendSessionCookies } from "@/lib/server/auth-cookies";
 import { backendInternalUrl } from "@/lib/server/backend-url";
 import { extractSessionTokensFromEnvelope } from "@/lib/server/bff-refresh";
 import {
+  buildPostOAuthDestinationUrl,
   clearOAuthTxCookie,
   OAUTH_TX_COOKIE_NAME,
   parseOAuthTransaction,
   resolvePublicOrigin,
   safeEqualState,
-  sanitizeOAuthRedirect,
   SUPPORTED_OAUTH_PROVIDERS,
 } from "@/lib/server/oauth-bff";
 
@@ -160,15 +160,15 @@ export async function GET(
         ).data.user)
       : null;
 
-  const destinationPath = !user?.subscriptionTier
-    ? "/select-plan"
-    : sanitizeOAuthRedirect(tx.redirectTarget);
+  const destinationUrl = buildPostOAuthDestinationUrl({
+    publicOrigin,
+    provider,
+    hasSubscriptionTier: Boolean(user?.subscriptionTier),
+    redirectTarget: tx.redirectTarget,
+  });
 
   const responseHeaders = new Headers();
   appendSessionCookies(responseHeaders, tokens);
 
-  return redirectWithClearedTx(
-    new URL(destinationPath, publicOrigin),
-    responseHeaders,
-  );
+  return redirectWithClearedTx(destinationUrl, responseHeaders);
 }
