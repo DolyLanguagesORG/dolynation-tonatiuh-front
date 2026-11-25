@@ -217,4 +217,89 @@ test.describe("Cloudflare Turnstile invisible anti-bot UI integration", () => {
         captchaToken: "cf-e2e-token-billing_checkout-0",
       });
   });
+
+  test("skips /auth/me and /access-requests/me on focus/visibilitychange in /select-plan and inside Stripe Checkout modal when accessRequestsEnabled=true and Stripe is active", async ({
+    page,
+    context,
+    baseURL,
+  }) => {
+    await page.addInitScript(() => {
+      let clockOffsetMs = 0;
+      const nativeNow = Date.now.bind(Date);
+      Date.now = () => nativeNow() + clockOffsetMs;
+      (
+        window as unknown as { __advanceClockMs: (ms: number) => void }
+      ).__advanceClockMs = (ms: number) => {
+        clockOffsetMs += ms;
+      };
+    });
+
+    const backend = await attachMockBackend(page, context, baseURL!, {
+      initialAuthenticated: true,
+      initialUser: {
+        subscriptionTier: null,
+        emailVerifiedAt: "2026-11-13T00:00:00.000Z",
+      },
+      billingProvider: "stripe",
+      accessRequestsEnabled: true,
+      captchaConfig: {
+        enabled: false,
+      },
+    });
+
+    await page.goto("/select-plan");
+    const continueButton = page.getByRole("button", {
+      name: /Confirmar plan y configurar preferencias/i,
+    });
+    await expect(continueButton).toBeVisible();
+
+    const meCountAfterLoad = backend.state.requests.filter(
+      (r) => r.method === "GET" && r.path === "/auth/me",
+    ).length;
+    const reqsCountAfterLoad = backend.state.requests.filter(
+      (r) => r.method === "GET" && r.path === "/access-requests/me",
+    ).length;
+
+    // Primer evento focus/visibilitychange sobre /select-plan (> 5s desde epoch 0).
+    await page.evaluate(() => {
+      window.dispatchEvent(new Event("focus"));
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await page.waitForTimeout(150);
+
+    expect(
+      backend.state.requests.filter(
+        (r) => r.method === "GET" && r.path === "/auth/me",
+      ).length,
+    ).toBe(meCountAfterLoad);
+    expect(
+      backend.state.requests.filter(
+        (r) => r.method === "GET" && r.path === "/access-requests/me",
+      ).length,
+    ).toBe(reqsCountAfterLoad);
+
+    // Abre el modal de Stripe Checkout y simula salir/volver del iframe pasados > 5s.
+    await continueButton.click();
+    await expect(page.getByRole("dialog")).toBeVisible();
+
+    await page.evaluate(() => {
+      (
+        window as unknown as { __advanceClockMs: (ms: number) => void }
+      ).__advanceClockMs(6_000);
+      window.dispatchEvent(new Event("focus"));
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    await page.waitForTimeout(150);
+
+    expect(
+      backend.state.requests.filter(
+        (r) => r.method === "GET" && r.path === "/auth/me",
+      ).length,
+    ).toBe(meCountAfterLoad);
+    expect(
+      backend.state.requests.filter(
+        (r) => r.method === "GET" && r.path === "/access-requests/me",
+      ).length,
+    ).toBe(reqsCountAfterLoad);
+  });
 });
