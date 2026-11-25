@@ -1,10 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { RegisterStepper } from "@/app/register/_components/register-stepper";
 import { StepPlanSelection } from "@/app/register/_components/step-plan-selection";
+import {
+  clearOAuthBackGuardMarker,
+  useOAuthBackGuard,
+} from "@/app/select-plan/_hooks/use-oauth-back-guard";
 import { AuthShell } from "@/components/auth";
 import { StripeCheckoutModal } from "@/components/billing";
 import { FloatingLocaleSelector } from "@/components/layout/floating-locale-selector";
@@ -52,6 +56,7 @@ export function SelectPlanView() {
     submitAccessRequest,
     cancelAccessRequest,
     reloadAccountState,
+    logout,
   } = useAuth();
   const {
     config: billingConfig,
@@ -70,6 +75,8 @@ export function SelectPlanView() {
   const [planError, setPlanError] = useState<string | null>(null);
   const [requestNotice, setRequestNotice] = useState<string | null>(null);
   const [isSubmittingPlan, setIsSubmittingPlan] = useState(false);
+  const [isSwitchingAccount, setIsSwitchingAccount] = useState(false);
+  const [showOAuthBackNotice, setShowOAuthBackNotice] = useState(false);
   const [isRefreshingStatus, setIsRefreshingStatus] = useState(false);
   const [confirmingCancel, setConfirmingCancel] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -78,6 +85,15 @@ export function SelectPlanView() {
   const [rateLimitWaitSeconds, setRateLimitWaitSeconds] = useState<
     number | null
   >(null);
+
+  const handleOAuthBackIntercepted = useCallback((): void => {
+    setShowOAuthBackNotice(true);
+  }, []);
+
+  useOAuthBackGuard({
+    accessPhase,
+    onBackIntercepted: handleOAuthBackIntercepted,
+  });
 
   // Precargamos el catálogo público para comprobar disponibilidad en segundo plano.
   useEffect(() => {
@@ -162,6 +178,7 @@ export function SelectPlanView() {
           captchaToken ? { captchaToken } : undefined,
         );
         if (res.data.uiMode === "hosted" && res.data.url) {
+          clearOAuthBackGuardMarker();
           if (typeof window !== "undefined") {
             window.location.assign(res.data.url);
           }
@@ -190,6 +207,7 @@ export function SelectPlanView() {
         } else {
           await selectPlan(effectivePlan);
         }
+        clearOAuthBackGuardMarker();
         router.replace("/setup-preferences");
       }
     } catch (error) {
@@ -245,6 +263,19 @@ export function SelectPlanView() {
     }
   };
 
+  const handleSwitchAccount = async (): Promise<void> => {
+    if (isSwitchingAccount || isSubmittingPlan) return;
+    setIsSwitchingAccount(true);
+    setPlanError(null);
+    try {
+      clearOAuthBackGuardMarker();
+      await logout();
+      router.replace("/login");
+    } finally {
+      setIsSwitchingAccount(false);
+    }
+  };
+
   const stepBadge = s3.stepBadge;
   const sectionLabel = s3.sectionBadge;
 
@@ -274,6 +305,16 @@ export function SelectPlanView() {
       copyrightText={t.auth.register.copyrightNotice}
     >
       <div className="flex flex-col gap-5">
+        {showOAuthBackNotice && (
+          <Alert
+            variant="info"
+            title={s3.oauthBackNoticeTitle}
+            onDismiss={() => setShowOAuthBackNotice(false)}
+          >
+            {s3.oauthBackNoticeBody}
+          </Alert>
+        )}
+
         {requestNotice && (
           <Alert
             variant="success"
@@ -409,6 +450,13 @@ export function SelectPlanView() {
             setPlanError(null);
             setRateLimitWaitSeconds(null);
           }}
+          onBack={() => {
+            void handleSwitchAccount();
+          }}
+          backLabel={
+            isSwitchingAccount ? t.nav.signingOut : s3.switchAccountButton
+          }
+          isBackLoading={isSwitchingAccount}
           onSubmit={handleSubmitPlan}
           captchaContainerRef={captcha.containerRef}
         />
@@ -430,6 +478,7 @@ export function SelectPlanView() {
           t={t}
           onClose={() => setCheckoutSession(null)}
           onSuccess={(sessionId) => {
+            clearOAuthBackGuardMarker();
             setCheckoutSession(null);
             router.replace(
               `/billing/return?session_id=${encodeURIComponent(sessionId)}`,
