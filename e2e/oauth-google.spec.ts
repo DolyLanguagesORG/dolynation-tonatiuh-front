@@ -184,4 +184,130 @@ test.describe("External OAuth UI & BFF navigation flows", () => {
       ),
     ).toBeVisible();
   });
+
+  test("replaces history on Microsoft OAuth start, blocks Back from triggering AADSTS900561 on /select-plan, and allows controlled account switching", async ({
+    page,
+    context,
+    baseURL,
+  }) => {
+    const mock = await attachMockBackend(page, context, baseURL!, {
+      emailVerificationRequired: true,
+      oauthProviders: ENABLED_OAUTH_PROVIDERS,
+    });
+
+    let entraGetRequests = 0;
+
+    await page.route("**/api/auth/oauth/microsoft**", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "text/html; charset=utf-8",
+        body: `<!doctype html><html><body>
+          <h1>Mock Microsoft Sign-In</h1>
+          <form method="POST" action="https://login.microsoftonline.com/common/login">
+            <button type="submit">Completar Microsoft</button>
+          </form>
+        </body></html>`,
+      });
+    });
+
+    await page.route(
+      "https://login.microsoftonline.com/common/login",
+      async (route) => {
+        if (route.request().method() === "GET") {
+          entraGetRequests += 1;
+          await route.fulfill({
+            status: 400,
+            contentType: "text/html; charset=utf-8",
+            body: "<h1>AADSTS900561: The endpoint only accepts POST requests. Received a GET request.</h1>",
+          });
+          return;
+        }
+
+        // Simula el POST exitoso en Entra ID que autentica al usuario sin plan y navega al callback -> /select-plan?oauth=microsoft.
+        mock.state.user = {
+          id: 99,
+          email: "ms.oauth@example.com",
+          fullName: "Microsoft Student",
+          role: "student",
+          subscriptionTier: null,
+          currentStreak: 0,
+          lastStreakDate: null,
+          emailVerifiedAt: "2026-11-24T00:00:00.000Z",
+          locale: "es",
+          createdAt: "2026-11-24T00:00:00.000Z",
+        };
+        await mock.setSessionCookie(true);
+
+        const callbackTarget = JSON.stringify(
+          `${baseURL!}/select-plan?oauth=microsoft`,
+        );
+        await route.fulfill({
+          status: 200,
+          contentType: "text/html; charset=utf-8",
+          body: `<!doctype html><html><body>
+            <p>Completing sign-in...</p>
+            <script>window.location.href = ${callbackTarget};</script>
+          </body></html>`,
+        });
+      },
+    );
+
+    await page.goto("/login");
+    const historyLengthOnLogin = await page.evaluate(
+      () => window.history.length,
+    );
+
+    await Promise.all([
+      page.waitForURL(/\/api\/auth\/oauth\/microsoft/),
+      page
+        .getByRole("button", { name: "Continuar con cuenta de Microsoft" })
+        .click(),
+    ]);
+
+    // location.replace reemplaza /login en lugar de apilar una entrada extra.
+    const historyLengthAfterOAuthStart = await page.evaluate(
+      () => window.history.length,
+    );
+    expect(historyLengthAfterOAuthStart).toBe(historyLengthOnLogin);
+
+    await page.getByRole("button", { name: "Completar Microsoft" }).click();
+
+    // Tras completar el flujo OAuth, /select-plan limpia ?oauth=microsoft y arma el guard.
+    await expect(page).toHaveURL(/\/select-plan$/, { timeout: 15_000 });
+    await expect(
+      page.getByRole("heading", { name: "Selecciona tu Plan de Suscripción" }),
+    ).toBeVisible();
+
+    // Presionar "Atrás" NO debe enviar GET a login.microsoftonline.com ni disparar AADSTS900561.
+    await page.goBack();
+    await expect(page).toHaveURL(/\/select-plan$/);
+    expect(entraGetRequests).toBe(0);
+    await expect(page.getByText("Sesión iniciada")).toBeVisible();
+    await expect(
+      page.getByText(/utiliza el botón «Cambiar de cuenta»/i),
+    ).toBeVisible();
+
+    // Interactuar con la página y volver a presionar "Atrás" mantiene la protección (re-armado).
+    await page
+      .locator("button, [role='button'], [role='radio']")
+      .filter({ hasText: "Dolly Plus" })
+      .first()
+      .click();
+    await page.goBack();
+    await expect(page).toHaveURL(/\/select-plan$/);
+    expect(entraGetRequests).toBe(0);
+
+    // El botón visible "Cambiar de cuenta" cierra sesión y vuelve de forma controlada a /login.
+    await page.getByRole("button", { name: "Cambiar de cuenta" }).click();
+    await expect(page).toHaveURL(/\/login/, { timeout: 15_000 });
+    expect(
+      mock.state.requests.some(
+        (r) => r.method === "POST" && r.path === "/auth/logout",
+      ),
+    ).toBe(true);
+    const remainingMarker = await page.evaluate(() =>
+      window.sessionStorage.getItem("doly.select_plan_oauth_guard"),
+    );
+    expect(remainingMarker).toBeNull();
+  });
 });

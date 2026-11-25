@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
-import { OAuthProvidersSection } from "@/components/auth/oauth-providers-section";
+import {
+  OAuthProvidersSection,
+  oauthLocationNavigator,
+} from "@/components/auth/oauth-providers-section";
 import { LocaleProvider } from "@/i18n";
 import { authService } from "@/lib";
 
@@ -145,6 +148,35 @@ describe("OAuthProvidersSection", () => {
     fireEvent.click(msButton);
     expect(onNavigate).toHaveBeenCalledWith(
       "/api/auth/oauth/microsoft?origin=register&locale=es&redirect=%2Fgenerate",
+    );
+  });
+
+  it("uses location.replace instead of history push when default navigation is used", async () => {
+    jest.spyOn(authService, "getOAuthProviders").mockResolvedValue({
+      message: "OK",
+      data: {
+        providers: [{ provider: "microsoft", enabled: true }],
+      },
+      error: null,
+    });
+    const replaceSpy = jest
+      .spyOn(oauthLocationNavigator, "replace")
+      .mockImplementation(() => undefined);
+
+    render(
+      <LocaleProvider initialLocale="es">
+        <OAuthProvidersSection mode="login" redirectTarget="/generate" />
+      </LocaleProvider>,
+    );
+
+    const msButton = await screen.findByRole("button", {
+      name: "Continuar con cuenta de Microsoft",
+    });
+    fireEvent.click(msButton);
+
+    expect(replaceSpy).toHaveBeenCalledTimes(1);
+    expect(replaceSpy).toHaveBeenCalledWith(
+      `${window.location.origin}/api/auth/oauth/microsoft?origin=login&locale=es&redirect=%2Fgenerate`,
     );
   });
 });
