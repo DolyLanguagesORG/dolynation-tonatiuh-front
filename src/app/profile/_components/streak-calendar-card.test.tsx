@@ -86,6 +86,7 @@ describe("StreakCalendarCard & monthly calendar helpers", () => {
     );
 
     expect(screen.getByText("2")).toBeInTheDocument();
+    expect(screen.getByText("días consecutivos")).toBeInTheDocument();
     expect(screen.getByText("2 días con lectura este mes")).toBeInTheDocument();
     expect(screen.getByText("Objetivo de lectura diaria")).toBeInTheDocument();
     expect(screen.getByText("0%")).toBeInTheDocument();
@@ -131,5 +132,19 @@ describe("StreakCalendarCard & monthly calendar helpers", () => {
       thursday,
     );
     expect(labels).toEqual(["V", "S", "D", "L", "M", "X", "J"]);
+  });
+
+  it("renders singular day label when currentStreak is 1", () => {
+    render(
+      <StreakCalendarCard
+        t={dictionaries.es}
+        locale="es"
+        currentStreak={1}
+        streakDays={[true]}
+        referenceDate={new Date(2026, 10, 19)}
+      />,
+    );
+
+    expect(screen.getByText("día consecutivo")).toBeInTheDocument();
   });
 });

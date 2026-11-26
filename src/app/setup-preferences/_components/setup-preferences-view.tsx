@@ -20,14 +20,20 @@ import {
 } from "@/components/ui";
 import { useAuth } from "@/context";
 import { useToast } from "@/context/toast-context";
+import { useNavigationGuard } from "@/hooks";
 import { formatMessage, useLocale } from "@/i18n";
 import {
   ApiClientError,
+  canonicalCategoryKey,
   type CatalogItem,
   consumePendingInviteRedirect,
   DEFAULT_LANGUAGES,
+  MAX_CATEGORY_LENGTH,
+  MIN_CATEGORY_LENGTH,
   MIN_USER_CATEGORIES,
+  settingsService,
   type TargetLanguageCode,
+  validateCategoryInput,
 } from "@/lib";
 
 /**
@@ -59,8 +65,33 @@ export function SetupPreferencesView() {
   const [customCategories, setCustomCategories] = useState<CatalogItem[]>([]);
   const [customInput, setCustomInput] = useState("");
   const [customError, setCustomError] = useState<string | null>(null);
+  const [isAddingCustom, setIsAddingCustom] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+
+  const savedLanguages = languagesSettings?.selected ?? [];
+  const effectiveLanguages = draftLanguages ?? savedLanguages;
+  const savedCategories = categoriesSettings?.selected ?? [];
+  const effectiveCategories = draftCategories ?? savedCategories;
+
+  const isLanguagesDirty =
+    draftLanguages !== null &&
+    (draftLanguages.length !== savedLanguages.length ||
+      draftLanguages.some((code, index) => savedLanguages[index] !== code));
+  const isCategoriesDirty =
+    draftCategories !== null &&
+    (draftCategories.length !== savedCategories.length ||
+      draftCategories.some((id, index) => savedCategories[index] !== id));
+  const isDirty =
+    isLanguagesDirty || isCategoriesDirty || customInput.trim().length > 0;
+
+  const { allowNextNavigation } = useNavigationGuard({
+    active:
+      !isLoading &&
+      accessPhase === "ready" &&
+      (isSaving || isAddingCustom || isDirty),
+    message: t.navigationGuard.unsavedChangesMessage,
+  });
 
   if (isLoading || accessPhase !== "ready") {
     return (
@@ -92,11 +123,6 @@ export function SetupPreferencesView() {
         : tier === "dolly_plus"
           ? 15
           : null;
-
-  const savedLanguages = languagesSettings?.selected ?? [];
-  const effectiveLanguages = draftLanguages ?? savedLanguages;
-  const savedCategories = categoriesSettings?.selected ?? [];
-  const effectiveCategories = draftCategories ?? savedCategories;
 
   const canChangeLanguages =
     !isProTier &&
@@ -171,60 +197,107 @@ export function SetupPreferencesView() {
     setDraftCategories([...effectiveCategories, categoryId]);
   };
 
-  const handleAddCustomCategory = (): void => {
-    const cleanName = customInput.trim();
-    if (cleanName.length < 2 || cleanName.length > 50) {
-      setCustomError(sp.categoryLengthError);
-      toast.warning(sp.categoryLengthError);
+  const handleAddCustomCategory = async (): Promise<void> => {
+    if (isAddingCustom || isSaving) return;
+
+    const validation = validateCategoryInput(customInput);
+    if (!validation.ok) {
+      const errorMsg =
+        validation.reason === "required"
+          ? t.categoryValidation.requiredError
+          : validation.reason === "length"
+            ? formatMessage(t.categoryValidation.lengthError, {
+                min: MIN_CATEGORY_LENGTH,
+                max: MAX_CATEGORY_LENGTH,
+              })
+            : t.categoryValidation.formatError;
+      setCustomError(errorMsg);
+      toast.warning(errorMsg);
       return;
     }
 
     const existingItem = unifiedCategories.find(
       (item) =>
-        item.id.toLowerCase() === cleanName.toLowerCase() ||
-        item.name.toLowerCase() === cleanName.toLowerCase(),
+        canonicalCategoryKey(item.id) === validation.canonicalKey ||
+        canonicalCategoryKey(item.name) === validation.canonicalKey,
     );
 
     if (existingItem) {
       const alreadySelected = effectiveCategories.some(
-        (id) => id.toLowerCase() === existingItem.id.toLowerCase(),
+        (id) => canonicalCategoryKey(id) === validation.canonicalKey,
       );
-      if (!alreadySelected) {
-        if (
-          maxCategories !== null &&
-          effectiveCategories.length >= maxCategories
-        ) {
-          const msg = `${sp.categoriesMaxAlertPrefix} ${maxCategories} ${sp.categoriesUnit}`;
-          setCustomError(msg);
-          toast.warning(msg);
-          return;
-        }
-        setDraftCategories([...effectiveCategories, existingItem.id]);
+      if (alreadySelected) {
+        const infoMsg = formatMessage(
+          t.categoryValidation.alreadySelectedInfo,
+          { name: existingItem.name },
+        );
+        setCustomError(infoMsg);
+        toast.info(infoMsg);
+        return;
       }
+
+      if (
+        maxCategories !== null &&
+        effectiveCategories.length >= maxCategories
+      ) {
+        const msg = formatMessage(t.categoryValidation.maxLimitError, {
+          max: maxCategories,
+        });
+        setCustomError(msg);
+        toast.warning(msg);
+        return;
+      }
+
+      setDraftCategories([...effectiveCategories, existingItem.id]);
       setCustomInput("");
       setCustomError(null);
       return;
     }
 
     if (maxCategories !== null && effectiveCategories.length >= maxCategories) {
-      const msg = `${sp.categoriesMaxAlertPrefix} ${maxCategories} ${sp.categoriesUnit}`;
+      const msg = formatMessage(t.categoryValidation.maxLimitError, {
+        max: maxCategories,
+      });
       setCustomError(msg);
       toast.warning(msg);
       return;
     }
 
+    setIsAddingCustom(true);
+    setCustomError(null);
+    let approvedName = validation.cleaned;
+
+    try {
+      const validated = await settingsService.validateCategory({
+        category: validation.cleaned,
+      });
+      approvedName = validated.data?.category ?? validation.cleaned;
+    } catch (error) {
+      if (!(error instanceof ApiClientError && error.status === 404)) {
+        const msg =
+          error instanceof ApiClientError
+            ? error.getUserMessage(locale)
+            : t.categoryValidation.formatError;
+        setCustomError(msg);
+        toast.warning(msg);
+        setIsAddingCustom(false);
+        return;
+      }
+    }
+
+    setIsAddingCustom(false);
     setCustomCategories((prev) => [
       ...prev,
-      { id: cleanName, name: cleanName },
+      { id: approvedName, name: approvedName },
     ]);
-    setDraftCategories([...effectiveCategories, cleanName]);
+    setDraftCategories([...effectiveCategories, approvedName]);
     setCustomInput("");
     setCustomError(null);
     setFormError(null);
   };
 
   const handleSave = async (): Promise<void> => {
-    if (isSaving) return;
+    if (isSaving || isAddingCustom) return;
     setFormError(null);
 
     if (!isProTier && effectiveLanguages.length === 0) {
@@ -246,6 +319,7 @@ export function SetupPreferencesView() {
         categories: effectiveCategories,
       });
       toast.success(sp.preferencesSavedSuccess);
+      allowNextNavigation();
       router.replace(consumePendingInviteRedirect() ?? "/");
     } catch (error) {
       const msg =
@@ -412,7 +486,9 @@ export function SetupPreferencesView() {
                   type="text"
                   label={sp.addCustomLabel}
                   placeholder={sp.addCustomPlaceholder}
+                  maxLength={MAX_CATEGORY_LENGTH}
                   value={customInput}
+                  disabled={isSaving || isAddingCustom}
                   error={customError ?? undefined}
                   onChange={(event) => {
                     setCustomInput(event.target.value);
@@ -421,7 +497,7 @@ export function SetupPreferencesView() {
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       event.preventDefault();
-                      handleAddCustomCategory();
+                      void handleAddCustomCategory();
                     }
                   }}
                 />
@@ -430,8 +506,11 @@ export function SetupPreferencesView() {
                 type="button"
                 variant="secondary"
                 size="sm"
-                disabled={isSaving}
-                onClick={handleAddCustomCategory}
+                disabled={isSaving || isAddingCustom}
+                isLoading={isAddingCustom}
+                onClick={() => {
+                  void handleAddCustomCategory();
+                }}
               >
                 {sp.addCustomButton}
               </Button>
@@ -446,8 +525,11 @@ export function SetupPreferencesView() {
               type="button"
               variant="outline"
               size="md"
-              disabled={isSaving}
-              onClick={() => router.replace(consumePendingInviteRedirect() ?? "/")}
+              disabled={isSaving || isAddingCustom}
+              onClick={() => {
+                allowNextNavigation();
+                router.replace(consumePendingInviteRedirect() ?? "/");
+              }}
             >
               {sp.cancelButton}
             </Button>

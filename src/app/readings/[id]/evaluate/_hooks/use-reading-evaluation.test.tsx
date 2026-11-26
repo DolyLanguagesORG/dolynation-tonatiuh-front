@@ -3,19 +3,25 @@ import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
 import type { ReactNode } from "react";
 
 const mockPush = jest.fn();
+const mockReplace = jest.fn();
+const mockReloadAccountState = jest.fn().mockResolvedValue(undefined);
 
 jest.mock("next/navigation", () => ({
-  useRouter: () => ({ push: mockPush, replace: jest.fn() }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace }),
 }));
 
 jest.mock("@/context", () => ({
   useAuth: () => ({
     user: { id: 1, email: "student@test.com" },
     isAuthenticated: true,
+    reloadAccountState: mockReloadAccountState,
   }),
 }));
 
-import { useReadingEvaluation } from "@/app/readings/[id]/evaluate/_hooks/use-reading-evaluation";
+import {
+  MAX_SUBMIT_WORDS,
+  useReadingEvaluation,
+} from "@/app/readings/[id]/evaluate/_hooks/use-reading-evaluation";
 import { LocaleProvider } from "@/i18n";
 import { type ReadingDto, readingsService } from "@/lib";
 
@@ -109,6 +115,58 @@ describe("useReadingEvaluation", () => {
       userResponse: validSummary,
     });
     expect(window.localStorage.getItem("doly-eval-draft-14")).toBeNull();
-    expect(mockPush).toHaveBeenCalledWith("/readings/14/result");
+    expect(mockReloadAccountState).toHaveBeenCalled();
+    expect(mockReplace).toHaveBeenCalledWith("/readings/14/result");
+  });
+
+  it("blocks summaries exceeding 500 words without calling evaluate", async () => {
+    const evaluateSpy = jest.spyOn(readingsService, "evaluate");
+
+    const { result } = renderHook(() => useReadingEvaluation("14"), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const overLimitSummary = Array.from(
+      { length: MAX_SUBMIT_WORDS + 5 },
+      (_, idx) => `word${idx}`,
+    ).join(" ");
+
+    act(() => {
+      result.current.updateResponseText(overLimitSummary);
+    });
+
+    expect(result.current.isOverWordLimit).toBe(true);
+
+    await act(async () => {
+      await result.current.handleSubmit();
+    });
+
+    expect(result.current.validationError).toContain(String(MAX_SUBMIT_WORDS));
+    expect(evaluateSpy).not.toHaveBeenCalled();
+  });
+
+  it("redirects immediately to results and clears draft if reading is already evaluated", async () => {
+    window.localStorage.setItem("doly-eval-draft-14", "stale draft");
+    jest.spyOn(readingsService, "getById").mockResolvedValueOnce({
+      message: "OK",
+      data: {
+        ...SAMPLE_READING,
+        status: "completed",
+        score: 88,
+      },
+    });
+
+    const { result } = renderHook(() => useReadingEvaluation("14"), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => expect(result.current.isAlreadyEvaluated).toBe(true));
+
+    await waitFor(() => {
+      expect(mockReplace).toHaveBeenCalledWith("/readings/14/result");
+    });
+    expect(window.localStorage.getItem("doly-eval-draft-14")).toBeNull();
   });
 });

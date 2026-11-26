@@ -23,7 +23,7 @@ export function useLoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { locale, t } = useLocale();
-  const { login, isAuthenticated, user } = useAuth();
+  const { login, isAuthenticated, user, accessPhase } = useAuth();
   const captcha = useTurnstile("login");
 
   const redirectTarget = sanitizeRedirectPath(
@@ -85,9 +85,15 @@ export function useLoginForm() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      router.replace(user?.role === "admin" ? "/admin" : redirectTarget);
+      const destination =
+        user?.role === "admin"
+          ? "/admin"
+          : accessPhase === "plan_required"
+            ? "/select-plan"
+            : redirectTarget;
+      router.replace(destination);
     }
-  }, [isAuthenticated, redirectTarget, router, user?.role]);
+  }, [accessPhase, isAuthenticated, redirectTarget, router, user?.role]);
 
   const validateEmail = (value: string): string | undefined => {
     const trimmed = value.trim();

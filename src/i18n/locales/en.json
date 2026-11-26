@@ -217,7 +217,7 @@
       "submittingButton": "Creating academic account...",
       "hasAccountPrompt": "Already have an active account?",
       "loginLink": "Sign in here",
-      "copyrightNotice": "COPYRIGHT DOLYNATION · ACADEMIC EDITION 2024 · VERIFIED REGISTRATION",
+      "copyrightNotice": "COPYRIGHT DOLYNATION · ACADEMIC EDITION {year} · VERIFIED REGISTRATION",
       "errorBannerTitle": "Could not complete registration",
       "validationFirstNameRequired": "Please enter your first name to create your academic record.",
       "validationFirstNameMaxLength": "Full name must not exceed 255 characters.",
@@ -227,7 +227,8 @@
       "validationTermsRequired": "You must accept the Terms of Service and Data Policy to register.",
       "stepBadge": "STEP 01 / 04",
       "sectionBadge": "Account Creation",
-      "fallbackError": "Could not complete registration. Please check your details and try again."
+      "fallbackError": "Could not complete registration. Please check your details and try again.",
+      "validationPasswordMaxLength": "Password must not exceed 128 characters."
     },
     "stepper": {
       "steps": {
@@ -503,7 +504,8 @@
       "partnerPendingBadge": "Waiting for {name}",
       "openTodayCta": "Read today",
       "manageAllLink": "Open Friends"
-    }
+    },
+    "streakDaySingularSuffix": "consecutive day"
   },
   "study": {
     "pageBadge": "AI READINGS • STUDY CONFIGURATION",
@@ -759,7 +761,9 @@
       "switchPlanError": "Could not switch subscription plan.",
       "cancelRequestSuccess": "Pending request cancelled.",
       "cancelRequestError": "Could not cancel the pending request."
-    }
+    },
+    "fullNameRequiredError": "Enter your full name before saving.",
+    "fullNameMaxLengthError": "Full name must not exceed 255 characters."
   },
   "readings": {
     "historyTitle": "Reading History",
@@ -867,7 +871,14 @@
       "submittingAnalysisNotice": "Analyzing thematic retention, contextual lexicon, and syntactic clarity...",
       "loadingTitle": "Preparing evaluation module",
       "loadErrorTitle": "Failed to load evaluation",
-      "loadErrorFallback": "Could not open reading for evaluation."
+      "loadErrorFallback": "Could not open reading for evaluation.",
+      "maxWordsBadge": "Max. 500 words",
+      "wordLimitProgress": "{count} / {max} words (min. {min})",
+      "charLimitCounter": "{count} / {max} characters",
+      "maxWordsError": "Your summary exceeds the maximum limit of {max} words. Shorten it before submitting.",
+      "maxCharsError": "Your summary exceeds the maximum limit of {max} characters.",
+      "doNotReloadEvaluatingNotice": "Do not reload or leave this page while AI is evaluating your summary.",
+      "alreadyEvaluatedNotice": "This reading has already been evaluated. Redirecting to your results..."
     },
     "result": {
       "completedBadge": "• EVALUATION COMPLETED",
@@ -1573,7 +1584,9 @@
         "activatedLabel": "Activated in your plan: {items}",
         "savedOnlyLabel": "Saved to library only (plan active limit): {items}",
         "skippedLabel": "Already present or unavailable: {items}",
-        "copySuccessToast": "Categories copied to your library."
+        "copySuccessToast": "Categories copied to your library.",
+        "selectedSummary": "{count} of {total} selected",
+        "copySingleAria": "Copy category {name}"
       },
       "streakTab": {
         "emptyTitle": "No shared streak yet",
@@ -1581,5 +1594,26 @@
         "proposeButton": "Propose daily streak"
       }
     }
+  },
+  "navigationGuard": {
+    "title": "Are you sure you want to leave this page?",
+    "stayButton": "Stay here",
+    "leaveButton": "Leave anyway",
+    "unsavedChangesMessage": "You have unsaved changes. If you reload or go back you may lose your current progress.",
+    "evaluationUnsentMessage": "You have an unsubmitted summary. Your draft is saved locally, but your evaluation will not be submitted if you leave now.",
+    "evaluationInProgressMessage": "Your summary is currently being evaluated by AI. Reloading or leaving now may interrupt tracking your result.",
+    "generationInProgressMessage": "Your reading is being generated with AI. Reloading or navigating back will cancel the generation in progress.",
+    "paymentInProgressMessage": "A payment or subscription operation is in progress. Do not reload or close this window until it finishes.",
+    "billingSyncNotice": "Do not reload or close this tab while we confirm your payment.",
+    "generationDoNotReloadNotice": "Do not reload or navigate back while your reading is being generated; doing so will cancel the process.",
+    "checkoutDoNotReloadNotice": "Do not reload or close this window while payment is being processed."
+  },
+  "categoryValidation": {
+    "requiredError": "Enter a category name before adding it.",
+    "lengthError": "Category must be between {min} and {max} characters.",
+    "formatError": "Enter a valid study topic (no links, code, invalid symbols, or gibberish).",
+    "maxLimitError": "Your current plan allows up to {max} categories.",
+    "alreadySelectedInfo": "Category \"{name}\" is already in your preferences.",
+    "validatingButton": "Validating..."
   }
 }

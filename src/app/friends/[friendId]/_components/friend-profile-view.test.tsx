@@ -209,8 +209,14 @@ describe("FriendProfileView", () => {
     });
 
     await user.click(screen.getByRole("tab", { name: /Categorías/i }));
+    expect(screen.getByText("0 de 3 seleccionadas")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Copiar categoría Astrofísica/i }),
+    ).toBeInTheDocument();
+
     await user.click(screen.getByRole("button", { name: "Astrofísica" }));
     await user.click(screen.getByRole("button", { name: "Cine" }));
+    expect(screen.getByText("2 de 3 seleccionadas")).toBeInTheDocument();
 
     await user.click(
       screen.getByRole("button", { name: /Copiar seleccionadas \(2\)/i }),

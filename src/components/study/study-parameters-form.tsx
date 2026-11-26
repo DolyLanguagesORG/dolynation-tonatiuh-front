@@ -262,12 +262,17 @@ export function StudyParametersForm({
         />
 
         {study.isSubmitting && (
-          <ReadingGenerationProgress
-            title={t.study.generatingTitle}
-            subtitle={t.study.generatingSubtitle}
-            stages={t.study.generatingStages}
-            inProgressBadge={t.study.aiInProgressBadge}
-          />
+          <div className="flex flex-col gap-3">
+            <ReadingGenerationProgress
+              title={t.study.generatingTitle}
+              subtitle={t.study.generatingSubtitle}
+              stages={t.study.generatingStages}
+              inProgressBadge={t.study.aiInProgressBadge}
+            />
+            <Alert variant="info">
+              {t.navigationGuard.generationDoNotReloadNotice}
+            </Alert>
+          </div>
         )}
 
         <TurnstileField containerRef={study.captchaContainerRef} />

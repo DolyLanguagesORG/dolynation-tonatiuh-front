@@ -19,6 +19,7 @@ import {
   Text,
 } from "@/components/ui";
 import { type Dictionary, formatMessage } from "@/i18n";
+import { useNavigationGuard } from "@/hooks";
 import {
   type CheckoutSessionResponse,
   dolyStripeAppearance,
@@ -42,6 +43,7 @@ interface InnerCheckoutFormProps {
   t: Dictionary;
   onClose: () => void;
   onSuccess: (sessionId: string) => void | Promise<void>;
+  onBusyChange?: (busy: boolean) => void;
 }
 
 function InnerCheckoutForm({
@@ -50,6 +52,7 @@ function InnerCheckoutForm({
   t,
   onClose,
   onSuccess,
+  onBusyChange,
 }: InnerCheckoutFormProps) {
   const checkoutState = useCheckoutElements();
   const [isConfirming, setIsConfirming] = useState(false);
@@ -84,6 +87,7 @@ function InnerCheckoutForm({
 
     setErrorMessage(null);
     setIsConfirming(true);
+    onBusyChange?.(true);
     try {
       const result = await checkout.confirm({
         redirect: "if_required",
@@ -103,6 +107,7 @@ function InnerCheckoutForm({
       );
     } finally {
       setIsConfirming(false);
+      onBusyChange?.(false);
     }
   };
 
@@ -173,7 +178,18 @@ export function StripeCheckoutModal({
   onSuccess,
 }: StripeCheckoutModalProps) {
   const titleId = useId();
+  const [isSubmittingForm, setIsSubmittingForm] = useState(false);
   const tc = t.billing.checkout;
+
+  const isHostedRedirect = Boolean(
+    session?.uiMode === "hosted" && session?.url,
+  );
+  const isBusy = Boolean(session) && (isSubmittingForm || isHostedRedirect);
+
+  const { allowNextNavigation } = useNavigationGuard({
+    active: isBusy,
+    message: t.navigationGuard.paymentInProgressMessage,
+  });
 
   const stripePromise = useMemo(
     () => getStripePromise(session?.publishableKey),
@@ -198,22 +214,23 @@ export function StripeCheckoutModal({
   useEffect(() => {
     if (!session) return;
     if (session.uiMode === "hosted" && session.url) {
+      allowNextNavigation();
       if (typeof window !== "undefined") {
         window.location.assign(session.url);
       }
     }
-  }, [session]);
+  }, [allowNextNavigation, session]);
 
   useEffect(() => {
     if (!session) return;
     const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && !isBusy) {
         onClose();
       }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, session]);
+  }, [isBusy, onClose, session]);
 
   if (!session) {
     return null;
@@ -223,7 +240,7 @@ export function StripeCheckoutModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         aria-hidden="true"
-        onClick={onClose}
+        onClick={isBusy ? undefined : onClose}
         className="fixed inset-0 bg-brand/45 backdrop-blur-[1px]"
       />
 
@@ -253,6 +270,7 @@ export function StripeCheckoutModal({
             variant="ghost"
             size="sm"
             aria-label={tc.closeAria}
+            disabled={isBusy}
             onClick={onClose}
           />
         </div>
@@ -280,6 +298,12 @@ export function StripeCheckoutModal({
             </div>
           </div>
 
+          {isBusy && (
+            <Alert variant="info">
+              {t.navigationGuard.checkoutDoNotReloadNotice}
+            </Alert>
+          )}
+
           {session.uiMode === "hosted" && session.url ? (
             <Alert variant="info">{tc.hostedRedirectNotice}</Alert>
           ) : checkoutOptions && stripePromise ? (
@@ -293,6 +317,7 @@ export function StripeCheckoutModal({
                 t={t}
                 onClose={onClose}
                 onSuccess={onSuccess}
+                onBusyChange={setIsSubmittingForm}
               />
             </CheckoutElementsProvider>
           ) : (

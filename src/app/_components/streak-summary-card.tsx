@@ -39,7 +39,9 @@ export function StreakSummaryCard({
               {streakDaysCount}
             </span>
             <span className="font-serif text-lg text-ink sm:text-xl">
-              {t.home.streakDaysSuffix}
+              {streakDaysCount === 1
+                ? t.home.streakDaySingularSuffix
+                : t.home.streakDaysSuffix}
             </span>
           </div>
 

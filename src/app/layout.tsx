@@ -5,7 +5,11 @@ import { Geist, Geist_Mono, Newsreader } from "next/font/google";
 import { AppShell } from "@/components/layout";
 import { ToastViewport } from "@/components/ui";
 import { dolyFlowbiteTheme } from "@/components/ui/flowbite-theme";
-import { AuthProvider, ToastProvider } from "@/context";
+import {
+  AuthProvider,
+  NavigationGuardProvider,
+  ToastProvider,
+} from "@/context";
 import { getDictionary, LocaleProvider } from "@/i18n";
 import { getServerLocale } from "@/i18n/server-locale";
 import { isDesignSystemEnabled } from "@/lib/feature-flags";
@@ -78,9 +82,11 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
           <LocaleProvider initialLocale={initialLocale}>
             <ToastProvider>
               <AuthProvider initialAuth={initialAuth}>
-                <AppShell designSystemEnabled={designSystemEnabled}>
-                  {children}
-                </AppShell>
+                <NavigationGuardProvider>
+                  <AppShell designSystemEnabled={designSystemEnabled}>
+                    {children}
+                  </AppShell>
+                </NavigationGuardProvider>
               </AuthProvider>
               <ToastViewport />
             </ToastProvider>

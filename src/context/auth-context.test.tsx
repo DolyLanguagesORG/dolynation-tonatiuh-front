@@ -1081,4 +1081,201 @@ describe("AuthProvider onboarding & session phase transitions", () => {
 
     expect(getMyRequestsSpy).not.toHaveBeenCalled();
   });
+
+  it("updates user streak via syncUserProfile without clearing the active session", async () => {
+    window.sessionStorage.clear();
+    window.localStorage.clear();
+    document.cookie = "doly_session=1; Path=/";
+
+    const initialUser = makeUser({
+      emailVerifiedAt: "2026-11-13T00:00:00.000Z",
+      subscriptionTier: "dolly_pro",
+      currentStreak: 1,
+    });
+
+    const { result } = renderHook(() => useAuth(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <AuthProvider
+          initialAuth={{
+            status: "authenticated",
+            user: initialUser,
+            subscription: { hasSubscription: true, tier: "dolly_pro", plan: null, usage: { categoriesCount: 3, categoriesLimit: null, languagesCount: 4, languagesLimit: null, readingsCreatedToday: 0, readingsLimit: null, readingsRemainingToday: null, questionsAskedToday: 0, questionsLimit: null, questionsRemainingToday: null } },
+            languagesSettings: { catalog: [], selected: ["en"], active: ["en"], maxLanguages: 4, canChangeFree: true, nextFreeChangeAt: null, lastLanguageChangeAt: null, languageChangeCredits: 0 },
+            categoriesSettings: { catalog: [], selected: ["technology", "history", "science"] },
+            accessRequests: { enabled: false, requests: [], pendingSubscriptionRequest: null, pendingLanguageUnlockRequest: null },
+            subscriptionRequired: false,
+          }}
+        >
+          {children}
+        </AuthProvider>
+      ),
+    });
+
+    expect(result.current.user?.currentStreak).toBe(1);
+
+    act(() => {
+      result.current.syncUserProfile({ currentStreak: 2 });
+    });
+
+    expect(result.current.isAuthenticated).toBe(true);
+    expect(result.current.user?.currentStreak).toBe(2);
+  });
+
+  it("preserves authenticated state and session cookie when reloadAccountState fails with transient 500", async () => {
+    window.sessionStorage.clear();
+    window.localStorage.clear();
+    document.cookie = "doly_session=1; Path=/";
+
+    jest.spyOn(authService, "me").mockRejectedValueOnce(
+      new ApiClientError({
+        code: ErrorCode.INTERNAL_ERROR,
+        message: "Internal error",
+        status: 500,
+      }),
+    );
+
+    const initialUser = makeUser({
+      emailVerifiedAt: "2026-11-13T00:00:00.000Z",
+      subscriptionTier: "dolly_plus",
+      currentStreak: 2,
+    });
+
+    const { result } = renderHook(() => useAuth(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <AuthProvider
+          initialAuth={{
+            status: "authenticated",
+            user: initialUser,
+            subscription: { hasSubscription: true, tier: "dolly_plus", plan: null, usage: { categoriesCount: 3, categoriesLimit: 15, languagesCount: 1, languagesLimit: 2, readingsCreatedToday: 0, readingsLimit: 10, readingsRemainingToday: 10, questionsAskedToday: 0, questionsLimit: 10, questionsRemainingToday: 10 } },
+            languagesSettings: { catalog: [], selected: ["en"], active: ["en"], maxLanguages: 2, canChangeFree: true, nextFreeChangeAt: null, lastLanguageChangeAt: null, languageChangeCredits: 0 },
+            categoriesSettings: { catalog: [], selected: ["technology", "history", "science"] },
+            accessRequests: { enabled: false, requests: [], pendingSubscriptionRequest: null, pendingLanguageUnlockRequest: null },
+            subscriptionRequired: false,
+          }}
+        >
+          {children}
+        </AuthProvider>
+      ),
+    });
+
+    await act(async () => {
+      await result.current.reloadAccountState();
+    });
+
+    expect(result.current.isAuthenticated).toBe(true);
+    expect(result.current.user?.currentStreak).toBe(2);
+    expect(document.cookie).toContain("doly_session=1");
+  });
+
+  it("resyncs session on bfcache pageshow when doly_session cookie exists", async () => {
+    window.sessionStorage.clear();
+    window.localStorage.clear();
+    document.cookie = "doly_session=1; Path=/";
+
+    const initialUser = makeUser({
+      emailVerifiedAt: "2026-11-13T00:00:00.000Z",
+      subscriptionTier: "dolly_pro",
+      currentStreak: 1,
+    });
+    const refreshedUser = makeUser({
+      emailVerifiedAt: "2026-11-13T00:00:00.000Z",
+      subscriptionTier: "dolly_pro",
+      currentStreak: 3,
+    });
+
+    const meSpy = jest.spyOn(authService, "me").mockResolvedValue({
+      message: "OK",
+      data: refreshedUser,
+    });
+    jest.spyOn(subscriptionsService, "getCurrentSubscription").mockResolvedValue({
+      message: "OK",
+      data: { hasSubscription: true, tier: "dolly_pro", plan: null, usage: { categoriesCount: 3, categoriesLimit: null, languagesCount: 4, languagesLimit: null, readingsCreatedToday: 0, readingsLimit: null, readingsRemainingToday: null, questionsAskedToday: 0, questionsLimit: null, questionsRemainingToday: null } },
+    });
+    jest.spyOn(settingsService, "getLanguages").mockResolvedValue({
+      message: "OK",
+      data: { catalog: [], selected: ["en"], active: ["en"], maxLanguages: 4, canChangeFree: true, nextFreeChangeAt: null, lastLanguageChangeAt: null, languageChangeCredits: 0 },
+    });
+    jest.spyOn(settingsService, "getCategories").mockResolvedValue({
+      message: "OK",
+      data: { catalog: [], selected: ["technology", "history", "science"] },
+    });
+    jest.spyOn(accessRequestsService, "getMyRequests").mockResolvedValue({
+      message: "OK",
+      data: { enabled: false, requests: [], pendingSubscriptionRequest: null, pendingLanguageUnlockRequest: null },
+    });
+
+    const { result } = renderHook(() => useAuth(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <AuthProvider
+          initialAuth={{
+            status: "authenticated",
+            user: initialUser,
+            subscription: { hasSubscription: true, tier: "dolly_pro", plan: null, usage: { categoriesCount: 3, categoriesLimit: null, languagesCount: 4, languagesLimit: null, readingsCreatedToday: 0, readingsLimit: null, readingsRemainingToday: null, questionsAskedToday: 0, questionsLimit: null, questionsRemainingToday: null } },
+            languagesSettings: { catalog: [], selected: ["en"], active: ["en"], maxLanguages: 4, canChangeFree: true, nextFreeChangeAt: null, lastLanguageChangeAt: null, languageChangeCredits: 0 },
+            categoriesSettings: { catalog: [], selected: ["technology", "history", "science"] },
+            accessRequests: { enabled: false, requests: [], pendingSubscriptionRequest: null, pendingLanguageUnlockRequest: null },
+            subscriptionRequired: false,
+          }}
+        >
+          {children}
+        </AuthProvider>
+      ),
+    });
+
+    act(() => {
+      const persistedEvent = new Event("pageshow") as PageTransitionEvent;
+      Object.defineProperty(persistedEvent, "persisted", { value: true });
+      window.dispatchEvent(persistedEvent);
+    });
+
+    await waitFor(() => {
+      expect(meSpy).toHaveBeenCalledTimes(1);
+      expect(result.current.user?.currentStreak).toBe(3);
+    });
+  });
+
+  it("clears authenticated state when receiving cross-tab logout storage event", async () => {
+    window.sessionStorage.clear();
+    window.localStorage.clear();
+    document.cookie = "doly_session=1; Path=/";
+
+    const initialUser = makeUser({
+      emailVerifiedAt: "2026-11-13T00:00:00.000Z",
+      subscriptionTier: "dolly_pro",
+    });
+
+    const { result } = renderHook(() => useAuth(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <AuthProvider
+          initialAuth={{
+            status: "authenticated",
+            user: initialUser,
+            subscription: { hasSubscription: true, tier: "dolly_pro", plan: null, usage: { categoriesCount: 3, categoriesLimit: null, languagesCount: 4, languagesLimit: null, readingsCreatedToday: 0, readingsLimit: null, readingsRemainingToday: null, questionsAskedToday: 0, questionsLimit: null, questionsRemainingToday: null } },
+            languagesSettings: { catalog: [], selected: ["en"], active: ["en"], maxLanguages: 4, canChangeFree: true, nextFreeChangeAt: null, lastLanguageChangeAt: null, languageChangeCredits: 0 },
+            categoriesSettings: { catalog: [], selected: ["technology", "history", "science"] },
+            accessRequests: { enabled: false, requests: [], pendingSubscriptionRequest: null, pendingLanguageUnlockRequest: null },
+            subscriptionRequired: false,
+          }}
+        >
+          {children}
+        </AuthProvider>
+      ),
+    });
+
+    expect(result.current.isAuthenticated).toBe(true);
+
+    act(() => {
+      window.dispatchEvent(
+        new StorageEvent("storage", {
+          key: "doly.session_event",
+          newValue: "logout:123456",
+        }),
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.isAuthenticated).toBe(false);
+      expect(result.current.user).toBeNull();
+    });
+  });
 });

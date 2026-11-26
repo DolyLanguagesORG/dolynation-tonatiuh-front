@@ -120,6 +120,7 @@ export function StepAccountForm({
             autoComplete="given-name"
             label={t.auth.register.firstNameLabel}
             placeholder={t.auth.register.firstNamePlaceholder}
+            maxLength={120}
             value={firstName}
             disabled={isSubmitting}
             required
@@ -135,6 +136,7 @@ export function StepAccountForm({
             autoComplete="family-name"
             label={t.auth.register.lastNameLabel}
             placeholder={t.auth.register.lastNamePlaceholder}
+            maxLength={120}
             value={lastName}
             disabled={isSubmitting}
             onChange={(event) => onLastNameChange(event.target.value)}
@@ -165,6 +167,7 @@ export function StepAccountForm({
             name="password"
             autoComplete="new-password"
             minLength={8}
+            maxLength={128}
             label={t.auth.register.passwordLabel}
             placeholder="••••••••••••"
             value={password}

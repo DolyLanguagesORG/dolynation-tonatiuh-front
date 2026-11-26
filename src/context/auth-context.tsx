@@ -35,6 +35,7 @@ import {
   subscriptionsService,
   type SubscriptionTier,
   type TargetLanguageCode,
+  usersService,
   type UserSubscriptionResponse,
   type VerifyEmailResponse,
 } from "@/lib";
@@ -126,12 +127,15 @@ export interface AuthContextValue {
   ) => Promise<LanguagesSettings>;
   savePreferences: (input: SavePreferencesInput) => Promise<void>;
   updateOnboardingState: (partial: Partial<OnboardingState>) => void;
+  syncUserProfile: (partial: Partial<AuthUser>) => void;
 }
 
 const SESSION_FLAG_COOKIE_NAME = "doly_session";
 const USER_SNAPSHOT_STORAGE_KEY = "doly_user_snapshot";
 const PENDING_VERIFICATION_STORAGE_KEY = "doly.pending_verification_email";
+const SESSION_SYNC_STORAGE_KEY = "doly.session_event";
 const ACCESS_REQUEST_POLL_INTERVAL_MS = 15_000;
+const PROFILE_SYNC_MIN_INTERVAL_MS = 60_000;
 
 const EMPTY_ONBOARDING: OnboardingState = {
   emailVerified: false,
@@ -258,6 +262,18 @@ function clearBrowserSessionHints(options?: {
   }
 }
 
+function broadcastSessionEvent(kind: "login" | "logout"): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      SESSION_SYNC_STORAGE_KEY,
+      `${kind}:${Date.now()}`,
+    );
+  } catch {
+    // Sin impacto funcional si localStorage no está disponible.
+  }
+}
+
 function buildOnboardingState(params: {
   emailVerified: boolean;
   tier: SubscriptionPlanId | null;
@@ -358,6 +374,8 @@ export function AuthProvider({
   const isUnloadingRef = useRef(false);
   const authTransitionEpochRef = useRef(0);
   const lastVisibilitySyncRef = useRef(0);
+  const lastProfileSyncRef = useRef(0);
+  const statusRef = useRef<AuthStatus>(status);
   const isRefreshingRequestsRef = useRef(false);
   const pendingRequestIdsRef = useRef<{
     subscriptionId: number | null;
@@ -380,22 +398,8 @@ export function AuthProvider({
   }, [user?.locale]);
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const markUnloading = (): void => {
-      isUnloadingRef.current = true;
-    };
-    const clearUnloading = (): void => {
-      isUnloadingRef.current = false;
-    };
-    window.addEventListener("beforeunload", markUnloading);
-    window.addEventListener("pagehide", markUnloading);
-    window.addEventListener("pageshow", clearUnloading);
-    return () => {
-      window.removeEventListener("beforeunload", markUnloading);
-      window.removeEventListener("pagehide", markUnloading);
-      window.removeEventListener("pageshow", clearUnloading);
-    };
-  }, []);
+    statusRef.current = status;
+  }, [status]);
 
   const updatePendingVerificationEmail = useCallback(
     (email: string | null): void => {
@@ -701,21 +705,34 @@ export function AuthProvider({
         return;
       }
 
-      if (error instanceof ApiClientError && error.isConnectivityError) {
-        // Nunca borramos `doly_session` ante un abort de navegación o fallo de red.
-        const snapshot = loadUserSnapshot();
-        if (snapshot) {
-          setOnboarding(
-            buildOnboardingState({
-              emailVerified: Boolean(snapshot.emailVerifiedAt),
-              tier: snapshot.subscriptionTier ?? null,
-              selectedLanguages: [],
-              selectedCategories: [],
-            }),
-          );
-          setUser(snapshot);
-          setSubscriptionRequired(!snapshot.subscriptionTier);
+      if (
+        error instanceof ApiClientError &&
+        (error.isConnectivityError || error.status >= 500 || error.status === 429)
+      ) {
+        // Nunca borramos `doly_session` ante un abort de navegación, fallo de red o 5xx/429 pasajero.
+        if (statusRef.current === "authenticated" && user) {
+          return;
+        }
+        const fallbackUser = loadUserSnapshot();
+        if (fallbackUser) {
+          if (fallbackUser.role === "admin") {
+            setOnboarding(EMPTY_ONBOARDING);
+            setSubscriptionRequired(false);
+          } else {
+            setOnboarding(
+              buildOnboardingState({
+                emailVerified: Boolean(fallbackUser.emailVerifiedAt),
+                tier: fallbackUser.subscriptionTier ?? null,
+                selectedLanguages: languagesSettings?.selected ?? [],
+                selectedCategories: categoriesSettings?.selected ?? [],
+              }),
+            );
+            setSubscriptionRequired(!fallbackUser.subscriptionTier);
+          }
+          setUser(fallbackUser);
           setStatus("authenticated");
+        } else if (statusRef.current === "loading") {
+          setStatus("unauthenticated");
         }
         return;
       }
@@ -737,9 +754,11 @@ export function AuthProvider({
     }
   }, [
     applyAuthenticatedUser,
+    categoriesSettings?.selected,
     clearSessionState,
     commitAccessRequestsSnapshot,
     fetchStudentAccessRequests,
+    languagesSettings?.selected,
     updatePendingVerificationEmail,
     user,
   ]);
@@ -748,6 +767,50 @@ export function AuthProvider({
   useEffect(() => {
     reloadAccountStateRef.current = reloadAccountState;
   }, [reloadAccountState]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const markUnloading = (): void => {
+      isUnloadingRef.current = true;
+    };
+    const handlePageShow = (event: PageTransitionEvent): void => {
+      isUnloadingRef.current = false;
+      if (!event.persisted) {
+        return;
+      }
+      if (hasSessionCookieFlag()) {
+        void reloadAccountStateRef.current();
+      } else if (statusRef.current === "authenticated") {
+        clearSessionState({ preservePendingEmail: false });
+      }
+    };
+    window.addEventListener("beforeunload", markUnloading);
+    window.addEventListener("pagehide", markUnloading);
+    window.addEventListener("pageshow", handlePageShow);
+    return () => {
+      window.removeEventListener("beforeunload", markUnloading);
+      window.removeEventListener("pagehide", markUnloading);
+      window.removeEventListener("pageshow", handlePageShow);
+    };
+  }, [clearSessionState]);
+
+  const syncUserProfile = useCallback((partial: Partial<AuthUser>): void => {
+    setUser((prev) => {
+      if (!prev) return prev;
+      const entries = Object.entries(partial) as Array<
+        [keyof AuthUser, AuthUser[keyof AuthUser]]
+      >;
+      const hasChange = entries.some(
+        ([key, val]) => val !== undefined && prev[key] !== val,
+      );
+      if (!hasChange) {
+        return prev;
+      }
+      const nextUser: AuthUser = { ...prev, ...partial };
+      saveUserSnapshot(nextUser);
+      return nextUser;
+    });
+  }, []);
 
   const refreshAccessRequests = useCallback(async (): Promise<void> => {
     if (user?.role === "admin") {
@@ -817,7 +880,8 @@ export function AuthProvider({
     } catch (error) {
       if (
         isUnloadingRef.current ||
-        (error instanceof ApiClientError && error.isConnectivityError)
+        (error instanceof ApiClientError &&
+          (error.isConnectivityError || error.status >= 500 || error.status === 429))
       ) {
         return false;
       }
@@ -841,9 +905,20 @@ export function AuthProvider({
     };
   }, [refreshSession, clearSessionState]);
 
-  // Sincronización entre pestañas cuando el usuario confirma o cancela la espera del correo.
+  // Sincronización entre pestañas cuando el usuario confirma correo o inicia/cierra sesión.
   useEffect(() => {
     const handleStorage = (event: StorageEvent): void => {
+      if (event.key === SESSION_SYNC_STORAGE_KEY && event.newValue) {
+        if (event.newValue.startsWith("logout:")) {
+          clearSessionState({ preservePendingEmail: false });
+        } else if (
+          event.newValue.startsWith("login:") &&
+          hasSessionCookieFlag()
+        ) {
+          void reloadAccountState();
+        }
+        return;
+      }
       if (event.key !== PENDING_VERIFICATION_STORAGE_KEY) {
         return;
       }
@@ -856,10 +931,10 @@ export function AuthProvider({
 
     window.addEventListener("storage", handleStorage);
     return () => window.removeEventListener("storage", handleStorage);
-  }, [reloadAccountState]);
+  }, [clearSessionState, reloadAccountState]);
 
-  // Al volver a enfocar la pestaña, resincroniza solicitudes y posible aprobación del plan/idioma
-  // solo si hay solicitud pendiente o si waitlist sigue activa sin Stripe.
+  // Al volver a enfocar la pestaña, resincroniza racha actual (si ya hay plan) y
+  // solicitudes solo si hay una pendiente o si waitlist sigue activa sin Stripe.
   useEffect(() => {
     if (status !== "authenticated" || user?.role === "admin") {
       return;
@@ -892,6 +967,26 @@ export function AuthProvider({
       if (hasPendingRequest) {
         void reloadAccountState();
         return;
+      }
+
+      if (
+        !subscriptionRequired &&
+        user?.subscriptionTier &&
+        now - lastProfileSyncRef.current >= PROFILE_SYNC_MIN_INTERVAL_MS
+      ) {
+        lastProfileSyncRef.current = now;
+        void usersService
+          .getProfile()
+          .then((res) => {
+            if (!cancelled && res.data) {
+              syncUserProfile({
+                currentStreak: res.data.currentStreak,
+                lastStreakDate: res.data.lastStreakDate,
+                fullName: res.data.fullName,
+              });
+            }
+          })
+          .catch(() => undefined);
       }
 
       const isWaitlistEnabled = Boolean(accessRequestsState?.enabled);
@@ -939,6 +1034,7 @@ export function AuthProvider({
     reloadAccountState,
     status,
     subscriptionRequired,
+    syncUserProfile,
     user?.role,
     user?.subscriptionTier,
   ]);
@@ -1051,6 +1147,7 @@ export function AuthProvider({
 
         const loggedUser = response.data.user;
         await applyAuthenticatedUser(loggedUser);
+        broadcastSessionEvent("login");
         return loggedUser;
       } catch (error) {
         if (
@@ -1110,6 +1207,7 @@ export function AuthProvider({
       const response = await authService.verifyEmail({ token });
       const payload = response.data;
       await applyAuthenticatedUser(payload.user);
+      broadcastSessionEvent("login");
       return payload;
     },
     [applyAuthenticatedUser],
@@ -1264,6 +1362,7 @@ export function AuthProvider({
       // Aunque falle la red, limpiamos el estado local inmediatamente.
     } finally {
       clearSessionState({ preservePendingEmail: false });
+      broadcastSessionEvent("logout");
     }
   }, [clearSessionState]);
 
@@ -1274,6 +1373,7 @@ export function AuthProvider({
       // Mismo criterio de limpieza segura ante fallos de red.
     } finally {
       clearSessionState({ preservePendingEmail: false });
+      broadcastSessionEvent("logout");
     }
   }, [clearSessionState]);
 
@@ -1335,6 +1435,7 @@ export function AuthProvider({
       selectLanguages,
       savePreferences,
       updateOnboardingState,
+      syncUserProfile,
     }),
     [
       user,
@@ -1364,6 +1465,7 @@ export function AuthProvider({
       selectLanguages,
       savePreferences,
       updateOnboardingState,
+      syncUserProfile,
     ],
   );
 

@@ -3,6 +3,7 @@ import { type NextRequest, NextResponse } from "next/server";
 import { isDesignSystemEnabled } from "@/lib/feature-flags";
 
 const PROTECTED_PREFIXES = [
+  "/admin",
   "/generate",
   "/readings",
   "/history",
@@ -13,6 +14,14 @@ const PROTECTED_PREFIXES = [
   "/setup-preferences",
   "/billing",
   "/checkout",
+] as const;
+
+const NO_CACHE_AUTH_PREFIXES = [
+  "/login",
+  "/register",
+  "/verify-email",
+  "/forgot-password",
+  "/reset-password",
 ] as const;
 
 function requiresServerSessionRedirect(pathname: string): boolean {
@@ -27,6 +36,29 @@ function requiresServerSessionRedirect(pathname: string): boolean {
   );
 }
 
+function shouldDisableBrowserCache(pathname: string): boolean {
+  if (pathname === "/") {
+    return true;
+  }
+  return (
+    PROTECTED_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    ) ||
+    NO_CACHE_AUTH_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+    )
+  );
+}
+
+function applyNoStoreHeaders(response: NextResponse): NextResponse {
+  response.headers.set(
+    "Cache-Control",
+    "no-store, no-cache, must-revalidate, private",
+  );
+  response.headers.set("Pragma", "no-cache");
+  return response;
+}
+
 /**
  * Proxy de protección de rutas en el borde del servidor:
  * bloquea el acceso directo sin sesión a las vistas privadas del sistema y
@@ -38,7 +70,7 @@ function requiresServerSessionRedirect(pathname: string): boolean {
  * función: el comportamiento y el `matcher` quedan igual.
  */
 export function proxy(request: NextRequest): NextResponse {
-  const { pathname } = request.nextUrl;
+  const { pathname, search } = request.nextUrl;
 
   if (
     (pathname === "/design-system" || pathname.startsWith("/design-system/")) &&
@@ -53,15 +85,26 @@ export function proxy(request: NextRequest): NextResponse {
   if (requiresServerSessionRedirect(pathname)) {
     const hasSessionCookie =
       Boolean(request.cookies.get("doly_session")?.value) ||
-      Boolean(request.cookies.get("doly_access_token")?.value);
+      Boolean(request.cookies.get("doly_access_token")?.value) ||
+      Boolean(request.cookies.get("doly_refresh_token")?.value);
 
     if (!hasSessionCookie) {
-      return NextResponse.redirect(new URL("/login", request.url));
+      const loginUrl =
+        pathname === "/"
+          ? new URL("/login", request.url)
+          : new URL(
+              `/login?redirect=${encodeURIComponent(`${pathname}${search}`)}`,
+              request.url,
+            );
+      return applyNoStoreHeaders(NextResponse.redirect(loginUrl));
     }
   }
 
   const response = NextResponse.next();
   response.headers.set("x-dolynation-pathname", pathname);
+  if (shouldDisableBrowserCache(pathname)) {
+    applyNoStoreHeaders(response);
+  }
   return response;
 }
 

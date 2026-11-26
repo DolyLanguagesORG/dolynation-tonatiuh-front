@@ -26,7 +26,6 @@ import {
   Badge,
   Button,
   Card,
-  ChoiceChip,
   Container,
   EmptyState,
   Eyebrow,
@@ -627,19 +626,29 @@ function FriendProfileContent({
             className="flex flex-col gap-4"
           >
             <Card padding="md" className="flex flex-col gap-4 border-default">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="flex flex-col gap-1">
-                  <Heading as="h2" variant="subsection">
-                    {formatMessage(t.friends.profile.categoriesTab.title, {
-                      name: profile.friendName,
-                    })}
-                  </Heading>
-                  <Text variant="small" tone="muted">
-                    {t.friends.profile.categoriesTab.subtitle}
-                  </Text>
-                </div>
+              <div className="flex flex-col gap-1">
+                <Heading as="h2" variant="subsection">
+                  {formatMessage(t.friends.profile.categoriesTab.title, {
+                    name: profile.friendName,
+                  })}
+                </Heading>
+                <Text variant="small" tone="muted">
+                  {t.friends.profile.categoriesTab.subtitle}
+                </Text>
+              </div>
 
-                {profile.friendCategories.length > 0 && (
+              {profile.friendCategories.length > 0 && (
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-base border border-default bg-neutral-secondary-soft/40 p-3">
+                  <Text variant="caption" tone="muted" className="font-mono">
+                    {formatMessage(
+                      t.friends.profile.categoriesTab.selectedSummary,
+                      {
+                        count: profile.selectedCategoriesToCopy.length,
+                        total: profile.friendCategories.length,
+                      },
+                    )}
+                  </Text>
+
                   <div className="flex flex-wrap items-center gap-2">
                     <Button
                       type="button"
@@ -679,8 +688,8 @@ function FriendProfileContent({
                       )}
                     </Button>
                   </div>
-                )}
-              </div>
+                </div>
+              )}
 
               {profile.copyResult && (
                 <Alert
@@ -719,37 +728,63 @@ function FriendProfileContent({
                   description={t.friends.profile.categoriesTab.emptyDescription}
                 />
               ) : (
-                <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                   {profile.friendCategories.map((category) => {
                     const isSelected =
                       profile.selectedCategoriesToCopy.includes(category);
                     return (
                       <div
                         key={category}
-                        className="flex items-center justify-between gap-2 rounded-base border border-default bg-neutral-secondary-soft px-3 py-2"
+                        className={[
+                          "flex min-w-0 items-stretch overflow-hidden rounded-base border transition-colors",
+                          isSelected
+                            ? "border-brand bg-neutral-secondary-soft"
+                            : "border-default bg-surface hover:border-default-medium",
+                        ].join(" ")}
                       >
-                        <ChoiceChip
-                          selected={isSelected}
-                          indicator="plus-check"
-                          size="sm"
+                        <button
+                          type="button"
+                          aria-pressed={isSelected}
                           disabled={profile.isMutating}
                           onClick={() =>
                             profile.toggleCategorySelection(category)
                           }
+                          className="flex min-w-0 flex-1 items-center gap-2.5 px-3 py-2.5 text-left text-sm font-medium text-heading transition-colors hover:bg-neutral-secondary-soft/60 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-focus-ring disabled:cursor-not-allowed disabled:opacity-45"
                         >
-                          {category}
-                        </ChoiceChip>
-                        <Button
+                          <span
+                            aria-hidden="true"
+                            className={[
+                              "inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-xs border transition-colors",
+                              isSelected
+                                ? "border-brand bg-brand text-white"
+                                : "border-strong bg-surface text-transparent",
+                            ].join(" ")}
+                          >
+                            <Icon name="check" size="xs" />
+                          </span>
+                          <span className="truncate">{category}</span>
+                        </button>
+
+                        <button
                           type="button"
-                          variant="outline"
-                          size="xs"
                           disabled={profile.isMutating}
+                          aria-label={formatMessage(
+                            t.friends.profile.categoriesTab.copySingleAria,
+                            { name: category },
+                          )}
+                          title={
+                            t.friends.profile.categoriesTab.copySingleButton
+                          }
                           onClick={() => {
                             void profile.copyCategories([category]);
                           }}
+                          className="inline-flex shrink-0 items-center gap-1.5 border-l border-default px-3 py-2.5 text-xs font-semibold text-heading transition-colors hover:bg-neutral-secondary-soft focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-focus-ring disabled:cursor-not-allowed disabled:opacity-45"
                         >
-                          {t.friends.profile.categoriesTab.copySingleButton}
-                        </Button>
+                          <Icon name="copy" size="xs" />
+                          <span>
+                            {t.friends.profile.categoriesTab.copySingleButton}
+                          </span>
+                        </button>
                       </div>
                     );
                   })}

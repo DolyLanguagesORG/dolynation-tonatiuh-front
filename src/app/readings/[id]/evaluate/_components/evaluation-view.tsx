@@ -56,6 +56,11 @@ export function EvaluationView({ readingId }: EvaluationViewProps) {
             {evaluation.loadError ??
               evaluation.flowT.readings.eval.loadErrorFallback}
           </Alert>
+        ) : evaluation.isAlreadyEvaluated ? (
+          <SkeletonCard
+            lines={4}
+            label={evaluation.flowT.readings.eval.alreadyEvaluatedNotice}
+          />
         ) : (
           <div
             lang={evaluation.readingLanguage}
@@ -101,6 +106,11 @@ export function EvaluationView({ readingId }: EvaluationViewProps) {
               wordCount={evaluation.wordCount}
               charCount={evaluation.charCount}
               wordProgress={evaluation.wordProgress}
+              minWords={evaluation.minWords}
+              maxWords={evaluation.maxWords}
+              maxChars={evaluation.maxChars}
+              isOverWordLimit={evaluation.isOverWordLimit}
+              isOverCharLimit={evaluation.isOverCharLimit}
               validationError={evaluation.validationError}
               submitError={evaluation.submitError}
               draftNotice={evaluation.draftNotice}

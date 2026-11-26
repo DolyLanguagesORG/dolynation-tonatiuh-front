@@ -18,6 +18,7 @@ import {
   SkeletonCard,
   Text,
 } from "@/components/ui";
+import { useNavigationGuard } from "@/hooks";
 import { type Dictionary, type Locale } from "@/i18n";
 import {
   ApiClientError,
@@ -41,6 +42,7 @@ interface InnerSetupFormProps {
   locale: Locale;
   onClose: () => void;
   onSuccess: (summary: BillingPaymentMethodSummary) => void | Promise<void>;
+  onBusyChange?: (busy: boolean) => void;
 }
 
 function InnerSetupForm({
@@ -48,6 +50,7 @@ function InnerSetupForm({
   locale,
   onClose,
   onSuccess,
+  onBusyChange,
 }: InnerSetupFormProps) {
   const stripe = useStripe();
   const elements = useElements();
@@ -65,6 +68,7 @@ function InnerSetupForm({
 
     setErrorMessage(null);
     setIsSubmitting(true);
+    onBusyChange?.(true);
     try {
       const returnUrl =
         typeof window !== "undefined"
@@ -111,6 +115,7 @@ function InnerSetupForm({
       );
     } finally {
       setIsSubmitting(false);
+      onBusyChange?.(false);
     }
   };
 
@@ -177,8 +182,15 @@ export function StripeSetupMethodModal({
   onSuccess,
 }: StripeSetupMethodModalProps) {
   const titleId = useId();
+  const [isSubmittingForm, setIsSubmittingForm] = useState(false);
   const tm = t.billing.subscriptionManage;
   const tc = t.billing.checkout;
+
+  const isBusy = Boolean(setupSession) && isSubmittingForm;
+  useNavigationGuard({
+    active: isBusy,
+    message: t.navigationGuard.paymentInProgressMessage,
+  });
 
   const stripePromise = useMemo(
     () => getStripePromise(setupSession?.publishableKey),
@@ -201,13 +213,13 @@ export function StripeSetupMethodModal({
   useEffect(() => {
     if (!setupSession) return;
     const handleKeyDown = (event: KeyboardEvent): void => {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && !isBusy) {
         onClose();
       }
     };
     document.addEventListener("keydown", handleKeyDown);
     return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [onClose, setupSession]);
+  }, [isBusy, onClose, setupSession]);
 
   if (!setupSession) {
     return null;
@@ -217,7 +229,7 @@ export function StripeSetupMethodModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div
         aria-hidden="true"
-        onClick={onClose}
+        onClick={isBusy ? undefined : onClose}
         className="fixed inset-0 bg-brand/45 backdrop-blur-[1px]"
       />
 
@@ -245,11 +257,17 @@ export function StripeSetupMethodModal({
             variant="ghost"
             size="sm"
             aria-label={tc.closeAria}
+            disabled={isBusy}
             onClick={onClose}
           />
         </div>
 
         <div className="flex flex-col gap-4 overflow-y-auto p-5">
+          {isBusy && (
+            <Alert variant="info">
+              {t.navigationGuard.checkoutDoNotReloadNotice}
+            </Alert>
+          )}
           {stripePromise && elementsOptions ? (
             <Elements stripe={stripePromise} options={elementsOptions}>
               <InnerSetupForm
@@ -257,6 +275,7 @@ export function StripeSetupMethodModal({
                 locale={locale}
                 onClose={onClose}
                 onSuccess={onSuccess}
+                onBusyChange={setIsSubmittingForm}
               />
             </Elements>
           ) : (

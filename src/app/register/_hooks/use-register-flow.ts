@@ -139,6 +139,9 @@ export function useRegisterFlow() {
     if (value.length < 8) {
       return t.auth.register.validationPasswordMinLength;
     }
+    if (value.length > 128) {
+      return t.auth.register.validationPasswordMaxLength;
+    }
     return undefined;
   };
 

@@ -1238,6 +1238,40 @@ export async function attachMockBackend(
       });
     }
 
+    if (apiPath === "/settings/categories/validate" && method === "POST") {
+      const body = (parsedBody ?? {}) as { category?: string };
+      const cleaned = (body.category ?? "").trim().replace(/\s+/g, " ");
+      if (cleaned.length < 2 || cleaned.length > 50) {
+        return errorResponse(
+          route,
+          400,
+          "VALIDATION_ERROR",
+          "Category must be between 2 and 50 characters.",
+        );
+      }
+      if (BLOCKED_CATEGORY_PATTERNS.some((pattern) => pattern.test(cleaned))) {
+        return errorResponse(
+          route,
+          400,
+          "CATEGORY_MODERATION_REJECTED",
+          "La categoría fue rechazada por moderación de contenido.",
+        );
+      }
+      const normalized = cleaned.toLowerCase();
+      if (!state.categoriesEvaluatedToday.includes(normalized)) {
+        if (state.categoriesEvaluatedToday.length >= categoryDailyLimit) {
+          return errorResponse(
+            route,
+            429,
+            "CATEGORY_DAILY_LIMIT_REACHED",
+            "Alcanzaste el límite diario de categorías personalizadas.",
+          );
+        }
+        state.categoriesEvaluatedToday.push(normalized);
+      }
+      return okResponse(route, { category: cleaned });
+    }
+
     if (apiPath === "/settings/categories" && method === "PUT") {
       const body = (parsedBody ?? {}) as { categories?: string[] };
       const requested = (body.categories ?? [])

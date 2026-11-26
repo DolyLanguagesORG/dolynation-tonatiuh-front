@@ -12,6 +12,13 @@ export {
   useAuth,
 } from "@/context/auth-context";
 export {
+  NavigationGuardContext,
+  type NavigationGuardContextValue,
+  type NavigationGuardEntry,
+  NavigationGuardProvider,
+  useNavigationGuardContext,
+} from "@/context/navigation-guard-context";
+export {
   type ToastAction,
   type ToastContextValue,
   type ToastItem,

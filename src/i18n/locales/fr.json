@@ -217,7 +217,7 @@
       "submittingButton": "Création du compte académique...",
       "hasAccountPrompt": "Vous avez déjà un compte actif ?",
       "loginLink": "Connectez-vous ici",
-      "copyrightNotice": "COPYRIGHT DOLYNATION · ÉDITION ACADÉMIQUE 2024 · INSCRIPTION VÉRIFIÉE",
+      "copyrightNotice": "COPYRIGHT DOLYNATION · ÉDITION ACADÉMIQUE {year} · INSCRIPTION VÉRIFIÉE",
       "errorBannerTitle": "Impossible de finaliser l'inscription",
       "validationFirstNameRequired": "Veuillez saisir votre prénom pour créer votre dossier académique.",
       "validationFirstNameMaxLength": "Le nom complet ne doit pas dépasser 255 caractères.",
@@ -227,7 +227,8 @@
       "validationTermsRequired": "Vous devez accepter les Conditions d'utilisation et la Politique de données pour vous inscrire.",
       "stepBadge": "ÉTAPE 01 / 04",
       "sectionBadge": "Création du compte",
-      "fallbackError": "Impossible de finaliser l'inscription. Vérifiez vos informations et réessayez."
+      "fallbackError": "Impossible de finaliser l'inscription. Vérifiez vos informations et réessayez.",
+      "validationPasswordMaxLength": "Le mot de passe ne doit pas dépasser 128 caractères."
     },
     "stepper": {
       "steps": {
@@ -503,7 +504,8 @@
       "partnerPendingBadge": "{name} en attente",
       "openTodayCta": "Lire aujourd'hui",
       "manageAllLink": "Voir les amis"
-    }
+    },
+    "streakDaySingularSuffix": "jour consécutif"
   },
   "study": {
     "pageBadge": "LECTURES IA • CONFIGURATION D'ÉTUDE",
@@ -759,7 +761,9 @@
       "switchPlanError": "Impossible de modifier votre abonnement.",
       "cancelRequestSuccess": "Demande en attente annulée.",
       "cancelRequestError": "Impossible d'annuler la demande en attente."
-    }
+    },
+    "fullNameRequiredError": "Saisissez votre nom complet avant d'enregistrer.",
+    "fullNameMaxLengthError": "Le nom complet ne doit pas dépasser 255 caractères."
   },
   "readings": {
     "historyTitle": "Historique des lectures",
@@ -886,7 +890,14 @@
       "submittingAnalysisNotice": "Analyse de la rétention thématique, du lexique contextuel et de la clarté syntaxique...",
       "loadingTitle": "Préparation du module d'évaluation",
       "loadErrorTitle": "Erreur lors du chargement de l'évaluation",
-      "loadErrorFallback": "Impossible d'ouvrir la lecture pour l'évaluation."
+      "loadErrorFallback": "Impossible d'ouvrir la lecture pour l'évaluation.",
+      "maxWordsBadge": "Max. 500 mots",
+      "wordLimitProgress": "{count} / {max} mots (min. {min})",
+      "charLimitCounter": "{count} / {max} caractères",
+      "maxWordsError": "Votre résumé dépasse la limite maximale de {max} mots. Raccourcissez-le avant de l'envoyer.",
+      "maxCharsError": "Votre résumé dépasse la limite maximale de {max} caractères.",
+      "doNotReloadEvaluatingNotice": "Ne rechargez pas et ne quittez pas cette page pendant que l'IA évalue votre résumé.",
+      "alreadyEvaluatedNotice": "Cette lecture a déjà été évaluée. Redirection vers vos résultats..."
     },
     "result": {
       "completedBadge": "• ÉVALUATION TERMINÉE",
@@ -1573,7 +1584,9 @@
         "activatedLabel": "Activées dans votre forfait : {items}",
         "savedOnlyLabel": "Enregistrées uniquement (limite du forfait) : {items}",
         "skippedLabel": "Déjà présentes ou indisponibles : {items}",
-        "copySuccessToast": "Catégories copiées dans votre bibliothèque."
+        "copySuccessToast": "Catégories copiées dans votre bibliothèque.",
+        "selectedSummary": "{count} sur {total} sélectionnées",
+        "copySingleAria": "Copier la catégorie {name}"
       },
       "streakTab": {
         "emptyTitle": "Aucune série partagée",
@@ -1581,5 +1594,26 @@
         "proposeButton": "Proposer une série quotidienne"
       }
     }
+  },
+  "navigationGuard": {
+    "title": "Voulez-vous vraiment quitter cette page ?",
+    "stayButton": "Rester ici",
+    "leaveButton": "Quitter quand même",
+    "unsavedChangesMessage": "Vous avez des modifications non enregistrées. Si vous rechargez ou revenez en arrière, vous risquez de perdre votre progression.",
+    "evaluationUnsentMessage": "Vous avez un résumé non envoyé. Votre brouillon est conservé localement, mais l'évaluation ne sera pas envoyée si vous quittez.",
+    "evaluationInProgressMessage": "Votre résumé est en cours d'évaluation par l'IA. Recharger ou quitter maintenant peut interrompre le suivi du résultat.",
+    "generationInProgressMessage": "Votre lecture est en cours de génération par l'IA. Recharger ou revenir en arrière annulera la génération en cours.",
+    "paymentInProgressMessage": "Une opération de paiement ou d'abonnement est en cours. Ne rechargez pas et ne fermez pas cette fenêtre.",
+    "billingSyncNotice": "Ne rechargez pas et ne fermez pas cet onglet pendant la confirmation de votre paiement.",
+    "generationDoNotReloadNotice": "Ne rechargez pas et ne revenez pas en arrière pendant la génération de votre lecture ; cela annulera le processus.",
+    "checkoutDoNotReloadNotice": "Ne rechargez pas et ne fermez pas cette fenêtre pendant le traitement du paiement."
+  },
+  "categoryValidation": {
+    "requiredError": "Saisissez un nom de catégorie avant de l'ajouter.",
+    "lengthError": "La catégorie doit contenir entre {min} et {max} caractères.",
+    "formatError": "Saisissez un thème d'étude valide (sans liens, code, symboles invalides ni charabia).",
+    "maxLimitError": "Votre forfait actuel autorise jusqu'à {max} catégories.",
+    "alreadySelectedInfo": "La catégorie « {name} » figure déjà dans vos préférences.",
+    "validatingButton": "Validation..."
   }
 }

@@ -81,6 +81,8 @@ function ProfileContent() {
             onToggleCategory={data.handleToggleCategory}
             onAddCustomCategory={data.handleAddCustomCategory}
             onDeleteCategory={data.handleDeleteCategory}
+            customCategoryError={data.customCategoryError}
+            onClearCustomCategoryError={data.clearCustomCategoryError}
           />
 
           <SubscriptionPlanCard

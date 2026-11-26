@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useState } from "react";
 
+import { toBusinessCalendarDate } from "@/app/profile/_components/streak-calendar-utils";
 import { Card, Container, Heading, Text } from "@/components/ui";
 import { useAuth } from "@/context";
-import { useLocale } from "@/i18n";
+import { formatMessage, useLocale } from "@/i18n";
 
 export interface AuthLegalLink {
   href: string;
@@ -63,6 +64,13 @@ export function AuthShell({
   const [isSigningOut, setIsSigningOut] = useState(false);
 
   const canShowSignOut = Boolean(isAuthenticated && showSignOutWhenAuthenticated);
+  const resolvedCopyrightText = copyrightText
+    ? copyrightText.includes("{year}")
+      ? formatMessage(copyrightText, {
+          year: toBusinessCalendarDate().getFullYear(),
+        })
+      : copyrightText
+    : undefined;
 
   const handleSignOut = async (): Promise<void> => {
     if (isSigningOut) return;
@@ -136,9 +144,9 @@ export function AuthShell({
             </div>
           )}
 
-          {copyrightText && (
+          {resolvedCopyrightText && (
             <p className="text-[10px] font-medium tracking-widest text-subtle uppercase">
-              {copyrightText}
+              {resolvedCopyrightText}
             </p>
           )}
         </div>
