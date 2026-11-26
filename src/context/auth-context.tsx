@@ -38,6 +38,10 @@ import {
   type UserSubscriptionResponse,
   type VerifyEmailResponse,
 } from "@/lib";
+import {
+  fetchBillingConfigCached,
+  peekCachedBillingConfig,
+} from "@/lib/hooks/use-billing-config";
 
 export type AuthStatus = AuthSessionStatus;
 export type { InitialAuthState };
@@ -854,11 +858,22 @@ export function AuthProvider({
     return () => window.removeEventListener("storage", handleStorage);
   }, [reloadAccountState]);
 
-  // Al volver a enfocar la pestaña, resincroniza solicitudes y posible aprobación del plan/idioma.
+  // Al volver a enfocar la pestaña, resincroniza solicitudes y posible aprobación del plan/idioma
+  // solo si hay solicitud pendiente o si waitlist sigue activa sin Stripe.
   useEffect(() => {
     if (status !== "authenticated" || user?.role === "admin") {
       return;
     }
+
+    let cancelled = false;
+
+    const runWaitlistSync = (): void => {
+      if (subscriptionRequired || !user?.subscriptionTier) {
+        void reloadAccountState();
+      } else {
+        void refreshAccessRequests();
+      }
+    };
 
     const handleVisibilityOrFocus = (): void => {
       if (document.visibilityState === "hidden") {
@@ -874,21 +889,45 @@ export function AuthProvider({
         accessRequestsState?.pendingSubscriptionRequest ||
           accessRequestsState?.pendingLanguageUnlockRequest,
       );
-      const isWaitlistEnabled = Boolean(accessRequestsState?.enabled);
-
-      if (
-        hasPendingRequest ||
-        (isWaitlistEnabled && (subscriptionRequired || !user?.subscriptionTier))
-      ) {
+      if (hasPendingRequest) {
         void reloadAccountState();
-      } else if (isWaitlistEnabled) {
-        void refreshAccessRequests();
+        return;
       }
+
+      const isWaitlistEnabled = Boolean(accessRequestsState?.enabled);
+      if (!isWaitlistEnabled) {
+        return;
+      }
+
+      const cachedBilling = peekCachedBillingConfig();
+      if (cachedBilling !== null) {
+        if (cachedBilling.provider === "stripe") {
+          return;
+        }
+        runWaitlistSync();
+        return;
+      }
+
+      const transitionEpoch = authTransitionEpochRef.current;
+      void fetchBillingConfigCached(false).then((outcome) => {
+        if (
+          cancelled ||
+          authTransitionEpochRef.current !== transitionEpoch ||
+          document.visibilityState === "hidden"
+        ) {
+          return;
+        }
+        if (outcome.config.provider === "stripe") {
+          return;
+        }
+        runWaitlistSync();
+      });
     };
 
     window.addEventListener("focus", handleVisibilityOrFocus);
     document.addEventListener("visibilitychange", handleVisibilityOrFocus);
     return () => {
+      cancelled = true;
       window.removeEventListener("focus", handleVisibilityOrFocus);
       document.removeEventListener("visibilitychange", handleVisibilityOrFocus);
     };

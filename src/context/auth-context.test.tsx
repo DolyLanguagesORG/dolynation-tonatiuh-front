@@ -14,6 +14,7 @@ import {
   ApiClientError,
   type AuthUser,
   authService,
+  billingService,
   ErrorCode,
   settingsService,
   subscriptionsService,
@@ -21,6 +22,7 @@ import {
   type TargetLanguageCode,
   usersService,
 } from "@/lib";
+import { resetBillingConfigCacheForTests } from "@/lib/hooks/use-billing-config";
 
 function makeUser(overrides: Partial<AuthUser> = {}): AuthUser {
   return {
@@ -186,6 +188,7 @@ describe("AuthProvider onboarding & session phase transitions", () => {
   }
 
   beforeEach(() => {
+    resetBillingConfigCacheForTests();
     window.localStorage.clear();
     document.cookie = "doly_session=; Path=/; Max-Age=0";
     state = {
@@ -197,6 +200,7 @@ describe("AuthProvider onboarding & session phase transitions", () => {
 
   afterEach(() => {
     jest.restoreAllMocks();
+    resetBillingConfigCacheForTests();
   });
 
   it("progresses cleanly through unverified_email -> plan_required -> ready, blocking generation until languages & 3 categories exist", async () => {
@@ -770,11 +774,26 @@ describe("AuthProvider onboarding & session phase transitions", () => {
     expect(getMyRequestsSpy).not.toHaveBeenCalled();
   });
 
-  it("calls /auth/me on window focus in plan_required when waitlist mode is enabled", async () => {
+  it("calls /auth/me on window focus in plan_required when waitlist mode is enabled and billing is manual", async () => {
     window.sessionStorage.clear();
     window.localStorage.clear();
     document.cookie = "doly_session=1; Path=/";
 
+    jest.spyOn(billingService, "getConfig").mockResolvedValue({
+      message: "OK",
+      data: {
+        provider: "manual",
+        publishableKey: null,
+        currency: "mxn",
+        uiMode: "custom",
+        plans: [],
+        languageUnlock: {
+          checkoutRequired: false,
+          amountCents: null,
+          currency: "mxn",
+        },
+      },
+    });
     const meSpy = jest.spyOn(authService, "me").mockRejectedValue(
       new ApiClientError({
         code: ErrorCode.SUBSCRIPTION_REQUIRED,
@@ -823,5 +842,243 @@ describe("AuthProvider onboarding & session phase transitions", () => {
     await waitFor(() => {
       expect(meSpy).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it("skips /auth/me and /access-requests/me on focus/visibilitychange in plan_required when Stripe is active even if accessRequests.enabled is true", async () => {
+    let fakeNow = 10_000;
+    jest.spyOn(Date, "now").mockImplementation(() => fakeNow);
+
+    window.sessionStorage.clear();
+    window.localStorage.clear();
+    document.cookie = "doly_session=1; Path=/";
+
+    const getConfigSpy = jest.spyOn(billingService, "getConfig").mockResolvedValue({
+      message: "OK",
+      data: {
+        provider: "stripe",
+        publishableKey: "pk_test_123",
+        currency: "mxn",
+        uiMode: "custom",
+        plans: [],
+        languageUnlock: {
+          checkoutRequired: true,
+          amountCents: 4900,
+          currency: "mxn",
+        },
+      },
+    });
+    const meSpy = jest.spyOn(authService, "me");
+    const getMyRequestsSpy = jest.spyOn(accessRequestsService, "getMyRequests");
+
+    renderHook(() => useAuth(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <AuthProvider
+          initialAuth={{
+            status: "authenticated",
+            user: null,
+            subscription: null,
+            languagesSettings: null,
+            categoriesSettings: null,
+            accessRequests: {
+              enabled: true,
+              requests: [],
+              pendingSubscriptionRequest: null,
+              pendingLanguageUnlockRequest: null,
+            },
+            subscriptionRequired: true,
+          }}
+        >
+          {children}
+        </AuthProvider>
+      ),
+    });
+
+    // Cold fetch path on first focus
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(getConfigSpy).toHaveBeenCalledTimes(1);
+    expect(meSpy).not.toHaveBeenCalled();
+    expect(getMyRequestsSpy).not.toHaveBeenCalled();
+
+    // Cached fast path after 5s throttle window on visibilitychange
+    fakeNow += 6_000;
+    await act(async () => {
+      document.dispatchEvent(new Event("visibilitychange"));
+      await Promise.resolve();
+    });
+    expect(getConfigSpy).toHaveBeenCalledTimes(1);
+    expect(meSpy).not.toHaveBeenCalled();
+    expect(getMyRequestsSpy).not.toHaveBeenCalled();
+  });
+
+  it("still polls /auth/me on focus when Stripe is active if a pending manual access request exists", async () => {
+    window.sessionStorage.clear();
+    window.localStorage.clear();
+    document.cookie = "doly_session=1; Path=/";
+
+    const getConfigSpy = jest.spyOn(billingService, "getConfig").mockResolvedValue({
+      message: "OK",
+      data: {
+        provider: "stripe",
+        publishableKey: "pk_test_123",
+        currency: "mxn",
+        uiMode: "custom",
+        plans: [],
+        languageUnlock: {
+          checkoutRequired: true,
+          amountCents: 4900,
+          currency: "mxn",
+        },
+      },
+    });
+    const meSpy = jest.spyOn(authService, "me").mockRejectedValue(
+      new ApiClientError({
+        code: ErrorCode.SUBSCRIPTION_REQUIRED,
+        message: "Subscription required",
+        status: 403,
+      }),
+    );
+    jest.spyOn(accessRequestsService, "getMyRequests").mockResolvedValue({
+      message: "OK",
+      data: {
+        enabled: true,
+        requests: [],
+        pendingSubscriptionRequest: {
+          id: 77,
+          userId: 1,
+          requestType: "subscription",
+          requestedTier: "dolly_plus",
+          currentTier: null,
+          userMessage: null,
+          status: "pending",
+          rejectionReason: null,
+          reviewedByUserId: null,
+          reviewedAt: null,
+          createdAt: "2026-11-24T00:00:00.000Z",
+          updatedAt: "2026-11-24T00:00:00.000Z",
+        },
+        pendingLanguageUnlockRequest: null,
+      },
+    });
+
+    renderHook(() => useAuth(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <AuthProvider
+          initialAuth={{
+            status: "authenticated",
+            user: null,
+            subscription: null,
+            languagesSettings: null,
+            categoriesSettings: null,
+            accessRequests: {
+              enabled: true,
+              requests: [],
+              pendingSubscriptionRequest: {
+                id: 77,
+                userId: 1,
+                requestType: "subscription",
+                requestedTier: "dolly_plus",
+                currentTier: null,
+                userMessage: null,
+                status: "pending",
+                rejectionReason: null,
+                reviewedByUserId: null,
+                reviewedAt: null,
+                createdAt: "2026-11-24T00:00:00.000Z",
+                updatedAt: "2026-11-24T00:00:00.000Z",
+              },
+              pendingLanguageUnlockRequest: null,
+            },
+            subscriptionRequired: true,
+          }}
+        >
+          {children}
+        </AuthProvider>
+      ),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      await Promise.resolve();
+    });
+
+    await waitFor(() => {
+      expect(meSpy).toHaveBeenCalledTimes(1);
+    });
+    expect(getConfigSpy).not.toHaveBeenCalled();
+  });
+
+  it("skips /access-requests/me on focus in ready phase when Stripe is active and no request is pending", async () => {
+    window.sessionStorage.clear();
+    window.localStorage.clear();
+    document.cookie = "doly_session=1; Path=/";
+
+    jest.spyOn(billingService, "getConfig").mockResolvedValue({
+      message: "OK",
+      data: {
+        provider: "stripe",
+        publishableKey: "pk_test_123",
+        currency: "mxn",
+        uiMode: "custom",
+        plans: [],
+        languageUnlock: {
+          checkoutRequired: true,
+          amountCents: 4900,
+          currency: "mxn",
+        },
+      },
+    });
+    const getMyRequestsSpy = jest.spyOn(accessRequestsService, "getMyRequests");
+    const readyUser = makeUser({
+      id: 55,
+      subscriptionTier: "dolly_plus",
+      emailVerifiedAt: "2026-11-10T00:00:00.000Z",
+    });
+
+    renderHook(() => useAuth(), {
+      wrapper: ({ children }: { children: ReactNode }) => (
+        <AuthProvider
+          initialAuth={{
+            status: "authenticated",
+            user: readyUser,
+            subscription: null,
+            languagesSettings: {
+              catalog: [],
+              selected: ["en"],
+              active: ["en"],
+              maxLanguages: 2,
+              canChangeFree: false,
+              nextFreeChangeAt: null,
+              lastLanguageChangeAt: null,
+              languageChangeCredits: 0,
+            },
+            categoriesSettings: {
+              catalog: [],
+              selected: ["history", "science", "technology"],
+            },
+            accessRequests: {
+              enabled: true,
+              requests: [],
+              pendingSubscriptionRequest: null,
+              pendingLanguageUnlockRequest: null,
+            },
+            subscriptionRequired: false,
+          }}
+        >
+          {children}
+        </AuthProvider>
+      ),
+    });
+
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getMyRequestsSpy).not.toHaveBeenCalled();
   });
 });
