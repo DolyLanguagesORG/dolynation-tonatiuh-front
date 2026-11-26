@@ -35,6 +35,8 @@ export interface StepPlanSelectionProps {
   onDismissError: () => void;
   onSelectPlan: (plan: SubscriptionPlanId) => void;
   onBack?: () => void;
+  backLabel?: string;
+  isBackLoading?: boolean;
   onSubmit: () => void;
   captchaContainerRef?: RefObject<HTMLDivElement | null>;
 }
@@ -58,6 +60,8 @@ export function StepPlanSelection({
   onDismissError,
   onSelectPlan,
   onBack,
+  backLabel,
+  isBackLoading = false,
   onSubmit,
   captchaContainerRef,
 }: StepPlanSelectionProps) {
@@ -192,10 +196,12 @@ export function StepPlanSelection({
             type="button"
             variant="outline"
             size="md"
+            disabled={isSubmittingPlan || isBackLoading}
+            isLoading={isBackLoading}
             leftIcon={<Icon name="arrow-left" size="xs" />}
             onClick={onBack}
           >
-            {t.plans.ui.backToEmailButton}
+            {backLabel ?? t.plans.ui.backToEmailButton}
           </Button>
         )}
 
@@ -203,7 +209,7 @@ export function StepPlanSelection({
           type="button"
           variant="primary"
           size="lg"
-          disabled={disabled || isSubmittingPlan}
+          disabled={disabled || isSubmittingPlan || isBackLoading}
           isLoading={isSubmittingPlan}
           onClick={onSubmit}
           rightIcon={<Icon name="arrow-right" size="md" />}

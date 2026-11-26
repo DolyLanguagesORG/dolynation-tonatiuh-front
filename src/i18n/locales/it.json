@@ -290,7 +290,10 @@
         "requestSuccessNotice": "Richiesta inviata alla lista d'attesa. Controlla la tua email per la conferma.",
         "requestCancelledNotice": "Richiesta in sospeso annullata.",
         "cancelErrorFallback": "Impossibile annullare la richiesta in sospeso.",
-        "statusPendingBadge": "IN LISTA D'ATTESA"
+        "statusPendingBadge": "IN LISTA D'ATTESA",
+        "switchAccountButton": "Cambia account",
+        "oauthBackNoticeTitle": "Sessione già attiva",
+        "oauthBackNoticeBody": "Hai già effettuato l'accesso e manca solo la scelta del piano. Per tornare all'accesso o usare un altro account, fai clic su «Cambia account»."
       },
       "step4Languages": {
         "title": "Lingue obiettivo di studio",

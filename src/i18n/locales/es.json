@@ -290,7 +290,10 @@
         "requestSuccessNotice": "Solicitud registrada en lista de espera. Revisa tu correo para la confirmación de acceso.",
         "requestCancelledNotice": "Solicitud pendiente cancelada.",
         "cancelErrorFallback": "No fue posible cancelar la solicitud pendiente.",
-        "statusPendingBadge": "EN LISTA DE ESPERA"
+        "statusPendingBadge": "EN LISTA DE ESPERA",
+        "switchAccountButton": "Cambiar de cuenta",
+        "oauthBackNoticeTitle": "Sesión iniciada",
+        "oauthBackNoticeBody": "Tu cuenta ya inició sesión y falta elegir un plan. Para volver al inicio de sesión o usar otra cuenta, utiliza el botón «Cambiar de cuenta»."
       },
       "step4Languages": {
         "title": "Idiomas Meta de Estudio",

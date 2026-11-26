@@ -7,7 +7,9 @@ import { NextRequest } from "next/server";
 jest.mock("server-only", () => ({}));
 
 import {
+  OAUTH_RETURN_QUERY_PARAM,
   SUPPORTED_OAUTH_PROVIDERS,
+  buildPostOAuthDestinationUrl,
   generatePkcePair,
   parseOAuthTransaction,
   resolvePublicOrigin,
@@ -92,5 +94,36 @@ describe("oauth-bff server utilities", () => {
         "https://play.dolynation.app/api/auth/oauth/google/callback",
       ),
     ).toBe("https://play.dolynation.app");
+  });
+
+  it("marks /select-plan with ?oauth=<provider> only when subscriptionTier is missing", () => {
+    const planlessUrl = buildPostOAuthDestinationUrl({
+      publicOrigin: "https://stagingplay.dolynation.app",
+      provider: "microsoft",
+      hasSubscriptionTier: false,
+      redirectTarget: "/generate",
+    });
+    expect(planlessUrl.toString()).toBe(
+      `https://stagingplay.dolynation.app/select-plan?${OAUTH_RETURN_QUERY_PARAM}=microsoft`,
+    );
+
+    const readyUrl = buildPostOAuthDestinationUrl({
+      publicOrigin: "https://stagingplay.dolynation.app",
+      provider: "microsoft",
+      hasSubscriptionTier: true,
+      redirectTarget: "/readings/12?tab=summary",
+    });
+    expect(readyUrl.toString()).toBe(
+      "https://stagingplay.dolynation.app/readings/12?tab=summary",
+    );
+    expect(readyUrl.searchParams.has(OAUTH_RETURN_QUERY_PARAM)).toBe(false);
+
+    const unsafeUrl = buildPostOAuthDestinationUrl({
+      publicOrigin: "https://stagingplay.dolynation.app",
+      provider: "google",
+      hasSubscriptionTier: true,
+      redirectTarget: "https://evil.example.com/phish",
+    });
+    expect(unsafeUrl.toString()).toBe("https://stagingplay.dolynation.app/");
   });
 });

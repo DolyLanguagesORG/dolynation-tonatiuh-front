@@ -68,6 +68,12 @@ function MicrosoftMarkIcon() {
   );
 }
 
+export const oauthLocationNavigator = {
+  replace(href: string): void {
+    window.location.replace(href);
+  },
+};
+
 export function OAuthProvidersSection({
   mode,
   redirectTarget = "/",
@@ -148,7 +154,7 @@ export function OAuthProvidersSection({
     if (onNavigate) {
       onNavigate(url);
     } else {
-      window.location.assign(new URL(url, window.location.origin).href);
+      oauthLocationNavigator.replace(new URL(url, window.location.origin).href);
     }
   };
 
