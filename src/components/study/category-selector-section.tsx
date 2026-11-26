@@ -2,7 +2,7 @@
 
 import { Button, ChoiceChip, Eyebrow, Input, Text } from "@/components/ui";
 import { getDictionary, type Locale, resolveBilingualText } from "@/i18n";
-import { type CatalogCategory } from "@/lib";
+import { type CatalogCategory, MAX_CATEGORY_LENGTH } from "@/lib";
 
 export interface CategorySelectorSectionProps {
   title: string;
@@ -77,6 +77,7 @@ export function CategorySelectorSection({
                 type="text"
                 label={addCategoryPrompt}
                 placeholder={addCategoryPlaceholder}
+                maxLength={MAX_CATEGORY_LENGTH}
                 value={customCategoryName}
                 disabled={isSubmittingCustom}
                 error={customCategoryError ?? undefined}

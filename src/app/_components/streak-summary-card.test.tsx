@@ -159,5 +159,18 @@ describe("HomeDashboard & StreakSummaryCard minimalist layout", () => {
       screen.queryByText(/PRECISIÓN PROMEDIO|TÉRMINOS CONSULTADOS/i),
     ).toBeNull();
     expect(cardContainer.querySelector("svg path[d^='M2 16L18']")).toBeNull();
+    expect(screen.getByText("días consecutivos")).toBeInTheDocument();
+
+    render(
+      <StreakSummaryCard
+        t={dictionaries.es}
+        locale="es"
+        streakDaysCount={1}
+        weeklyActiveDays={[true, false, false, false, false, false, false]}
+        isAuthenticated
+      />,
+    );
+
+    expect(screen.getByText("día consecutivo")).toBeInTheDocument();
   });
 });

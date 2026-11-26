@@ -22,7 +22,10 @@ export function EvaluationCriteriaCard({
     <Card variant="subtle" padding="md" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Eyebrow tone="muted">{t.readings.eval.criteriaTitle}</Eyebrow>
-        <Badge variant="outline">{t.readings.eval.goalMinWords}</Badge>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <Badge variant="outline">{t.readings.eval.goalMinWords}</Badge>
+          <Badge variant="outline">{t.readings.eval.maxWordsBadge}</Badge>
+        </div>
       </div>
 
       <Text variant="body" tone="body" className="leading-relaxed">

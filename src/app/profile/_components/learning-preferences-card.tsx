@@ -23,6 +23,7 @@ import {
   DEFAULT_LANGUAGES,
   getDateLocale,
   type LanguagesSettings,
+  MAX_CATEGORY_LENGTH,
   MIN_USER_CATEGORIES,
   type SubscriptionTier,
   type TargetLanguageCode,
@@ -57,6 +58,8 @@ export interface LearningPreferencesCardProps {
   onToggleCategory: (categoryId: string) => void;
   onAddCustomCategory?: (name: string) => Promise<boolean>;
   onDeleteCategory?: (categoryId: string) => Promise<boolean> | void;
+  customCategoryError?: string | null;
+  onClearCustomCategoryError?: () => void;
 }
 
 /**
@@ -127,6 +130,8 @@ export function LearningPreferencesCard({
   onToggleCategory,
   onAddCustomCategory,
   onDeleteCategory,
+  customCategoryError = null,
+  onClearCustomCategoryError,
 }: LearningPreferencesCardProps) {
   const [customName, setCustomName] = useState("");
   const [isAddingCustom, setIsAddingCustom] = useState(false);
@@ -810,9 +815,14 @@ export function LearningPreferencesCard({
                   type="text"
                   label={t.profile.addCustomCategoryPrompt}
                   placeholder={t.profile.addCustomCategoryPlaceholder}
+                  maxLength={MAX_CATEGORY_LENGTH}
                   value={customName}
+                  error={customCategoryError ?? undefined}
                   disabled={isSaving || isAddingCustom}
-                  onChange={(event) => setCustomName(event.target.value)}
+                  onChange={(event) => {
+                    setCustomName(event.target.value);
+                    onClearCustomCategoryError?.();
+                  }}
                   onKeyDown={(event) => {
                     if (event.key === "Enter") {
                       event.preventDefault();

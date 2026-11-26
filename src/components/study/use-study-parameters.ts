@@ -6,14 +6,18 @@ import { type FormEvent, useEffect, useState } from "react";
 import { useTurnstile } from "@/components/security";
 import { useAuth } from "@/context";
 import { type ToastAction, useToast } from "@/context/toast-context";
+import { useNavigationGuard } from "@/hooks";
 import { formatMessage, useLocale } from "@/i18n";
 import {
   ApiClientError,
+  canonicalCategoryKey,
   type CatalogCategory,
   DEFAULT_DIFFICULTIES,
   DEFAULT_SIZES,
   type DifficultyOption,
   ErrorCode,
+  MAX_CATEGORY_LENGTH,
+  MIN_CATEGORY_LENGTH,
   MIN_USER_CATEGORIES,
   type ReadingDifficulty,
   type ReadingSize,
@@ -25,6 +29,7 @@ import {
   subscriptionsService,
   type SubscriptionUsage,
   type TargetLanguageCode,
+  validateCategoryInput,
 } from "@/lib";
 
 function buildCategoryCatalogLookup(
@@ -93,6 +98,7 @@ export function useStudyParameters(
   const captcha = useTurnstile("reading_generate");
   const {
     user,
+    subscription,
     languagesSettings,
     categoriesSettings,
     onboarding,
@@ -151,6 +157,11 @@ export function useStudyParameters(
   const [customCategoryError, setCustomCategoryError] = useState<string | null>(
     null,
   );
+
+  const { allowNextNavigation } = useNavigationGuard({
+    active: isSubmitting,
+    message: t.navigationGuard.generationInProgressMessage,
+  });
 
   const resolveErrorAction = (code?: string): ToastAction | undefined => {
     if (code === ErrorCode.READING_PENDING_LIMIT_REACHED) {
@@ -345,23 +356,28 @@ export function useStudyParameters(
   const handleAddCustomCategory = async (): Promise<void> => {
     if (isSubmittingCustom) return;
 
-    const cleanName = customCategoryName.trim();
-    if (!cleanName) {
-      setCustomCategoryError(t.study.categoryRequiredError);
-      toast.warning(t.study.categoryRequiredError);
+    const validation = validateCategoryInput(customCategoryName);
+    if (!validation.ok) {
+      const errorMsg =
+        validation.reason === "required"
+          ? t.categoryValidation.requiredError
+          : validation.reason === "length"
+            ? formatMessage(t.categoryValidation.lengthError, {
+                min: MIN_CATEGORY_LENGTH,
+                max: MAX_CATEGORY_LENGTH,
+              })
+            : t.categoryValidation.formatError;
+      setCustomCategoryError(errorMsg);
+      toast.warning(errorMsg);
       return;
     }
 
-    if (cleanName.length < 2 || cleanName.length > 50) {
-      setCustomCategoryError(t.study.categoryLengthError);
-      toast.warning(t.study.categoryLengthError);
-      return;
-    }
+    const cleanName = validation.cleaned;
 
     const duplicate = categories.find(
       (cat) =>
-        cat.id.toLowerCase() === cleanName.toLowerCase() ||
-        cat.name.toLowerCase() === cleanName.toLowerCase(),
+        canonicalCategoryKey(cat.id) === validation.canonicalKey ||
+        canonicalCategoryKey(cat.name) === validation.canonicalKey,
     );
 
     if (duplicate) {
@@ -381,9 +397,28 @@ export function useStudyParameters(
           ? categoriesSettings.selected
           : (await settingsService.getCategories()).data.selected;
 
+      const maxCategories =
+        subscription?.plan?.maxCategories ??
+        subscription?.usage?.categoriesLimit ??
+        subscriptionUsage?.categoriesLimit ??
+        null;
+
       const alreadyInSaved = savedSelected.some(
-        (cat) => cat.toLowerCase() === cleanName.toLowerCase(),
+        (cat) => canonicalCategoryKey(cat) === validation.canonicalKey,
       );
+      if (
+        !alreadyInSaved &&
+        maxCategories !== null &&
+        savedSelected.length >= maxCategories
+      ) {
+        const limitMsg = formatMessage(t.categoryValidation.maxLimitError, {
+          max: maxCategories,
+        });
+        setCustomCategoryError(limitMsg);
+        toast.warning(limitMsg);
+        return;
+      }
+
       const mergedCategories = alreadyInSaved
         ? savedSelected
         : [...savedSelected, cleanName];
@@ -418,8 +453,8 @@ export function useStudyParameters(
       const persistedMatch =
         nextCategories.find(
           (cat) =>
-            cat.id.toLowerCase() === cleanName.toLowerCase() ||
-            cat.name.toLowerCase() === cleanName.toLowerCase(),
+            canonicalCategoryKey(cat.id) === validation.canonicalKey ||
+            canonicalCategoryKey(cat.name) === validation.canonicalKey,
         ) ?? nextCategories[nextCategories.length - 1];
 
       if (persistedMatch) {
@@ -550,6 +585,7 @@ export function useStudyParameters(
     toast.success(readyMsg, {
       title: t.study.sessionReadyTitle,
     });
+    allowNextNavigation();
     router.push(`/readings/${generated.id}`);
   };
 

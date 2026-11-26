@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/context";
 import {
@@ -129,7 +129,13 @@ export function mapDtoToHomeReading(
  */
 export function useHomeDashboard() {
   const { locale, t } = useLocale();
-  const { user, accessPhase, isAuthenticated, onboarding } = useAuth();
+  const {
+    user,
+    accessPhase,
+    isAuthenticated,
+    onboarding,
+    syncUserProfile,
+  } = useAuth();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [liveReadings, setLiveReadings] = useState<HomeReadingItem[]>([]);
@@ -151,6 +157,11 @@ export function useHomeDashboard() {
   const shouldLoadLive = isAuthenticated && accessPhase === "ready";
   const fetchKey = shouldLoadLive ? `${user?.id ?? "me"}-${locale}` : null;
   const isLoadingData = Boolean(fetchKey && loadedKey !== fetchKey);
+  const syncUserProfileRef = useRef(syncUserProfile);
+
+  useEffect(() => {
+    syncUserProfileRef.current = syncUserProfile;
+  }, [syncUserProfile]);
 
   useEffect(() => {
     if (!fetchKey) {
@@ -211,6 +222,11 @@ export function useHomeDashboard() {
             typeof profileRes.value.data.currentStreak === "number"
           ) {
             setStreakCount(profileRes.value.data.currentStreak);
+            syncUserProfileRef.current?.({
+              currentStreak: profileRes.value.data.currentStreak,
+              lastStreakDate: profileRes.value.data.lastStreakDate,
+              fullName: profileRes.value.data.fullName,
+            });
           }
 
           if (streakRes.status === "fulfilled" && streakRes.value.data) {

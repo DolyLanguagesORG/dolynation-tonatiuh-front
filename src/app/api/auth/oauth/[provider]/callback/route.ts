@@ -1,6 +1,10 @@
 import { type NextRequest } from "next/server";
 
-import { appendSessionCookies } from "@/lib/server/auth-cookies";
+import {
+  ACCESS_COOKIE_NAME,
+  appendSessionCookies,
+  REFRESH_COOKIE_NAME,
+} from "@/lib/server/auth-cookies";
 import { backendInternalUrl } from "@/lib/server/backend-url";
 import { extractSessionTokensFromEnvelope } from "@/lib/server/bff-refresh";
 import {
@@ -75,7 +79,23 @@ export async function GET(
   const code = search.get("code")?.trim() ?? "";
   const state = search.get("state")?.trim() ?? "";
 
-  if (!tx || !code || !state || !safeEqualState(state, tx.state)) {
+  if (!tx) {
+    const hasActiveSessionCookies =
+      Boolean(request.cookies.get(ACCESS_COOKIE_NAME)?.value) ||
+      Boolean(request.cookies.get(REFRESH_COOKIE_NAME)?.value);
+    if (hasActiveSessionCookies) {
+      return new Response(null, {
+        status: 302,
+        headers: {
+          location: new URL("/", publicOrigin).toString(),
+          "cache-control": "no-store",
+        },
+      });
+    }
+    return redirectToError(publicOrigin, originPage, "AUTH_OAUTH_STATE_INVALID");
+  }
+
+  if (!code || !state || !safeEqualState(state, tx.state)) {
     return redirectToError(publicOrigin, originPage, "AUTH_OAUTH_STATE_INVALID");
   }
 

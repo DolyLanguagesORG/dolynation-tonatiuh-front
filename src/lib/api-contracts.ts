@@ -436,6 +436,14 @@ export interface UpdateCategoriesInput {
   categories: string[];
 }
 
+export interface ValidateCategoryInput {
+  category: string;
+}
+
+export interface ValidatedCategoryResponse {
+  category: string;
+}
+
 export interface LanguagesSettings {
   catalog: { id: TargetLanguageCode; name: string }[];
   selected: TargetLanguageCode[];

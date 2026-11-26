@@ -24,6 +24,7 @@ import {
   Text,
 } from "@/components/ui";
 import { type SubscriptionPlanId, useAuth } from "@/context";
+import { useNavigationGuard } from "@/hooks";
 import { formatMessage, useLocale } from "@/i18n";
 import {
   ApiClientError,
@@ -95,6 +96,24 @@ export function SelectPlanView() {
     onBackIntercepted: handleOAuthBackIntercepted,
   });
 
+  const { allowNextNavigation } = useNavigationGuard({
+    active: isSubmittingPlan,
+    message: t.navigationGuard.paymentInProgressMessage,
+  });
+
+  // Si el navegador restaura desde bfcache al volver atrás desde Stripe, limpia spinners bloqueados.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handlePageShow = (event: PageTransitionEvent): void => {
+      if (event.persisted) {
+        setIsSubmittingPlan(false);
+        setIsRefreshingStatus(false);
+        setIsCancelling(false);
+      }
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, []);
   // Precargamos el catálogo público para comprobar disponibilidad en segundo plano.
   useEffect(() => {
     subscriptionsService.getPlans().catch(() => undefined);
@@ -102,13 +121,20 @@ export function SelectPlanView() {
 
   useEffect(() => {
     if (accessPhase === "ready" && user?.subscriptionTier) {
+      allowNextNavigation();
       router.replace(
         onboarding.canGenerateReadings
           ? (consumePendingInviteRedirect() ?? "/")
           : "/setup-preferences",
       );
     }
-  }, [accessPhase, onboarding.canGenerateReadings, router, user?.subscriptionTier]);
+  }, [
+    accessPhase,
+    allowNextNavigation,
+    onboarding.canGenerateReadings,
+    router,
+    user?.subscriptionTier,
+  ]);
 
   if (
     isLoading ||
@@ -179,6 +205,7 @@ export function SelectPlanView() {
         );
         if (res.data.uiMode === "hosted" && res.data.url) {
           clearOAuthBackGuardMarker();
+          allowNextNavigation();
           if (typeof window !== "undefined") {
             window.location.assign(res.data.url);
           }
@@ -208,6 +235,7 @@ export function SelectPlanView() {
           await selectPlan(effectivePlan);
         }
         clearOAuthBackGuardMarker();
+        allowNextNavigation();
         router.replace("/setup-preferences");
       }
     } catch (error) {
@@ -269,6 +297,7 @@ export function SelectPlanView() {
     setPlanError(null);
     try {
       clearOAuthBackGuardMarker();
+      allowNextNavigation();
       await logout();
       router.replace("/login");
     } finally {
@@ -480,6 +509,7 @@ export function SelectPlanView() {
           onSuccess={(sessionId) => {
             clearOAuthBackGuardMarker();
             setCheckoutSession(null);
+            allowNextNavigation();
             router.replace(
               `/billing/return?session_id=${encodeURIComponent(sessionId)}`,
             );

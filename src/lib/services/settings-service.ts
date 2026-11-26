@@ -5,6 +5,8 @@ import {
   type LanguagesSettings,
   type UpdateCategoriesInput,
   type UpdateLanguagesInput,
+  type ValidateCategoryInput,
+  type ValidatedCategoryResponse,
 } from "@/lib/api-contracts";
 import { type ApiResponse } from "@/lib/api-errors";
 import { httpClient } from "@/lib/http-client";
@@ -44,6 +46,18 @@ export function createSettingsService(transport: ApiTransport) {
         ...options,
         query: { category },
       });
+    },
+
+    /** Valida y modera una categoría individual inmediatamente antes de persistirla en bloque. */
+    validateCategory(
+      input: ValidateCategoryInput,
+      options?: SettingsRequestOptions,
+    ): Promise<ApiResponse<ValidatedCategoryResponse>> {
+      return transport.post<ValidatedCategoryResponse>(
+        "/settings/categories/validate",
+        input,
+        options,
+      );
     },
 
     /** Obtiene los idiomas elegidos, activos, bloqueos anuales y créditos disponibles. */

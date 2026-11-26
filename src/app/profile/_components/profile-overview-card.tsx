@@ -48,6 +48,7 @@ export function ProfileOverviewCard({
 }: ProfileOverviewCardProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [draftName, setDraftName] = useState(user?.fullName ?? "");
+  const [nameError, setNameError] = useState<string | null>(null);
 
   const displayName =
     user?.fullName?.trim() || user?.email || t.profile.defaultRole;
@@ -84,12 +85,23 @@ export function ProfileOverviewCard({
 
   const startEdit = (): void => {
     setDraftName(user?.fullName ?? "");
+    setNameError(null);
     setIsEditing(true);
   };
 
   const submitName = async (event: React.FormEvent): Promise<void> => {
     event.preventDefault();
-    const ok = await onSaveName(draftName);
+    const cleaned = draftName.trim();
+    if (!cleaned) {
+      setNameError(t.profile.fullNameRequiredError);
+      return;
+    }
+    if (cleaned.length > 255) {
+      setNameError(t.profile.fullNameMaxLengthError);
+      return;
+    }
+    setNameError(null);
+    const ok = await onSaveName(cleaned);
     if (ok) {
       setIsEditing(false);
     }
@@ -152,10 +164,15 @@ export function ProfileOverviewCard({
             <Input
               id="profile-fullname-input"
               label={t.profile.fullNameLabel}
+              maxLength={255}
               value={draftName}
+              error={nameError ?? undefined}
               disabled={isSavingProfile}
               required
-              onChange={(event) => setDraftName(event.target.value)}
+              onChange={(event) => {
+                setDraftName(event.target.value);
+                setNameError(null);
+              }}
             />
           </div>
           <div className="flex items-center gap-2">
@@ -172,7 +189,10 @@ export function ProfileOverviewCard({
               variant="outline"
               size="md"
               disabled={isSavingProfile}
-              onClick={() => setIsEditing(false)}
+              onClick={() => {
+                setNameError(null);
+                setIsEditing(false);
+              }}
             >
               {t.profile.cancelEditButton}
             </Button>

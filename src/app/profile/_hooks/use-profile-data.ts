@@ -6,6 +6,7 @@ import { useEffect, useRef, useState } from "react";
 import { useTurnstile } from "@/components/security";
 import { useAuth } from "@/context";
 import { useToast } from "@/context/toast-context";
+import { useNavigationGuard } from "@/hooks";
 import { formatMessage, useLocale } from "@/i18n";
 import {
   ApiClientError,
@@ -13,6 +14,7 @@ import {
   type BillingPaymentMethodSummary,
   type BillingStatusResponse,
   billingService,
+  canonicalCategoryKey,
   type CategoriesSettings,
   type CheckoutSessionResponse,
   createBillingIdempotencyKey,
@@ -20,6 +22,8 @@ import {
   historyService,
   type HistorySummary,
   type LanguagesSettings,
+  MAX_CATEGORY_LENGTH,
+  MIN_CATEGORY_LENGTH,
   MIN_USER_CATEGORIES,
   type PaidSubscriptionTier,
   settingsService,
@@ -30,6 +34,7 @@ import {
   type UserProfile,
   type UserSubscriptionResponse,
   usersService,
+  validateCategoryInput,
 } from "@/lib";
 import { useBillingConfig } from "@/lib/hooks/use-billing-config";
 import { useSubscriptionPlans } from "@/lib/hooks/use-subscription-plans";
@@ -57,6 +62,7 @@ export function useProfileData() {
     selectPlan,
     selectLanguages,
     logoutAll,
+    syncUserProfile,
   } = useAuth();
   const {
     plans,
@@ -92,6 +98,9 @@ export function useProfileData() {
   const [customCategoryItems, setCustomCategoryItems] = useState<
     { id: string; name: string }[]
   >([]);
+  const [customCategoryError, setCustomCategoryError] = useState<string | null>(
+    null,
+  );
 
   const [billingStatus, setBillingStatus] =
     useState<BillingStatusResponse | null>(null);
@@ -116,10 +125,42 @@ export function useProfileData() {
   const fetchKey = isAuthenticated ? `${user?.id ?? "me"}-${locale}` : null;
   const isLoading = Boolean(fetchKey && loadedKey !== fetchKey);
   const refreshAccessRequestsRef = useRef(refreshAccessRequests);
+  const syncUserProfileRef = useRef(syncUserProfile);
 
   useEffect(() => {
     refreshAccessRequestsRef.current = refreshAccessRequests;
   }, [refreshAccessRequests]);
+
+  useEffect(() => {
+    syncUserProfileRef.current = syncUserProfile;
+  }, [syncUserProfile]);
+
+  const { allowNextNavigation } = useNavigationGuard({
+    active:
+      isSavingProfile ||
+      isSavingPreferences ||
+      isUnlockingLanguage ||
+      isSavingPlan ||
+      isManagingBilling,
+    message:
+      isSavingPlan || isManagingBilling || isUnlockingLanguage
+        ? t.navigationGuard.paymentInProgressMessage
+        : t.navigationGuard.unsavedChangesMessage,
+  });
+
+  // Limpia flags de carga si el navegador restaura desde bfcache tras volver de Stripe.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const handlePageShow = (event: PageTransitionEvent): void => {
+      if (event.persisted) {
+        setIsSavingPlan(false);
+        setIsUnlockingLanguage(false);
+        setIsManagingBilling(false);
+      }
+    };
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, []);
 
   const reportSuccess = (message: string, title?: string): void => {
     toast.success(message, title ? { title } : undefined);
@@ -167,6 +208,11 @@ export function useProfileData() {
             if (typeof profileRes.value.data.currentStreak === "number") {
               setStreakCount(profileRes.value.data.currentStreak);
             }
+            syncUserProfileRef.current?.({
+              currentStreak: profileRes.value.data.currentStreak,
+              lastStreakDate: profileRes.value.data.lastStreakDate,
+              fullName: profileRes.value.data.fullName,
+            });
           }
           if (streakRes.status === "fulfilled" && streakRes.value.data) {
             if (Array.isArray(streakRes.value.data.days)) {
@@ -260,6 +306,11 @@ export function useProfileData() {
     try {
       const updated = await usersService.updateProfile({ fullName: clean });
       setProfile(updated.data);
+      syncUserProfile?.({
+        currentStreak: updated.data.currentStreak,
+        lastStreakDate: updated.data.lastStreakDate,
+        fullName: updated.data.fullName,
+      });
       await reloadAccountState();
       reportSuccess(
         t.profile.savedProfileNotice,
@@ -276,6 +327,7 @@ export function useProfileData() {
 
   const commitCategories = async (
     nextCategories: string[],
+    onErrorMessage?: (msg: string) => void,
   ): Promise<boolean> => {
     setIsSavingPreferences(true);
     try {
@@ -291,6 +343,11 @@ export function useProfileData() {
       );
       return true;
     } catch (err) {
+      const message =
+        err instanceof ApiClientError
+          ? err.getUserMessage(locale)
+          : t.profile.hooks.updateCategoriesError;
+      onErrorMessage?.(message);
       reportError(err, t.profile.hooks.updateCategoriesError);
       return false;
     } finally {
@@ -339,18 +396,30 @@ export function useProfileData() {
   };
 
   const handleAddCustomCategory = async (name: string): Promise<boolean> => {
-    const clean = name.trim();
-    if (clean.length < 2 || clean.length > 50) {
-      toast.warning(t.profile.hooks.categoryLengthError);
+    const validation = validateCategoryInput(name);
+    if (!validation.ok) {
+      const errorMsg =
+        validation.reason === "required"
+          ? t.categoryValidation.requiredError
+          : validation.reason === "length"
+            ? formatMessage(t.categoryValidation.lengthError, {
+                min: MIN_CATEGORY_LENGTH,
+                max: MAX_CATEGORY_LENGTH,
+              })
+            : t.categoryValidation.formatError;
+      setCustomCategoryError(errorMsg);
+      toast.warning(errorMsg);
       return false;
     }
 
+    const clean = validation.cleaned;
     const currentSelected =
       draftCategoryIds ?? effectiveCategoriesSettings?.selected ?? [];
     const alreadyExists = currentSelected.some(
-      (id) => id.toLowerCase() === clean.toLowerCase(),
+      (id) => canonicalCategoryKey(id) === validation.canonicalKey,
     );
     if (alreadyExists) {
+      setCustomCategoryError(null);
       toast.info(
         formatMessage(t.profile.hooks.categoryAlreadySelectedInfo, {
           name: clean,
@@ -359,33 +428,73 @@ export function useProfileData() {
       return true;
     }
 
+    const maxCategories =
+      effectiveSubscription?.plan?.maxCategories ??
+      effectiveSubscription?.usage?.categoriesLimit ??
+      null;
+    if (maxCategories !== null && currentSelected.length >= maxCategories) {
+      const limitMsg = formatMessage(t.categoryValidation.maxLimitError, {
+        max: maxCategories,
+      });
+      setCustomCategoryError(limitMsg);
+      toast.warning(limitMsg);
+      return false;
+    }
+
+    setCustomCategoryError(null);
     const nextCategories = [...currentSelected, clean];
     if (nextCategories.length < MIN_USER_CATEGORIES) {
+      let approvedName = clean;
+      try {
+        const validated = await settingsService.validateCategory({
+          category: clean,
+        });
+        approvedName = validated.data?.category ?? clean;
+      } catch (err) {
+        if (!(err instanceof ApiClientError && err.status === 404)) {
+          const message =
+            err instanceof ApiClientError
+              ? err.getUserMessage(locale)
+              : t.profile.hooks.updateCategoriesError;
+          setCustomCategoryError(message);
+          reportError(err, t.profile.hooks.updateCategoriesError);
+          return false;
+        }
+      }
+
+      const canonicalApproved = canonicalCategoryKey(approvedName);
       setCustomCategoryItems((prev) =>
-        prev.some((item) => item.id.toLowerCase() === clean.toLowerCase())
+        prev.some((item) => canonicalCategoryKey(item.id) === canonicalApproved)
           ? prev
-          : [...prev, { id: clean, name: clean }],
+          : [...prev, { id: approvedName, name: approvedName }],
       );
-      setDraftCategoryIds(nextCategories);
+      setDraftCategoryIds([...currentSelected, approvedName]);
       toast.info(
         formatMessage(t.profile.hooks.categoryAddedDraftInfo, {
-          name: clean,
-          count: nextCategories.length,
+          name: approvedName,
+          count: currentSelected.length + 1,
           min: MIN_USER_CATEGORIES,
         }),
       );
       return true;
     }
 
-    const ok = await commitCategories(nextCategories);
-    if (ok) {
-      setCustomCategoryItems((prev) =>
-        prev.some((item) => item.id.toLowerCase() === clean.toLowerCase())
-          ? prev
-          : [...prev, { id: clean, name: clean }],
-      );
+    let failureMsg: string | null = null;
+    const ok = await commitCategories(nextCategories, (msg) => {
+      failureMsg = msg;
+    });
+    if (!ok) {
+      if (failureMsg) {
+        setCustomCategoryError(failureMsg);
+      }
+      return false;
     }
-    return ok;
+    setCustomCategoryItems((prev) =>
+      prev.some((item) => canonicalCategoryKey(item.id) === validation.canonicalKey)
+        ? prev
+        : [...prev, { id: clean, name: clean }],
+    );
+    return true;
   };
 
   const handleDeleteCategory = async (categoryId: string): Promise<boolean> => {
@@ -551,6 +660,7 @@ export function useProfileData() {
           captchaToken ? { captchaToken } : undefined,
         );
         if (sessionRes.data.uiMode === "hosted" && sessionRes.data.url) {
+          allowNextNavigation();
           if (typeof window !== "undefined") {
             window.location.assign(sessionRes.data.url);
           }
@@ -618,6 +728,7 @@ export function useProfileData() {
           captchaToken ? { captchaToken } : undefined,
         );
         if (sessionRes.data.uiMode === "hosted" && sessionRes.data.url) {
+          allowNextNavigation();
           if (typeof window !== "undefined") {
             window.location.assign(sessionRes.data.url);
           }
@@ -669,6 +780,14 @@ export function useProfileData() {
 
       if (profileRes.status === "fulfilled" && profileRes.value.data) {
         setProfile(profileRes.value.data);
+        if (typeof profileRes.value.data.currentStreak === "number") {
+          setStreakCount(profileRes.value.data.currentStreak);
+        }
+        syncUserProfile?.({
+          currentStreak: profileRes.value.data.currentStreak,
+          lastStreakDate: profileRes.value.data.lastStreakDate,
+          fullName: profileRes.value.data.fullName,
+        });
       }
       if (langsRes.status === "fulfilled" && langsRes.value.data) {
         setLanguagesSettings(langsRes.value.data);
@@ -800,6 +919,7 @@ export function useProfileData() {
     try {
       const res = await billingService.createPortal();
       if (res.data.url && typeof window !== "undefined") {
+        allowNextNavigation();
         window.location.assign(res.data.url);
       }
     } catch (err) {
@@ -824,6 +944,7 @@ export function useProfileData() {
         reportSuccess(t.billing.checkout.paymentSuccessToast);
       }
     } catch {
+      allowNextNavigation();
       router.replace(
         `/billing/return?session_id=${encodeURIComponent(sessionId)}`,
       );
@@ -862,6 +983,11 @@ export function useProfileData() {
       if (typeof profileRes.value.data.currentStreak === "number") {
         setStreakCount(profileRes.value.data.currentStreak);
       }
+      syncUserProfile?.({
+        currentStreak: profileRes.value.data.currentStreak,
+        lastStreakDate: profileRes.value.data.lastStreakDate,
+        fullName: profileRes.value.data.fullName,
+      });
     }
     if (langsRes.status === "fulfilled" && langsRes.value.data) {
       setLanguagesSettings(langsRes.value.data);
@@ -882,6 +1008,7 @@ export function useProfileData() {
     setIsLoggingOutAll(true);
     try {
       await logoutAll();
+      allowNextNavigation();
       router.replace("/login");
     } finally {
       setIsLoggingOutAll(false);
@@ -889,7 +1016,7 @@ export function useProfileData() {
   };
 
   const resolvedUser =
-    profile && user ? { ...profile, ...user } : (profile ?? user);
+    profile && user ? { ...user, ...profile } : (profile ?? user);
   const resolvedStreakCount = streakCount ?? resolvedUser?.currentStreak ?? 0;
   const baseCatalog = effectiveCategoriesSettings?.catalog ?? [];
 
@@ -975,6 +1102,8 @@ export function useProfileData() {
     languagesSettings: effectiveLanguagesSettings,
     resolvedCategories,
     selectedCategoryIds,
+    customCategoryError,
+    clearCustomCategoryError: () => setCustomCategoryError(null),
     activeLanguageItems,
     accessRequestsEnabled: effectiveAccessRequestsEnabled,
     pendingSubscriptionRequest,

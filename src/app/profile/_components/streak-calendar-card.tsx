@@ -169,7 +169,9 @@ export function StreakCalendarCard({
                 {currentStreak}
               </span>
               <Eyebrow as="span" tone="heading">
-                {t.home.streakDaysSuffix}
+                {currentStreak === 1
+                  ? t.home.streakDaySingularSuffix
+                  : t.home.streakDaysSuffix}
               </Eyebrow>
             </div>
 

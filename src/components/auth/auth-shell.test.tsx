@@ -19,6 +19,7 @@ jest.mock("@/context", () => ({
 }));
 
 import { AuthShell } from "@/components/auth/auth-shell";
+import { toBusinessCalendarDate } from "@/app/profile/_components/streak-calendar-utils";
 import { FloatingLocaleSelector } from "@/components/layout/floating-locale-selector";
 import { LocaleProvider } from "@/i18n";
 
@@ -65,5 +66,24 @@ describe("AuthShell headerAction", () => {
     );
 
     expect(container.querySelector(".fixed")).toBeNull();
+  });
+
+  it("interpola dinámicamente el año calendario vigente en copyrightText", () => {
+    const currentYear = String(toBusinessCalendarDate().getFullYear());
+    render(
+      <AuthShell
+        title="Reanudar DolySesion"
+        copyrightText="© {year} DolyNation Editorial."
+      >
+        <form aria-label="formulario" />
+      </AuthShell>,
+      { wrapper: Wrapper },
+    );
+
+    expect(
+      screen.getByText(`© ${currentYear} DolyNation Editorial.`),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/\{year\}/)).toBeNull();
+    expect(screen.queryByText(/2024/)).toBeNull();
   });
 });

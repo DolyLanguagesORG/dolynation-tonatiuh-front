@@ -86,6 +86,26 @@ export function OAuthProvidersSection({
     useState<OAuthProviderId | null>(null);
 
   useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const resetRedirectState = (): void => {
+      setRedirectingProvider(null);
+    };
+    const handleVisibilityChange = (): void => {
+      if (document.visibilityState === "visible") {
+        setRedirectingProvider(null);
+      }
+    };
+    window.addEventListener("pageshow", resetRedirectState);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => {
+      window.removeEventListener("pageshow", resetRedirectState);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
     authService
       .getOAuthProviders()

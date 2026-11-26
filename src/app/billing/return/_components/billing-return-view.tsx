@@ -6,7 +6,6 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { AuthShell } from "@/components/auth";
 import { FloatingLocaleSelector } from "@/components/layout/floating-locale-selector";
 import {
-  ActionLink,
   Alert,
   Badge,
   Button,
@@ -16,6 +15,7 @@ import {
   SkeletonCard,
 } from "@/components/ui";
 import { useAuth } from "@/context";
+import { useNavigationGuard } from "@/hooks";
 import { formatMessage, useLocale } from "@/i18n";
 import {
   ApiClientError,
@@ -51,6 +51,19 @@ export function BillingReturnView() {
   );
   const [isRetrying, setIsRetrying] = useState(false);
   const hasInitialSyncedRef = useRef(false);
+
+  const { allowNextNavigation } = useNavigationGuard({
+    active: viewState === "syncing" || isRetrying,
+    message: t.navigationGuard.paymentInProgressMessage,
+  });
+
+  const navigateWithReplace = useCallback(
+    (href: string) => {
+      allowNextNavigation();
+      router.replace(href);
+    },
+    [allowNextNavigation, router],
+  );
 
   const executeSync = useCallback(
     async (targetSessionId: string, isManualRetry = false): Promise<void> => {
@@ -164,7 +177,10 @@ export function BillingReturnView() {
     >
       <div className="flex flex-col gap-5">
         {viewState === "syncing" && (
-          <SkeletonCard lines={4} label={tr.syncingSubtitle} />
+          <div className="flex flex-col gap-3">
+            <Alert variant="info">{t.navigationGuard.billingSyncNotice}</Alert>
+            <SkeletonCard lines={4} label={tr.syncingSubtitle} />
+          </div>
         )}
 
         {viewState === "success" && (
@@ -178,16 +194,21 @@ export function BillingReturnView() {
             </Alert>
 
             <div className="flex flex-wrap items-center justify-between gap-3 border-t border-default pt-4">
-              <ActionLink href="/" variant="outline" size="md">
+              <Button
+                type="button"
+                variant="outline"
+                size="md"
+                onClick={() => navigateWithReplace("/")}
+              >
                 {tr.goToHomeCta}
-              </ActionLink>
+              </Button>
 
               {isLanguageUnlockPayment ? (
                 <Button
                   type="button"
                   variant="primary"
                   size="md"
-                  onClick={() => router.replace("/profile")}
+                  onClick={() => navigateWithReplace("/profile")}
                 >
                   {tr.goToProfilePreferencesCta}
                 </Button>
@@ -196,7 +217,7 @@ export function BillingReturnView() {
                   type="button"
                   variant="primary"
                   size="md"
-                  onClick={() => router.replace("/setup-preferences")}
+                  onClick={() => navigateWithReplace("/setup-preferences")}
                 >
                   {tr.continueOnboardingCta}
                 </Button>
@@ -205,7 +226,7 @@ export function BillingReturnView() {
                   type="button"
                   variant="primary"
                   size="md"
-                  onClick={() => router.replace("/profile#subscription")}
+                  onClick={() => navigateWithReplace("/profile#subscription")}
                 >
                   {tr.goToProfileSubscriptionCta}
                 </Button>
@@ -226,7 +247,7 @@ export function BillingReturnView() {
                 variant="outline"
                 size="md"
                 onClick={() =>
-                  router.replace(
+                  navigateWithReplace(
                     onboarding.hasSelectedPlan ? "/profile" : "/select-plan",
                   )
                 }
@@ -264,7 +285,7 @@ export function BillingReturnView() {
                 variant="outline"
                 size="md"
                 onClick={() =>
-                  router.replace(
+                  navigateWithReplace(
                     onboarding.hasSelectedPlan ? "/profile" : "/select-plan",
                   )
                 }

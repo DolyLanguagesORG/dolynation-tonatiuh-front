@@ -4,7 +4,9 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "@/context";
+import { useNavigationGuard } from "@/hooks";
 import {
+  formatMessage,
   getReadingFlowDictionary,
   resolveReadingLanguage,
   useLocale,
@@ -18,8 +20,11 @@ import {
 } from "@/lib";
 
 const EVAL_DRAFT_PREFIX = "doly-eval-draft-";
-const MIN_SUBMIT_WORDS = 15;
-const TARGET_WORDS = 100;
+export const MIN_SUBMIT_WORDS = 15;
+export const TARGET_WORDS = 100;
+export const MAX_SUBMIT_WORDS = 500;
+export const MIN_SUMMARY_CHARS = 20;
+export const MAX_SUMMARY_CHARS = 5000;
 
 function readDraft(readingId: number): string | null {
   if (typeof window === "undefined") return null;
@@ -53,8 +58,11 @@ function removeDraft(readingId: number) {
  */
 export function useReadingEvaluation(rawId: string) {
   const router = useRouter();
-  const { locale } = useLocale();
-  const { user, isAuthenticated } = useAuth();
+  const { locale, t } = useLocale();
+  const auth = useAuth();
+  const user = auth.user;
+  const isAuthenticated = auth.isAuthenticated;
+  const reloadAccountState = auth.reloadAccountState;
 
   const readingId = Number(rawId);
   const isValidId = Number.isInteger(readingId) && readingId > 0;
@@ -123,10 +131,31 @@ export function useReadingEvaluation(rawId: string) {
 
   const wordCount = useMemo(() => countWords(responseText), [responseText]);
   const charCount = responseText.length;
+  const isOverWordLimit = wordCount > MAX_SUBMIT_WORDS;
+  const isOverCharLimit = charCount > MAX_SUMMARY_CHARS;
   const wordProgress = useMemo(
     () => Math.min(100, Math.round((wordCount / TARGET_WORDS) * 100)),
     [wordCount],
   );
+
+  const isAlreadyEvaluated = Boolean(
+    reading && (reading.status === "completed" || reading.score !== null),
+  );
+  const hasUnsentDraft = !isAlreadyEvaluated && responseText.trim().length > 0;
+
+  const { allowNextNavigation } = useNavigationGuard({
+    active: !isAlreadyEvaluated && (isSubmitting || hasUnsentDraft),
+    message: isSubmitting
+      ? t.navigationGuard.evaluationInProgressMessage
+      : t.navigationGuard.evaluationUnsentMessage,
+  });
+
+  useEffect(() => {
+    if (!isValidId || !isAlreadyEvaluated) return;
+    removeDraft(readingId);
+    allowNextNavigation();
+    router.replace(`/readings/${readingId}/result`);
+  }, [allowNextNavigation, isAlreadyEvaluated, isValidId, readingId, router]);
 
   const suggestedTerms = useMemo(
     () => (reading ? extractSalientVocabulary(reading.content, 5) : []),
@@ -149,7 +178,11 @@ export function useReadingEvaluation(rawId: string) {
     (term: string) => {
       const separator =
         responseText.length === 0 || /\s$/.test(responseText) ? "" : " ";
-      updateResponseText(`${responseText}${separator}${term} `);
+      const next = `${responseText}${separator}${term} `;
+      if (next.length > MAX_SUMMARY_CHARS) {
+        return;
+      }
+      updateResponseText(next);
     },
     [responseText, updateResponseText],
   );
@@ -161,11 +194,33 @@ export function useReadingEvaluation(rawId: string) {
   }, [flowT.readings.eval.draftSavedNotice, isValidId, readingId, responseText]);
 
   const handleSubmit = useCallback(async () => {
-    if (!isValidId || isSubmitting) return;
+    if (!isValidId || isSubmitting || isAlreadyEvaluated) return;
 
     const trimmed = responseText.trim();
-    if (countWords(trimmed) < MIN_SUBMIT_WORDS) {
+    const submittedWords = countWords(trimmed);
+    if (
+      submittedWords < MIN_SUBMIT_WORDS ||
+      trimmed.length < MIN_SUMMARY_CHARS
+    ) {
       setValidationError(flowT.readings.eval.minWordsError);
+      return;
+    }
+
+    if (submittedWords > MAX_SUBMIT_WORDS) {
+      setValidationError(
+        formatMessage(flowT.readings.eval.maxWordsError, {
+          max: MAX_SUBMIT_WORDS,
+        }),
+      );
+      return;
+    }
+
+    if (trimmed.length > MAX_SUMMARY_CHARS) {
+      setValidationError(
+        formatMessage(flowT.readings.eval.maxCharsError, {
+          max: MAX_SUMMARY_CHARS,
+        }),
+      );
       return;
     }
 
@@ -176,7 +231,9 @@ export function useReadingEvaluation(rawId: string) {
     try {
       await readingsService.evaluate(readingId, { userResponse: trimmed });
       removeDraft(readingId);
-      router.push(`/readings/${readingId}/result`);
+      await reloadAccountState?.().catch(() => undefined);
+      allowNextNavigation();
+      router.replace(`/readings/${readingId}/result`);
     } catch (err: unknown) {
       setSubmitError(
         err instanceof ApiClientError
@@ -186,12 +243,17 @@ export function useReadingEvaluation(rawId: string) {
       setIsSubmitting(false);
     }
   }, [
+    allowNextNavigation,
     flowT.readings.errors.submitEvaluationFailed,
+    flowT.readings.eval.maxCharsError,
+    flowT.readings.eval.maxWordsError,
     flowT.readings.eval.minWordsError,
+    isAlreadyEvaluated,
     isSubmitting,
     isValidId,
     readingId,
     readingLanguage,
+    reloadAccountState,
     responseText,
     router,
   ]);
@@ -208,6 +270,12 @@ export function useReadingEvaluation(rawId: string) {
     wordCount,
     charCount,
     wordProgress,
+    isAlreadyEvaluated,
+    isOverWordLimit,
+    isOverCharLimit,
+    minWords: MIN_SUBMIT_WORDS,
+    maxWords: MAX_SUBMIT_WORDS,
+    maxChars: MAX_SUMMARY_CHARS,
     suggestedTerms,
     validationError,
     submitError,

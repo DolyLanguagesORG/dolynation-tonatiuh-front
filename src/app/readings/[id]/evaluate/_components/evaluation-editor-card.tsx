@@ -12,7 +12,7 @@ import {
   Text,
   Textarea,
 } from "@/components/ui";
-import { type ReadingFlowDictionary } from "@/i18n";
+import { formatMessage, type ReadingFlowDictionary } from "@/i18n";
 import { type TargetLanguageCode } from "@/lib";
 
 export interface EvaluationEditorCardProps {
@@ -22,6 +22,11 @@ export interface EvaluationEditorCardProps {
   wordCount: number;
   charCount: number;
   wordProgress: number;
+  minWords?: number;
+  maxWords?: number;
+  maxChars?: number;
+  isOverWordLimit?: boolean;
+  isOverCharLimit?: boolean;
   validationError: string | null;
   submitError: string | null;
   draftNotice: string | null;
@@ -42,6 +47,11 @@ export function EvaluationEditorCard({
   wordCount,
   charCount,
   wordProgress,
+  minWords = 15,
+  maxWords = 500,
+  maxChars = 5000,
+  isOverWordLimit = false,
+  isOverCharLimit = false,
   validationError,
   submitError,
   draftNotice,
@@ -50,6 +60,15 @@ export function EvaluationEditorCard({
   onSaveDraft,
   onSubmit,
 }: EvaluationEditorCardProps) {
+  const effectiveError =
+    validationError ??
+    (isOverWordLimit
+      ? formatMessage(t.readings.eval.maxWordsError, { max: maxWords })
+      : isOverCharLimit
+        ? formatMessage(t.readings.eval.maxCharsError, { max: maxChars })
+        : null);
+  const isOverLimit = isOverWordLimit || isOverCharLimit;
+
   return (
     <Card padding="lg" className="flex flex-col gap-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -81,19 +100,28 @@ export function EvaluationEditorCard({
         label={t.readings.eval.textareaLabel}
         placeholder={t.readings.eval.textareaPlaceholder}
         rows={8}
+        maxLength={maxChars}
         value={responseText}
         onChange={(event) => onChangeText(event.target.value)}
-        error={validationError ?? undefined}
+        error={effectiveError ?? undefined}
         disabled={isSubmitting}
         required
       />
 
       <div className="flex flex-col gap-2">
         <ProgressBar
-          value={wordProgress}
+          value={isOverLimit ? 100 : wordProgress}
           size="sm"
-          label={`${wordCount} ${t.readings.eval.minWordsSuffix}`}
-          valueLabel={`${charCount} ${t.readings.eval.charactersSuffix}`}
+          color={isOverLimit ? "red" : "default"}
+          label={formatMessage(t.readings.eval.wordLimitProgress, {
+            count: wordCount,
+            max: maxWords,
+            min: minWords,
+          })}
+          valueLabel={formatMessage(t.readings.eval.charLimitCounter, {
+            count: charCount,
+            max: maxChars,
+          })}
         />
       </div>
 
@@ -108,6 +136,7 @@ export function EvaluationEditorCard({
           variant="primary"
           size="lg"
           isLoading={isSubmitting}
+          disabled={isSubmitting || isOverLimit}
           rightIcon={<Icon name="arrow-right" size="sm" />}
           onClick={onSubmit}
         >
@@ -118,9 +147,14 @@ export function EvaluationEditorCard({
       </div>
 
       {isSubmitting && (
-        <Text variant="caption" tone="muted" className="font-mono">
-          {t.readings.eval.submittingAnalysisNotice}
-        </Text>
+        <div className="flex flex-col gap-2">
+          <Alert variant="info">
+            {t.readings.eval.doNotReloadEvaluatingNotice}
+          </Alert>
+          <Text variant="caption" tone="muted" className="font-mono">
+            {t.readings.eval.submittingAnalysisNotice}
+          </Text>
+        </div>
       )}
     </Card>
   );

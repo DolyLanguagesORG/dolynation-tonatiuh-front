@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, jest } from "@jest/globals";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, render, screen, waitFor } from "@testing-library/react";
 
 import {
   OAuthProvidersSection,
@@ -178,5 +178,39 @@ describe("OAuthProvidersSection", () => {
     expect(replaceSpy).toHaveBeenCalledWith(
       `${window.location.origin}/api/auth/oauth/microsoft?origin=login&locale=es&redirect=%2Fgenerate`,
     );
+  });
+
+  it("re-enables OAuth buttons on pageshow when returning via browser back/bfcache", async () => {
+    jest.spyOn(authService, "getOAuthProviders").mockResolvedValue({
+      message: "OK",
+      data: {
+        providers: [{ provider: "google", enabled: true }],
+      },
+      error: null,
+    });
+
+    const onNavigate = jest.fn();
+    render(
+      <LocaleProvider initialLocale="es">
+        <OAuthProvidersSection mode="login" onNavigate={onNavigate} />
+      </LocaleProvider>,
+    );
+
+    const googleButton = await screen.findByRole("button", {
+      name: /continuar con cuenta de google/i,
+    });
+
+    fireEvent.click(googleButton);
+    expect(googleButton).toBeDisabled();
+
+    const persistedEvent = new Event("pageshow") as PageTransitionEvent;
+    Object.defineProperty(persistedEvent, "persisted", { value: true });
+    act(() => {
+      window.dispatchEvent(persistedEvent);
+    });
+
+    await waitFor(() => {
+      expect(googleButton).not.toBeDisabled();
+    });
   });
 });

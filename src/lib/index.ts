@@ -19,6 +19,15 @@ export {
   registerAuthLifecycleHandlers,
 } from "@/lib/auth-token-store";
 export { buildApiUrl, env } from "@/lib/env";
+export {
+  canonicalCategoryKey,
+  type CategoryValidationErrorReason,
+  type CategoryValidationResult,
+  cleanCategoryName,
+  MAX_CATEGORY_LENGTH,
+  MIN_CATEGORY_LENGTH,
+  validateCategoryInput,
+} from "@/lib/category-validation";
 export { apiRequest, httpClient } from "@/lib/http-client";
 export { AI_TIMEOUT_MS, DEFAULT_TIMEOUT_MS } from "@/lib/http-core";
 export {
