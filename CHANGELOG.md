@@ -11,6 +11,14 @@ un PR de release contra `develop` que sube la versión y escribe esta sección; 
 mergearlo se crean el tag anotado y la GitHub Release. Ver
 [`conventions/versioning.md`](https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs/blob/develop/conventions/versioning.md).
 
+## [0.17.2](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.17.1...v0.17.2) (2026-11-26)
+
+
+### Bug Fixes
+
+* **auth:** omite /auth/me en focus cuando Stripe esta activo ([#203](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/203)) ([26921c8](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/26921c8b31b3764cc7544a52b45b54568246a6db)), closes [#189](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/189)
+* **ui:** alinea modulo de amistades con contrato real del backend ([#197](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/197)) ([5ec278b](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/5ec278b9267a671184220730adc745da5b3624ae)), closes [#196](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/196)
+
 ## [0.17.1](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.17.0...v0.17.1) (2026-11-24)
 
 
