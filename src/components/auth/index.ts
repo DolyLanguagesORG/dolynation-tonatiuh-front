@@ -19,3 +19,4 @@ export {
   RouteAccessGuard,
   type RouteAccessGuardProps,
 } from "@/components/auth/route-access-guard";
+export { SessionHistoryGuard } from "@/components/auth/session-history-guard";

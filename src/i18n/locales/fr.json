@@ -1606,7 +1606,13 @@
     "paymentInProgressMessage": "Une opération de paiement ou d'abonnement est en cours. Ne rechargez pas et ne fermez pas cette fenêtre.",
     "billingSyncNotice": "Ne rechargez pas et ne fermez pas cet onglet pendant la confirmation de votre paiement.",
     "generationDoNotReloadNotice": "Ne rechargez pas et ne revenez pas en arrière pendant la génération de votre lecture ; cela annulera le processus.",
-    "checkoutDoNotReloadNotice": "Ne rechargez pas et ne fermez pas cette fenêtre pendant le traitement du paiement."
+    "checkoutDoNotReloadNotice": "Ne rechargez pas et ne fermez pas cette fenêtre pendant le traitement du paiement.",
+    "authInProgressMessage": "Votre connexion est en cours. Patientez un instant avant de recharger ou de quitter cette page.",
+    "generationCancelledToast": "La génération de la lecture a été annulée.",
+    "sessionFloorNotice": "Vous avez déjà une session active ; vous ne pouvez pas revenir à l'écran de connexion sans vous déconnecter.",
+    "oauthSessionFloorNotice": "Votre session {provider} est déjà active. Déconnectez-vous d'abord si vous souhaitez changer de compte.",
+    "loggedOutBackNotice": "Vous êtes déconnecté. Connectez-vous à nouveau pour continuer.",
+    "onboardingStepBackNotice": "Terminez cette étape pour continuer avec votre compte."
   },
   "categoryValidation": {
     "requiredError": "Saisissez un nom de catégorie avant de l'ajouter.",

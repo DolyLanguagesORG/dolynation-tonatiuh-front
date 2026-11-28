@@ -134,8 +134,38 @@ const SESSION_FLAG_COOKIE_NAME = "doly_session";
 const USER_SNAPSHOT_STORAGE_KEY = "doly_user_snapshot";
 const PENDING_VERIFICATION_STORAGE_KEY = "doly.pending_verification_email";
 const SESSION_SYNC_STORAGE_KEY = "doly.session_event";
+export const LOGGED_OUT_BARRIER_STORAGE_KEY = "doly.logged_out_barrier";
+export const OAUTH_SESSION_PROVIDER_STORAGE_KEY =
+  "doly.oauth_session_provider";
+export const OAUTH_RETURN_HINT_COOKIE_NAME = "doly_oauth_return";
 const ACCESS_REQUEST_POLL_INTERVAL_MS = 15_000;
 const PROFILE_SYNC_MIN_INTERVAL_MS = 60_000;
+
+function markLoggedOutBarrier(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    window.sessionStorage.setItem(LOGGED_OUT_BARRIER_STORAGE_KEY, "1");
+    window.sessionStorage.removeItem(OAUTH_SESSION_PROVIDER_STORAGE_KEY);
+  } catch {
+    // Ignorar restricciones de sessionStorage en contextos aislados.
+  }
+  if (typeof document !== "undefined") {
+    document.cookie = `${OAUTH_RETURN_HINT_COOKIE_NAME}=; Path=/; Max-Age=0; SameSite=Lax`;
+  }
+}
+
+function clearLoggedOutBarrier(): void {
+  if (typeof window === "undefined") {
+    return;
+  }
+  try {
+    window.sessionStorage.removeItem(LOGGED_OUT_BARRIER_STORAGE_KEY);
+  } catch {
+    // Ignorar restricciones de sessionStorage en contextos aislados.
+  }
+}
 
 const EMPTY_ONBOARDING: OnboardingState = {
   emailVerified: false,
@@ -585,6 +615,7 @@ export function AuthProvider({
   const applyAuthenticatedUser = useCallback(
     async (authenticatedUser: AuthUser): Promise<void> => {
       const transitionEpoch = ++authTransitionEpochRef.current;
+      clearLoggedOutBarrier();
 
       if (authenticatedUser.role === "admin") {
         // Las cuentas admin están aisladas: nunca cargan datos ni solicitudes estudiantiles.
@@ -1362,6 +1393,7 @@ export function AuthProvider({
       // Aunque falle la red, limpiamos el estado local inmediatamente.
     } finally {
       clearSessionState({ preservePendingEmail: false });
+      markLoggedOutBarrier();
       broadcastSessionEvent("logout");
     }
   }, [clearSessionState]);
@@ -1373,6 +1405,7 @@ export function AuthProvider({
       // Mismo criterio de limpieza segura ante fallos de red.
     } finally {
       clearSessionState({ preservePendingEmail: false });
+      markLoggedOutBarrier();
       broadcastSessionEvent("logout");
     }
   }, [clearSessionState]);

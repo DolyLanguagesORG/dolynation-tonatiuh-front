@@ -1606,7 +1606,13 @@
     "paymentInProgressMessage": "A payment or subscription operation is in progress. Do not reload or close this window until it finishes.",
     "billingSyncNotice": "Do not reload or close this tab while we confirm your payment.",
     "generationDoNotReloadNotice": "Do not reload or navigate back while your reading is being generated; doing so will cancel the process.",
-    "checkoutDoNotReloadNotice": "Do not reload or close this window while payment is being processed."
+    "checkoutDoNotReloadNotice": "Do not reload or close this window while payment is being processed.",
+    "authInProgressMessage": "We are completing your sign-in. Wait a moment before reloading or leaving this page.",
+    "generationCancelledToast": "Reading generation was cancelled.",
+    "sessionFloorNotice": "You already have an active session; you cannot go back to the sign-in screen without logging out.",
+    "oauthSessionFloorNotice": "Your {provider} session is already active. Log out first if you want to switch accounts.",
+    "loggedOutBackNotice": "You have signed out. Sign in again to continue.",
+    "onboardingStepBackNotice": "Complete this step to continue with your account."
   },
   "categoryValidation": {
     "requiredError": "Enter a category name before adding it.",

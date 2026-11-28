@@ -5,6 +5,7 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import { useTurnstile } from "@/components/security";
 import { sanitizeRedirectPath, useAuth } from "@/context";
+import { useNavigationGuard } from "@/hooks";
 import { useLocale } from "@/i18n";
 import {
   ApiClientError,
@@ -92,6 +93,11 @@ export function useRegisterFlow() {
   } | null>(null);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { allowNextNavigation } = useNavigationGuard({
+    active: isSubmitting,
+    message: t.navigationGuard.authInProgressMessage,
+  });
 
   useEffect(() => {
     if (isValidInviteRedirectPath(redirectTarget)) {
@@ -223,6 +229,7 @@ export function useRegisterFlow() {
         ? await register(payload, { captchaToken })
         : await register(payload);
 
+      allowNextNavigation();
       if (result.needsEmailVerification) {
         router.replace("/verify-email");
       } else if (result.user.subscriptionTier === null) {

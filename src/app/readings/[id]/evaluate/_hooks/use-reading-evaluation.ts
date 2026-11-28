@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuth } from "@/context";
 import { useNavigationGuard } from "@/hooks";
@@ -15,6 +15,7 @@ import {
   ApiClientError,
   countWords,
   extractSalientVocabulary,
+  isAbortError,
   type ReadingDto,
   readingsService,
 } from "@/lib";
@@ -143,11 +144,36 @@ export function useReadingEvaluation(rawId: string) {
   );
   const hasUnsentDraft = !isAlreadyEvaluated && responseText.trim().length > 0;
 
+  const evaluationAbortControllerRef = useRef<AbortController | null>(null);
+  const evaluationCancelledRef = useRef(false);
+
+  const abortActiveEvaluation = useCallback(() => {
+    const controller = evaluationAbortControllerRef.current;
+    if (!controller) {
+      return;
+    }
+    evaluationCancelledRef.current = true;
+    evaluationAbortControllerRef.current = null;
+    controller.abort();
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.addEventListener("pagehide", abortActiveEvaluation);
+    return () => {
+      window.removeEventListener("pagehide", abortActiveEvaluation);
+      abortActiveEvaluation();
+    };
+  }, [abortActiveEvaluation]);
+
   const { allowNextNavigation } = useNavigationGuard({
     active: !isAlreadyEvaluated && (isSubmitting || hasUnsentDraft),
     message: isSubmitting
       ? t.navigationGuard.evaluationInProgressMessage
       : t.navigationGuard.evaluationUnsentMessage,
+    onConfirmLeave: abortActiveEvaluation,
   });
 
   useEffect(() => {
@@ -228,21 +254,46 @@ export function useReadingEvaluation(rawId: string) {
     setSubmitError(null);
     setIsSubmitting(true);
 
+    abortActiveEvaluation();
+    const controller = new AbortController();
+    evaluationAbortControllerRef.current = controller;
+    evaluationCancelledRef.current = false;
+
     try {
-      await readingsService.evaluate(readingId, { userResponse: trimmed });
+      await readingsService.evaluate(
+        readingId,
+        { userResponse: trimmed },
+        { signal: controller.signal },
+      );
+      if (controller.signal.aborted) {
+        return;
+      }
       removeDraft(readingId);
       await reloadAccountState?.().catch(() => undefined);
       allowNextNavigation();
       router.replace(`/readings/${readingId}/result`);
     } catch (err: unknown) {
+      if (
+        isAbortError(err) ||
+        evaluationCancelledRef.current ||
+        controller.signal.aborted
+      ) {
+        setIsSubmitting(false);
+        return;
+      }
       setSubmitError(
         err instanceof ApiClientError
           ? err.getUserMessage(readingLanguage)
           : flowT.readings.errors.submitEvaluationFailed,
       );
       setIsSubmitting(false);
+    } finally {
+      if (evaluationAbortControllerRef.current === controller) {
+        evaluationAbortControllerRef.current = null;
+      }
     }
   }, [
+    abortActiveEvaluation,
     allowNextNavigation,
     flowT.readings.errors.submitEvaluationFailed,
     flowT.readings.eval.maxCharsError,

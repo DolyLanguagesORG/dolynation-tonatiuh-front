@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { type FormEvent, useEffect, useState } from "react";
+import { type FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
 import { useTurnstile } from "@/components/security";
 import { useAuth } from "@/context";
@@ -16,6 +16,7 @@ import {
   DEFAULT_SIZES,
   type DifficultyOption,
   ErrorCode,
+  isAbortError,
   MAX_CATEGORY_LENGTH,
   MIN_CATEGORY_LENGTH,
   MIN_USER_CATEGORIES,
@@ -95,6 +96,7 @@ export function useStudyParameters(
   const router = useRouter();
   const { locale, t } = useLocale();
   const toast = useToast();
+  const { info: showInfoToast } = toast;
   const captcha = useTurnstile("reading_generate");
   const {
     user,
@@ -158,9 +160,43 @@ export function useStudyParameters(
     null,
   );
 
+  const generationAbortControllerRef = useRef<AbortController | null>(null);
+  const generationCancelledRef = useRef(false);
+
+  const abortActiveGeneration = useCallback(() => {
+    const controller = generationAbortControllerRef.current;
+    if (!controller) {
+      return;
+    }
+    generationCancelledRef.current = true;
+    generationAbortControllerRef.current = null;
+    controller.abort();
+  }, []);
+
+  const handleConfirmCancelGeneration = useCallback(() => {
+    abortActiveGeneration();
+    showInfoToast(t.navigationGuard.generationCancelledToast);
+  }, [
+    abortActiveGeneration,
+    showInfoToast,
+    t.navigationGuard.generationCancelledToast,
+  ]);
+
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    window.addEventListener("pagehide", abortActiveGeneration);
+    return () => {
+      window.removeEventListener("pagehide", abortActiveGeneration);
+      abortActiveGeneration();
+    };
+  }, [abortActiveGeneration]);
+
   const { allowNextNavigation } = useNavigationGuard({
     active: isSubmitting,
     message: t.navigationGuard.generationInProgressMessage,
+    onConfirmLeave: handleConfirmCancelGeneration,
   });
 
   const resolveErrorAction = (code?: string): ToastAction | undefined => {
@@ -575,24 +611,45 @@ export function useStudyParameters(
   };
 
   const generateAndOpen = async (params: StudyParameters): Promise<void> => {
-    const captchaToken = await captcha.execute("reading_generate");
-    const generated = captchaToken
-      ? await studyClient.generateReading(params, { captchaToken })
-      : await studyClient.generateReading(params);
-    const readyMsg = formatMessage(t.study.readingGeneratedSuccess, {
-      title: generated.title,
-    });
-    toast.success(readyMsg, {
-      title: t.study.sessionReadyTitle,
-    });
-    allowNextNavigation();
-    router.push(`/readings/${generated.id}`);
+    abortActiveGeneration();
+    const controller = new AbortController();
+    generationAbortControllerRef.current = controller;
+    generationCancelledRef.current = false;
+
+    try {
+      const captchaToken = await captcha.execute("reading_generate");
+      if (controller.signal.aborted) {
+        return;
+      }
+      const generated = await studyClient.generateReading(params, {
+        ...(captchaToken ? { captchaToken } : {}),
+        signal: controller.signal,
+      });
+      if (controller.signal.aborted) {
+        return;
+      }
+      const readyMsg = formatMessage(t.study.readingGeneratedSuccess, {
+        title: generated.title,
+      });
+      toast.success(readyMsg, {
+        title: t.study.sessionReadyTitle,
+      });
+      allowNextNavigation();
+      router.push(`/readings/${generated.id}`);
+    } finally {
+      if (generationAbortControllerRef.current === controller) {
+        generationAbortControllerRef.current = null;
+      }
+    }
   };
 
   const reportGenerationError = (
     error: unknown,
     params: StudyParameters,
   ): void => {
+    if (isAbortError(error) || generationCancelledRef.current) {
+      return;
+    }
     if (!(error instanceof ApiClientError)) {
       toast.error(t.study.generateFailedError, {
         title: t.study.generateFailedTitle,

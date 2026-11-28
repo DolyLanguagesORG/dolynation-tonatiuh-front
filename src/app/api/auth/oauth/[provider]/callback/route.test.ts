@@ -89,6 +89,14 @@ describe("GET /api/auth/oauth/[provider]/callback", () => {
           entry.includes("Max-Age=0"),
       ),
     ).toBe(true);
+    expect(
+      setCookies.some(
+        (entry) =>
+          entry.startsWith("doly_oauth_return=microsoft;") &&
+          entry.includes("SameSite=Lax") &&
+          !entry.includes("HttpOnly"),
+      ),
+    ).toBe(true);
   });
 
   it("redirects subscribed Microsoft OAuth users to their sanitized target without ?oauth=", async () => {
@@ -139,5 +147,35 @@ describe("GET /api/auth/oauth/[provider]/callback", () => {
     expect(response.headers.get("location")).toBe(
       "https://stagingplay.dolynation.app/history",
     );
+    expect(
+      response.headers
+        .getSetCookie()
+        .some((entry) => entry.startsWith("doly_oauth_return=microsoft;")),
+    ).toBe(true);
+  });
+
+  it("redirects active OAuth sessions without tx cookie to / with doly_oauth_return cookie set", async () => {
+    const req = new NextRequest(
+      "https://stagingplay.dolynation.app/api/auth/oauth/google/callback?code=consumed&state=stale",
+      {
+        headers: {
+          cookie: "doly_access_token=existing-active-token",
+        },
+      },
+    );
+
+    const response = await GET(req, {
+      params: Promise.resolve({ provider: "google" }),
+    });
+
+    expect(response.status).toBe(302);
+    expect(response.headers.get("location")).toBe(
+      "https://stagingplay.dolynation.app/",
+    );
+    expect(
+      response.headers
+        .getSetCookie()
+        .some((entry) => entry.startsWith("doly_oauth_return=google;")),
+    ).toBe(true);
   });
 });

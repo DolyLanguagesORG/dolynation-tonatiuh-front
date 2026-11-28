@@ -19,12 +19,18 @@ function GuardHarness({
   active,
   message = "Cambios sin guardar",
   href = "/profile",
+  onConfirmLeave,
 }: {
   active: boolean;
   message?: string;
   href?: string;
+  onConfirmLeave?: () => void;
 }) {
-  const { allowNextNavigation } = useNavigationGuard({ active, message });
+  const { allowNextNavigation } = useNavigationGuard({
+    active,
+    message,
+    onConfirmLeave,
+  });
 
   return (
     <div>
@@ -134,5 +140,132 @@ describe("useNavigationGuard & NavigationGuardProvider", () => {
     const allowedEvent = new Event("beforeunload", { cancelable: true });
     window.dispatchEvent(allowedEvent);
     expect(allowedEvent.defaultPrevented).toBe(false);
+  });
+
+  it("invokes onConfirmLeave only when leaving and preserves Next.js history metadata", async () => {
+    const user = userEvent.setup();
+    const onConfirmLeave = jest.fn();
+    window.history.replaceState(
+      {
+        __NA: true,
+        __PRIVATE_NEXTJS_INTERNALS_TREE: ["root", { children: ["evaluate"] }],
+      },
+      "",
+      "/readings/14/evaluate",
+    );
+
+    render(
+      <GuardHarness active message="Proceso crítico." onConfirmLeave={onConfirmLeave} />,
+      { wrapper: Wrapper },
+    );
+
+    expect(window.history.state).toEqual(
+      expect.objectContaining({
+        __NA: true,
+        __PRIVATE_NEXTJS_INTERNALS_TREE: ["root", { children: ["evaluate"] }],
+        __dolyNavGuard: "active",
+        __dolyNavDepth: 1,
+      }),
+    );
+
+    act(() => {
+      window.dispatchEvent(
+        new PopStateEvent("popstate", {
+          state: {
+            __NA: true,
+            __PRIVATE_NEXTJS_INTERNALS_TREE: ["root", { children: ["evaluate"] }],
+            __dolyNavGuard: "sentinel",
+            __dolyNavDepth: 0,
+          },
+        }),
+      );
+    });
+
+    expect(screen.getByText("Proceso crítico.")).toBeInTheDocument();
+    expect(window.history.state).toEqual(
+      expect.objectContaining({
+        __NA: true,
+        __dolyNavGuard: "active",
+        __dolyNavDepth: 1,
+      }),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Permanecer aquí" }));
+    expect(onConfirmLeave).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("link", { name: "Ir al destino" }));
+    await user.click(
+      screen.getByRole("button", { name: "Salir de todos modos" }),
+    );
+    expect(onConfirmLeave).toHaveBeenCalledTimes(1);
+    expect(mockReplace).toHaveBeenCalledWith("/profile");
+  });
+
+  it("opens confirmation on first back press after multi-depth gesture re-arm", async () => {
+    const user = userEvent.setup();
+    const goSpy = jest.spyOn(window.history, "go").mockImplementation(() => {});
+    const originalUserActivation = Object.getOwnPropertyDescriptor(
+      navigator,
+      "userActivation",
+    );
+    const mockActivation = { isActive: false, hasBeenActive: false };
+
+    Object.defineProperty(navigator, "userActivation", {
+      configurable: true,
+      get: () => mockActivation,
+    });
+
+    try {
+      render(<GuardHarness active message="No salgas en re-armado." />, {
+        wrapper: Wrapper,
+      });
+
+      expect(window.history.state).toEqual(
+        expect.objectContaining({
+          __dolyNavGuard: "active",
+          __dolyNavDepth: 1,
+        }),
+      );
+
+      mockActivation.isActive = true;
+      mockActivation.hasBeenActive = true;
+      act(() => {
+        window.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+      });
+
+      expect(window.history.state).toEqual(
+        expect.objectContaining({
+          __dolyNavGuard: "active",
+          __dolyNavDepth: 2,
+        }),
+      );
+
+      act(() => {
+        window.dispatchEvent(
+          new PopStateEvent("popstate", {
+            state: { __dolyNavGuard: "active", __dolyNavDepth: 1 },
+          }),
+        );
+      });
+
+      expect(screen.getByText("No salgas en re-armado.")).toBeInTheDocument();
+      expect(window.history.state).toEqual(
+        expect.objectContaining({
+          __dolyNavGuard: "active",
+          __dolyNavDepth: 2,
+        }),
+      );
+
+      await user.click(
+        screen.getByRole("button", { name: "Salir de todos modos" }),
+      );
+      expect(goSpy).toHaveBeenCalledWith(-3);
+    } finally {
+      if (originalUserActivation) {
+        Object.defineProperty(navigator, "userActivation", originalUserActivation);
+      } else {
+        delete (navigator as { userActivation?: unknown }).userActivation;
+      }
+    }
   });
 });

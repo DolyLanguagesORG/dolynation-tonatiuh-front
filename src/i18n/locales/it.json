@@ -1606,7 +1606,13 @@
     "paymentInProgressMessage": "È in corso un'operazione di pagamento o abbonamento. Non ricaricare né chiudere questa finestra finché non termina.",
     "billingSyncNotice": "Non ricaricare né chiudere questa scheda mentre confermiamo il pagamento.",
     "generationDoNotReloadNotice": "Non ricaricare né tornare indietro mentre la lettura viene generata; ciò annullerà il processo.",
-    "checkoutDoNotReloadNotice": "Non ricaricare né chiudere questa finestra durante l'elaborazione del pagamento."
+    "checkoutDoNotReloadNotice": "Non ricaricare né chiudere questa finestra durante l'elaborazione del pagamento.",
+    "authInProgressMessage": "Stiamo completando l'accesso. Attendi un momento prima di ricaricare o uscire da questa pagina.",
+    "generationCancelledToast": "La generazione della lettura è stata annullata.",
+    "sessionFloorNotice": "Hai già una sessione attiva; non puoi tornare alla schermata di accesso senza uscire.",
+    "oauthSessionFloorNotice": "La tua sessione {provider} è già attiva. Esci prima se vuoi cambiare account.",
+    "loggedOutBackNotice": "Hai effettuato la disconnessione. Accedi di nuovo per continuare.",
+    "onboardingStepBackNotice": "Completa questo passaggio per continuare con il tuo account."
   },
   "categoryValidation": {
     "requiredError": "Inserisci il nome di una categoria prima di aggiungerla.",

@@ -5,6 +5,7 @@ import { type FormEvent, useEffect, useRef, useState } from "react";
 
 import { useTurnstile } from "@/components/security";
 import { sanitizeRedirectPath, useAuth } from "@/context";
+import { useNavigationGuard } from "@/hooks";
 import { useLocale } from "@/i18n";
 import {
   ApiClientError,
@@ -59,6 +60,11 @@ export function useLoginForm() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const { allowNextNavigation } = useNavigationGuard({
+    active: isSubmitting,
+    message: t.navigationGuard.authInProgressMessage,
+  });
+
   useEffect(() => {
     if (searchParams.get("reset") === "success") {
       setInfoNotice({
@@ -91,9 +97,17 @@ export function useLoginForm() {
           : accessPhase === "plan_required"
             ? "/select-plan"
             : redirectTarget;
+      allowNextNavigation();
       router.replace(destination);
     }
-  }, [accessPhase, isAuthenticated, redirectTarget, router, user?.role]);
+  }, [
+    accessPhase,
+    allowNextNavigation,
+    isAuthenticated,
+    redirectTarget,
+    router,
+    user?.role,
+  ]);
 
   const validateEmail = (value: string): string | undefined => {
     const trimmed = value.trim();
@@ -180,6 +194,7 @@ export function useLoginForm() {
       const loggedUser = captchaToken
         ? await login({ email, password }, { captchaToken })
         : await login({ email, password });
+      allowNextNavigation();
       if (loggedUser.role === "admin") {
         router.replace("/admin");
       } else if (loggedUser.subscriptionTier === null) {
@@ -190,6 +205,7 @@ export function useLoginForm() {
     } catch (error) {
       if (error instanceof ApiClientError) {
         if (error.code === ErrorCode.AUTH_EMAIL_NOT_VERIFIED) {
+          allowNextNavigation();
           router.replace("/verify-email");
           return;
         }

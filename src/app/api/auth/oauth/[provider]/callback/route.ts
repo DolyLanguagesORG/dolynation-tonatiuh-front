@@ -19,6 +19,13 @@ import {
 
 export const dynamic = "force-dynamic";
 
+const OAUTH_RETURN_HINT_COOKIE_NAME = "doly_oauth_return";
+
+function buildOAuthReturnHintCookie(provider: string): string {
+  const secure = process.env.NODE_ENV === "production" ? "; Secure" : "";
+  return `${OAUTH_RETURN_HINT_COOKIE_NAME}=${encodeURIComponent(provider)}; Path=/; Max-Age=120; SameSite=Lax${secure}`;
+}
+
 function redirectWithClearedTx(url: URL, extraHeaders?: Headers): Response {
   const headers = new Headers(extraHeaders);
   headers.set("location", url.toString());
@@ -84,12 +91,14 @@ export async function GET(
       Boolean(request.cookies.get(ACCESS_COOKIE_NAME)?.value) ||
       Boolean(request.cookies.get(REFRESH_COOKIE_NAME)?.value);
     if (hasActiveSessionCookies) {
+      const headers = new Headers({
+        location: new URL("/", publicOrigin).toString(),
+        "cache-control": "no-store",
+      });
+      headers.append("set-cookie", buildOAuthReturnHintCookie(provider));
       return new Response(null, {
         status: 302,
-        headers: {
-          location: new URL("/", publicOrigin).toString(),
-          "cache-control": "no-store",
-        },
+        headers,
       });
     }
     return redirectToError(publicOrigin, originPage, "AUTH_OAUTH_STATE_INVALID");
@@ -189,6 +198,7 @@ export async function GET(
 
   const responseHeaders = new Headers();
   appendSessionCookies(responseHeaders, tokens);
+  responseHeaders.append("set-cookie", buildOAuthReturnHintCookie(provider));
 
   return redirectWithClearedTx(destinationUrl, responseHeaders);
 }
