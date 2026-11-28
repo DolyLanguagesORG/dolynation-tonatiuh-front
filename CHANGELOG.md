@@ -11,6 +11,14 @@ un PR de release contra `develop` que sube la versión y escribe esta sección; 
 mergearlo se crean el tag anotado y la GitHub Release. Ver
 [`conventions/versioning.md`](https://github.com/DolyLanguagesORG/dolynation-ehecatl-docs/blob/develop/conventions/versioning.md).
 
+## [0.18.0](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.17.2...v0.18.0) (2026-11-28)
+
+
+### Features
+
+* **auth:** blindar historial de sesion oauth y cancelar ia con abort controller ([#208](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/208)) ([6fabb84](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/6fabb84eff0579f20b78b16045448aee3d8779c3))
+* **ui:** agregar guardas de navegacion, sincronizar racha y unificar validaciones ([#205](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/issues/205)) ([43e8eeb](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/commit/43e8eeb319298292965e1c4580ead226f4e07b03))
+
 ## [0.17.2](https://github.com/DolyLanguagesORG/dolynation-tonatiuh-front/compare/v0.17.1...v0.17.2) (2026-11-26)
 
 
