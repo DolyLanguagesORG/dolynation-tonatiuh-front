@@ -89,7 +89,10 @@ export function SetupPreferencesView() {
     active:
       !isLoading &&
       accessPhase === "ready" &&
-      (isSaving || isAddingCustom || isDirty),
+      (isSaving ||
+        isAddingCustom ||
+        isDirty ||
+        !onboarding.canGenerateReadings),
     message: t.navigationGuard.unsavedChangesMessage,
   });
 

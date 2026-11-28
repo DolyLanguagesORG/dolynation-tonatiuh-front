@@ -2,6 +2,7 @@ import { ThemeProvider } from "flowbite-react";
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Newsreader } from "next/font/google";
 
+import { SessionHistoryGuard } from "@/components/auth";
 import { AppShell } from "@/components/layout";
 import { ToastViewport } from "@/components/ui";
 import { dolyFlowbiteTheme } from "@/components/ui/flowbite-theme";
@@ -83,6 +84,7 @@ export default async function RootLayout({ children }: LayoutProps<"/">) {
             <ToastProvider>
               <AuthProvider initialAuth={initialAuth}>
                 <NavigationGuardProvider>
+                  <SessionHistoryGuard />
                   <AppShell designSystemEnabled={designSystemEnabled}>
                     {children}
                   </AppShell>
