@@ -111,9 +111,11 @@ describe("useReadingEvaluation", () => {
       await result.current.handleSubmit();
     });
 
-    expect(evaluateSpy).toHaveBeenCalledWith(14, {
-      userResponse: validSummary,
-    });
+    expect(evaluateSpy).toHaveBeenCalledWith(
+      14,
+      { userResponse: validSummary },
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
     expect(window.localStorage.getItem("doly-eval-draft-14")).toBeNull();
     expect(mockReloadAccountState).toHaveBeenCalled();
     expect(mockReplace).toHaveBeenCalledWith("/readings/14/result");
@@ -168,5 +170,54 @@ describe("useReadingEvaluation", () => {
       expect(mockReplace).toHaveBeenCalledWith("/readings/14/result");
     });
     expect(window.localStorage.getItem("doly-eval-draft-14")).toBeNull();
+  });
+
+  it("aborts in-flight evaluation on pagehide without setting submitError", async () => {
+    let capturedSignal: AbortSignal | null | undefined;
+    jest.spyOn(readingsService, "evaluate").mockImplementationOnce(
+      (_id, _body, options) =>
+        new Promise((_resolve, reject) => {
+          capturedSignal = options?.signal;
+          options?.signal?.addEventListener(
+            "abort",
+            () => reject(new DOMException("Aborted", "AbortError")),
+            { once: true },
+          );
+        }),
+    );
+
+    const { result } = renderHook(() => useReadingEvaluation("14"), {
+      wrapper: Wrapper,
+    });
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+    const validSummary =
+      "Modern cities are redesigning public corridors to accelerate sustainable electric mobility and make pedestrian streets much safer for daily commuters.";
+
+    act(() => {
+      result.current.updateResponseText(validSummary);
+    });
+
+    let submitPromise!: Promise<void>;
+    act(() => {
+      submitPromise = result.current.handleSubmit();
+    });
+
+    expect(capturedSignal).toBeDefined();
+    expect(capturedSignal?.aborted).toBe(false);
+
+    act(() => {
+      window.dispatchEvent(new Event("pagehide"));
+    });
+
+    await act(async () => {
+      await submitPromise;
+    });
+
+    expect(capturedSignal?.aborted).toBe(true);
+    expect(result.current.submitError).toBeNull();
+    expect(result.current.isSubmitting).toBe(false);
+    expect(mockReplace).not.toHaveBeenCalled();
   });
 });

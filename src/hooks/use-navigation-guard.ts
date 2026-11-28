@@ -11,6 +11,8 @@ export interface UseNavigationGuardOptions {
   message: string;
   /** Título opcional del diálogo de confirmación. */
   title?: string;
+  /** Callback ejecutado cuando el usuario confirma abandonar el flujo protegido. */
+  onConfirmLeave?: () => void;
 }
 
 export interface UseNavigationGuardReturn {
@@ -27,10 +29,20 @@ export function useNavigationGuard({
   active,
   message,
   title,
+  onConfirmLeave,
 }: UseNavigationGuardOptions): UseNavigationGuardReturn {
   const guardId = useId();
   const context = useContext(NavigationGuardContext);
   const localBypassRef = useRef(false);
+  const onConfirmLeaveRef = useRef(onConfirmLeave);
+
+  useEffect(() => {
+    onConfirmLeaveRef.current = onConfirmLeave;
+  }, [onConfirmLeave]);
+
+  const stableOnConfirmLeave = useCallback(() => {
+    onConfirmLeaveRef.current?.();
+  }, []);
 
   const registerGuard = context?.registerGuard;
   const unregisterGuard = context?.unregisterGuard;
@@ -46,11 +58,24 @@ export function useNavigationGuard({
       return;
     }
 
-    registerGuard({ id: guardId, message, title });
+    registerGuard({
+      id: guardId,
+      message,
+      title,
+      onConfirmLeave: stableOnConfirmLeave,
+    });
     return () => {
       unregisterGuard(guardId);
     };
-  }, [active, guardId, message, registerGuard, title, unregisterGuard]);
+  }, [
+    active,
+    guardId,
+    message,
+    registerGuard,
+    stableOnConfirmLeave,
+    title,
+    unregisterGuard,
+  ]);
 
   useEffect(() => {
     if (context || typeof window === "undefined" || !active) {

@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it } from "@jest/globals";
 import type { ReactNode } from "react";
@@ -9,6 +9,7 @@ let mockAuthValue: Record<string, unknown> = {};
 
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ push: mockPush, replace: jest.fn() }),
+  usePathname: () => "/",
 }));
 
 jest.mock("@/context", () => ({
@@ -17,6 +18,7 @@ jest.mock("@/context", () => ({
 
 import { StudyParametersForm } from "@/components/study/study-parameters-form";
 import { ToastViewport } from "@/components/ui";
+import { NavigationGuardProvider } from "@/context/navigation-guard-context";
 import { ToastProvider } from "@/context/toast-context";
 import { dictionaries } from "@/i18n/dictionaries";
 import { LocaleProvider } from "@/i18n";
@@ -246,6 +248,9 @@ describe("StudyParametersForm", () => {
         expect.objectContaining({
           language: "en",
           category: "technology",
+        }),
+        expect.objectContaining({
+          signal: expect.any(AbortSignal),
         }),
       );
     });
@@ -728,5 +733,120 @@ describe("StudyParametersForm", () => {
     expect(within(difficultyGroup).getByRole("radio", { name: /Medio/i })).toBeInTheDocument();
     expect(within(difficultyGroup).getByRole("radio", { name: /Difícil/i })).toBeInTheDocument();
     expect(screen.queryByText(/A1 – A2|B1 – B2|C1 – C2/)).toBeNull();
+  });
+
+  it("aborts in-flight reading generation and shows cancelled toast when confirming leave on popstate", async () => {
+    const user = userEvent.setup();
+    jest.spyOn(window.history, "go").mockImplementation(() => {});
+
+    const oneLangSettings = {
+      catalog: [],
+      selected: ["en" as const],
+      active: ["en" as const],
+      maxLanguages: 1,
+      canChangeFree: false,
+      nextFreeChangeAt: null,
+      lastLanguageChangeAt: null,
+      languageChangeCredits: 0,
+    };
+
+    mockAuthValue = {
+      user: { id: 1, email: "u@test.com", subscriptionTier: "dolly_plus" },
+      categoriesSettings: {
+        catalog: [],
+        selected: ["technology", "history", "education"],
+      },
+      languagesSettings: oneLangSettings,
+      onboarding: {
+        emailVerified: true,
+        hasSelectedPlan: true,
+        subscriptionPlan: "dolly_plus",
+        selectedLanguages: ["en"],
+        selectedCategories: ["technology", "history", "education"],
+        hasConfiguredLanguages: true,
+        hasConfiguredCategories: true,
+        canGenerateReadings: true,
+        isOnboardingComplete: true,
+      },
+      refreshPreferences: mockRefreshPreferences,
+    };
+    jest.spyOn(settingsService, "getCategories").mockResolvedValue({
+      message: "OK",
+      data: {
+        catalog: [],
+        selected: ["technology", "history", "education"],
+      },
+    });
+    jest.spyOn(settingsService, "getLanguages").mockResolvedValue({
+      message: "OK",
+      data: oneLangSettings,
+    });
+
+    let capturedSignal: AbortSignal | null | undefined;
+    jest.spyOn(readingsService, "generate").mockImplementationOnce(
+      (_payload, options) =>
+        new Promise((_resolve, reject) => {
+          capturedSignal = options?.signal;
+          options?.signal?.addEventListener(
+            "abort",
+            () => {
+              reject(
+                new ApiClientError({
+                  code: ErrorCode.NETWORK_ERROR,
+                  status: 0,
+                }),
+              );
+            },
+            { once: true },
+          );
+        }),
+    );
+
+    render(
+      <LocaleProvider initialLocale="es">
+        <ToastProvider>
+          <NavigationGuardProvider>
+            <StudyParametersForm variant="standalone" />
+          </NavigationGuardProvider>
+          <ToastViewport />
+        </ToastProvider>
+      </LocaleProvider>,
+    );
+
+    const submitBtn = await screen.findByRole("button", {
+      name: dictionaries.es.study.generateButton,
+    });
+    await waitFor(() => expect(submitBtn).toBeEnabled());
+    await user.click(submitBtn);
+
+    await waitFor(() => expect(capturedSignal).toBeDefined());
+    expect(capturedSignal?.aborted).toBe(false);
+
+    act(() => {
+      window.dispatchEvent(new PopStateEvent("popstate", { state: {} }));
+    });
+
+    expect(
+      await screen.findByText(
+        dictionaries.es.navigationGuard.generationInProgressMessage,
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", {
+        name: dictionaries.es.navigationGuard.leaveButton,
+      }),
+    );
+
+    expect(capturedSignal?.aborted).toBe(true);
+    expect(
+      await screen.findByText(
+        dictionaries.es.navigationGuard.generationCancelledToast,
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(dictionaries.es.study.generateFailedError),
+    ).not.toBeInTheDocument();
+    expect(mockPush).not.toHaveBeenCalled();
   });
 });

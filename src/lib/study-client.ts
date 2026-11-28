@@ -275,7 +275,7 @@ export const studyClient = {
    */
   async generateReading(
     params: StudyParameters,
-    options?: { captchaToken?: string | null },
+    options?: { captchaToken?: string | null; signal?: AbortSignal },
   ): Promise<ReadingDto> {
     const payload = {
       category: params.category,
@@ -283,11 +283,16 @@ export const studyClient = {
       difficulty: params.difficulty,
       size: params.size,
     };
-    const response = options?.captchaToken
-      ? await readingsService.generate(payload, {
-          captchaToken: options.captchaToken,
-        })
-      : await readingsService.generate(payload);
+    const requestOptions = {
+      ...(options?.captchaToken
+        ? { captchaToken: options.captchaToken }
+        : {}),
+      ...(options?.signal ? { signal: options.signal } : {}),
+    };
+    const response =
+      Object.keys(requestOptions).length > 0
+        ? await readingsService.generate(payload, requestOptions)
+        : await readingsService.generate(payload);
     return response.data;
   },
 

@@ -21,6 +21,7 @@ export interface NavigationGuardEntry {
   id: string;
   title?: string;
   message: string;
+  onConfirmLeave?: () => void;
 }
 
 export interface NavigationGuardContextValue {
@@ -35,9 +36,35 @@ type PendingNavigation =
   | { kind: "back"; fromPathname: string }
   | null;
 
+type HistoryGuardRole = "sentinel" | "active";
+
 interface HistoryGuardState {
-  __dolyNavGuard?: boolean;
+  __dolyNavGuard?: HistoryGuardRole;
+  __dolyNavDepth?: number;
   [key: string]: unknown;
+}
+
+function buildGuardHistoryState(
+  baseState: unknown,
+  role?: HistoryGuardRole,
+  depth?: number,
+): HistoryGuardState {
+  const source =
+    baseState && typeof baseState === "object"
+      ? { ...(baseState as Record<string, unknown>) }
+      : {};
+  if (role) {
+    source.__dolyNavGuard = role;
+    if (typeof depth === "number") {
+      source.__dolyNavDepth = depth;
+    } else {
+      delete source.__dolyNavDepth;
+    }
+  } else {
+    delete source.__dolyNavGuard;
+    delete source.__dolyNavDepth;
+  }
+  return source as HistoryGuardState;
 }
 
 export const NavigationGuardContext =
@@ -54,6 +81,16 @@ function isPointerOutsideDialog(
     clientX > rect.right ||
     clientY < rect.top ||
     clientY > rect.bottom
+  );
+}
+
+function hasStickyUserActivation(): boolean {
+  if (typeof navigator === "undefined" || !navigator.userActivation) {
+    return true;
+  }
+  return (
+    navigator.userActivation.isActive ||
+    navigator.userActivation.hasBeenActive
   );
 }
 
@@ -75,6 +112,9 @@ export function NavigationGuardProvider({ children }: { children: ReactNode }) {
   const bypassRef = useRef(false);
   const bypassTimerRef = useRef<number | null>(null);
   const guardedUrlRef = useRef<string | null>(null);
+  const guardedStateRef = useRef<HistoryGuardState | null>(null);
+  const needsGestureRearmRef = useRef(false);
+  const activeDepthRef = useRef(0);
   const prevHasGuardRef = useRef(false);
   const pathnameRef = useRef(pathname);
 
@@ -114,7 +154,8 @@ export function NavigationGuardProvider({ children }: { children: ReactNode }) {
         if (
           existing &&
           existing.message === entry.message &&
-          existing.title === entry.title
+          existing.title === entry.title &&
+          existing.onConfirmLeave === entry.onConfirmLeave
         ) {
           return prev;
         }
@@ -146,6 +187,72 @@ export function NavigationGuardProvider({ children }: { children: ReactNode }) {
     };
   }, [clearBypassTimer]);
 
+  const armGuardSentinel = useCallback(
+    (targetUrl?: string, fromUserGesture = false) => {
+      if (typeof window === "undefined" || bypassRef.current) {
+        return;
+      }
+
+      const url = targetUrl ?? guardedUrlRef.current ?? window.location.href;
+      guardedUrlRef.current = url;
+      const currentState = (window.history.state ?? {}) as HistoryGuardState;
+      const hasUserActivation = fromUserGesture || hasStickyUserActivation();
+
+      if (currentState.__dolyNavGuard === "active") {
+        if (!guardedStateRef.current) {
+          guardedStateRef.current = buildGuardHistoryState(currentState);
+        }
+        const currentDepth =
+          typeof currentState.__dolyNavDepth === "number" &&
+          currentState.__dolyNavDepth >= 1
+            ? currentState.__dolyNavDepth
+            : 1;
+        activeDepthRef.current = currentDepth;
+        if (hasUserActivation && needsGestureRearmRef.current) {
+          try {
+            window.history.pushState(
+              buildGuardHistoryState(
+                guardedStateRef.current,
+                "active",
+                currentDepth + 1,
+              ),
+              "",
+              url,
+            );
+            activeDepthRef.current = currentDepth + 1;
+            needsGestureRearmRef.current = false;
+          } catch {
+            // Ignorar si el navegador restringe pushState en el contexto actual.
+          }
+        }
+        return;
+      }
+
+      const baseState = buildGuardHistoryState(currentState);
+      guardedStateRef.current = baseState;
+
+      try {
+        if (currentState.__dolyNavGuard !== "sentinel") {
+          window.history.replaceState(
+            buildGuardHistoryState(baseState, "sentinel", 0),
+            "",
+            url,
+          );
+        }
+        window.history.pushState(
+          buildGuardHistoryState(baseState, "active", 1),
+          "",
+          url,
+        );
+        activeDepthRef.current = 1;
+        needsGestureRearmRef.current = !hasUserActivation;
+      } catch {
+        // Ignorar si el navegador restringe pushState en el contexto actual.
+      }
+    },
+    [],
+  );
+
   // Gestión de sentinel en history + limpieza cuando el guard deja de estar activo.
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -156,20 +263,7 @@ export function NavigationGuardProvider({ children }: { children: ReactNode }) {
     prevHasGuardRef.current = hasActiveGuard;
 
     if (hasActiveGuard) {
-      const currentHref = window.location.href;
-      guardedUrlRef.current = currentHref;
-      const currentState = (window.history.state ?? {}) as HistoryGuardState;
-      if (!currentState.__dolyNavGuard) {
-        try {
-          window.history.pushState(
-            { ...currentState, __dolyNavGuard: true },
-            "",
-            currentHref,
-          );
-        } catch {
-          // Ignorar si el navegador restringe pushState en el contexto actual.
-        }
-      }
+      armGuardSentinel(window.location.href);
       return;
     }
 
@@ -179,31 +273,69 @@ export function NavigationGuardProvider({ children }: { children: ReactNode }) {
         guardedUrlRef.current !== null &&
         window.location.href === guardedUrlRef.current;
       guardedUrlRef.current = null;
+      guardedStateRef.current = null;
+      needsGestureRearmRef.current = false;
+      activeDepthRef.current = 0;
 
-      if (sameUrl && currentState.__dolyNavGuard && !bypassRef.current) {
+      if (
+        sameUrl &&
+        (currentState.__dolyNavGuard === "active" ||
+          currentState.__dolyNavGuard === "sentinel") &&
+        !bypassRef.current
+      ) {
+        if (currentState.__dolyNavGuard === "sentinel") {
+          try {
+            window.history.replaceState(
+              buildGuardHistoryState(currentState),
+              "",
+              window.location.href,
+            );
+          } catch {
+            // Ignorar errores de replaceState.
+          }
+          return;
+        }
+
+        const depth =
+          typeof currentState.__dolyNavDepth === "number" &&
+          currentState.__dolyNavDepth >= 1
+            ? currentState.__dolyNavDepth
+            : 1;
         bypassRef.current = true;
         clearBypassTimer();
-        const resetBypass = () => {
+        const resetBypassAndStripSentinel = () => {
           bypassRef.current = false;
           clearBypassTimer();
+          try {
+            window.history.replaceState(
+              buildGuardHistoryState(window.history.state),
+              "",
+              window.location.href,
+            );
+          } catch {
+            // Ignorar errores de replaceState.
+          }
         };
-        window.addEventListener("popstate", resetBypass, { once: true });
+        window.addEventListener("popstate", resetBypassAndStripSentinel, {
+          once: true,
+        });
         bypassTimerRef.current = window.setTimeout(() => {
-          window.removeEventListener("popstate", resetBypass);
+          window.removeEventListener("popstate", resetBypassAndStripSentinel);
           bypassRef.current = false;
           bypassTimerRef.current = null;
         }, 300);
         try {
-          window.history.back();
+          window.history.go(-depth);
         } catch {
-          window.removeEventListener("popstate", resetBypass);
-          resetBypass();
+          window.removeEventListener("popstate", resetBypassAndStripSentinel);
+          bypassRef.current = false;
+          clearBypassTimer();
         }
       }
     }
-  }, [clearBypassTimer, hasActiveGuard]);
+  }, [armGuardSentinel, clearBypassTimer, hasActiveGuard]);
 
-  // Interceptación de beforeunload, clics internos y popstate mientras haya guard activo.
+  // Interceptación de beforeunload, clics internos, popstate y re-armado con gesto.
   useEffect(() => {
     if (typeof window === "undefined" || !hasActiveGuard) {
       return;
@@ -217,26 +349,77 @@ export function NavigationGuardProvider({ children }: { children: ReactNode }) {
       event.returnValue = "";
     };
 
+    const handleUserGestureRearm = (): void => {
+      if (bypassRef.current) {
+        return;
+      }
+      const currentState = (window.history.state ?? {}) as HistoryGuardState;
+      if (
+        currentState.__dolyNavGuard !== "active" ||
+        needsGestureRearmRef.current
+      ) {
+        armGuardSentinel(
+          guardedUrlRef.current ?? window.location.href,
+          true,
+        );
+      }
+    };
+
     const handlePopState = (event: PopStateEvent): void => {
       if (bypassRef.current) {
         bypassRef.current = false;
         return;
       }
       const nextState = (event.state ?? {}) as HistoryGuardState;
-      if (nextState.__dolyNavGuard) {
+      const nextDepth =
+        typeof nextState.__dolyNavDepth === "number"
+          ? nextState.__dolyNavDepth
+          : 0;
+      if (
+        nextState.__dolyNavGuard === "active" &&
+        nextDepth === activeDepthRef.current
+      ) {
         return;
       }
 
+      event.stopImmediatePropagation?.();
+
       const restoreUrl = guardedUrlRef.current ?? window.location.href;
+      const baseState =
+        guardedStateRef.current ?? buildGuardHistoryState(nextState);
       try {
-        window.history.pushState(
-          { ...nextState, __dolyNavGuard: true },
-          "",
-          restoreUrl,
-        );
+        if (nextState.__dolyNavGuard === "sentinel") {
+          window.history.pushState(
+            buildGuardHistoryState(baseState, "active", 1),
+            "",
+            restoreUrl,
+          );
+          activeDepthRef.current = 1;
+        } else if (nextState.__dolyNavGuard === "active") {
+          const restoredDepth = nextDepth + 1;
+          window.history.pushState(
+            buildGuardHistoryState(baseState, "active", restoredDepth),
+            "",
+            restoreUrl,
+          );
+          activeDepthRef.current = restoredDepth;
+        } else {
+          window.history.pushState(
+            buildGuardHistoryState(baseState, "sentinel", 0),
+            "",
+            restoreUrl,
+          );
+          window.history.pushState(
+            buildGuardHistoryState(baseState, "active", 1),
+            "",
+            restoreUrl,
+          );
+          activeDepthRef.current = 1;
+        }
       } catch {
         // Ignorar errores de pushState en entornos restringidos.
       }
+      needsGestureRearmRef.current = !hasStickyUserActivation();
       setPendingNavigation({ kind: "back", fromPathname: pathnameRef.current });
     };
 
@@ -303,15 +486,25 @@ export function NavigationGuardProvider({ children }: { children: ReactNode }) {
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
-    window.addEventListener("popstate", handlePopState);
+    window.addEventListener("popstate", handlePopState, true);
+    window.addEventListener("pointerdown", handleUserGestureRearm, {
+      capture: true,
+      passive: true,
+    });
+    window.addEventListener("keydown", handleUserGestureRearm, {
+      capture: true,
+      passive: true,
+    });
     document.addEventListener("click", handleDocumentClick, true);
 
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      window.removeEventListener("popstate", handlePopState);
+      window.removeEventListener("popstate", handlePopState, true);
+      window.removeEventListener("pointerdown", handleUserGestureRearm, true);
+      window.removeEventListener("keydown", handleUserGestureRearm, true);
       document.removeEventListener("click", handleDocumentClick, true);
     };
-  }, [hasActiveGuard]);
+  }, [armGuardSentinel, hasActiveGuard]);
 
   const effectivePendingNavigation =
     pendingNavigation &&
@@ -353,13 +546,18 @@ export function NavigationGuardProvider({ children }: { children: ReactNode }) {
 
   const handleStay = useCallback(() => {
     setPendingNavigation(null);
-  }, []);
+    armGuardSentinel(undefined, true);
+  }, [armGuardSentinel]);
 
   const handleConfirmLeave = useCallback(() => {
     const currentPending = effectivePendingNavigation;
     setPendingNavigation(null);
     if (!currentPending) {
       return;
+    }
+
+    for (const guard of [...guards].reverse()) {
+      guard.onConfirmLeave?.();
     }
 
     allowNextNavigation();
@@ -378,13 +576,18 @@ export function NavigationGuardProvider({ children }: { children: ReactNode }) {
     }
 
     if (typeof window !== "undefined") {
-      if (currentState.__dolyNavGuard) {
-        window.history.go(-2);
+      if (currentState.__dolyNavGuard === "active") {
+        const depth =
+          typeof currentState.__dolyNavDepth === "number" &&
+          currentState.__dolyNavDepth >= 1
+            ? currentState.__dolyNavDepth
+            : 1;
+        window.history.go(-(depth + 1));
       } else {
         window.history.back();
       }
     }
-  }, [allowNextNavigation, effectivePendingNavigation, router]);
+  }, [allowNextNavigation, effectivePendingNavigation, guards, router]);
 
   const handlePointerDown = (event: ReactPointerEvent<HTMLDialogElement>) => {
     const dialog = dialogRef.current;
@@ -442,7 +645,7 @@ export function NavigationGuardProvider({ children }: { children: ReactNode }) {
         }}
         onPointerDown={handlePointerDown}
         onPointerUp={handlePointerUp}
-        className="m-auto w-[min(100%-2rem,28rem)] rounded-base border border-default bg-neutral-primary-soft p-0 text-heading shadow-xl"
+        className="m-auto w-[min(100%-2rem,28rem)] rounded-base border border-default bg-neutral-primary-soft p-0 text-heading shadow-xl backdrop:bg-brand/40 backdrop:backdrop-blur-[1px]"
       >
         <div className="flex flex-col gap-5 p-6">
           <div className="flex items-start gap-3">

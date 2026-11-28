@@ -29,7 +29,11 @@ export {
   validateCategoryInput,
 } from "@/lib/category-validation";
 export { apiRequest, httpClient } from "@/lib/http-client";
-export { AI_TIMEOUT_MS, DEFAULT_TIMEOUT_MS } from "@/lib/http-core";
+export {
+  AI_TIMEOUT_MS,
+  DEFAULT_TIMEOUT_MS,
+  isAbortError,
+} from "@/lib/http-core";
 export {
   cleanLookupSelection,
   cleanLookupWord,
